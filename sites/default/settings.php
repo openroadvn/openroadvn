@@ -88,7 +88,7 @@
  *   $db_url = 'mysqli://username:password@localhost/databasename';
  *   $db_url = 'pgsql://username:password@localhost/databasename';
  */
-$db_url = 'mysqli://root:adminlt@localhost/OPENWAY';
+$db_url = 'mysqli://@localhost/';
 $db_prefix = '';
 
 /**
@@ -186,7 +186,7 @@ ini_set('url_rewriter.tags',        '');
  * cross between your various domains.
  */
 # $cookie_domain = 'example.com';
- $cookie_domain = '210.86.239.7';
+ $cookie_domain = '';
 
 /**
  * Variable overrides:
