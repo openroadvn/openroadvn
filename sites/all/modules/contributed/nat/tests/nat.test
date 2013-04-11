@@ -1,0 +1,301 @@
+<?php
+// $Id: nat.test,v 1.1.2.10 2010/12/08 15:58:33 karthik Exp $
+
+/**
+ * @file
+ * NAT module functionality tests.
+ */
+
+/**
+ * Base class for all NAT webtest cases.
+ */
+class NatWebTestCase extends DrupalWebTestCase {
+
+  protected $nat_user;
+  protected $nat_admin_user;
+
+  protected $nat_type;
+  protected $nat_node_title;
+  protected $nat_node_body;
+
+  protected $nat_vocab1;
+  protected $nat_vocab1_name;
+  protected $nat_vocab2;
+  protected $nat_vocab2_name;
+
+  // Enable the NAT module.
+  public function setUp() {
+    parent::setUp('nat');
+
+    $this->nat_admin_user = $this->drupalCreateUser(array('administer NAT configuration', 'administer taxonomy'));
+    $this->nat_user = $this->drupalCreateUser(array('create story content', 'edit own story content', 'delete own story content'));
+
+    $this->drupalLogin($this->nat_admin_user);
+
+    $this->nat_vocab1_name = $this->randomName();
+    $this->nat_vocab2_name = $this->randomName();
+    $this->nat_node_title = $this->randomName();
+    $this->nat_node_body = $this->randomName();
+    $this->nat_type = 'story';
+
+    $this->_create_vocabs();
+
+    $this->drupalLogout($this->nat_admin_user);
+  }
+
+  /**
+   * Create two vocabularies for testing.
+   */
+  function _create_vocabs() {
+    // Create 2 vocabularies
+    $edit = array('name' => $this->nat_vocab1_name);
+    $this->drupalPost('admin/content/taxonomy/add/vocabulary', $edit, t('Save'));
+
+    $edit = array('name' => $this->nat_vocab2_name);
+    $this->drupalPost('admin/content/taxonomy/add/vocabulary', $edit, t('Save'));
+
+    $this->nat_vocab1 = $this->_get_vocabulary_by_name($this->nat_vocab1_name);
+    $this->nat_vocab2 = $this->_get_vocabulary_by_name($this->nat_vocab2_name);
+  }
+
+  /**
+   * This function will return a vocabulary object which matches the
+   * given name. Will return null if no such vocabulary exists.
+   *
+   * @param $vocabulary_name
+   *   This is the name of the section which is required
+   * @return
+   *   This is the vocabulary object with the name
+   *   or null if no such vocabulary exists
+   */
+  function _get_vocabulary_by_name($vocabulary_name) {
+    $vocabs = taxonomy_get_vocabularies(NULL);
+    foreach ($vocabs as $vocab_object) {
+      if ($vocab_object->name == $vocabulary_name) {
+        return $vocab_object;
+      }
+    }
+    return NULL;
+  }
+}
+
+/**
+ *  NAT settings test.
+ */
+class NatSettingsTest extends NatWebTestCase {
+
+  // SimpleTest information data.
+  public static function getInfo() {
+    return array(
+      'name' => t('NAT Settings'),
+      'description' => t('Checks if all settings are usable.'),
+      'group' => 'NAT'
+    );
+  }
+
+  public function setUp() {
+    parent::setUp();
+  }
+
+  /**
+   *  NAT settings test.
+   */
+  public function testNatSettings() {
+    $this->drupalLogin($this->nat_admin_user);
+
+    // Change NAT settings
+    $edit = array(
+      'types[' . $this->nat_type . '][]' => array($this->nat_vocab1->vid, $this->nat_vocab2->vid),
+      'body[' . $this->nat_type . ']' => TRUE,
+      'delete[' . $this->nat_type . ']' => TRUE,
+      'related[' . $this->nat_type . ']' => TRUE,
+      'node_links[' . $this->nat_type . ']' => TRUE
+    );
+    $this->drupalPost('admin/settings/nat', $edit, t('Save configuration'));
+
+    // Verify settings.
+    $nat_config = _nat_variable_get();
+    $this->assertTRUE($nat_config['types'][$this->nat_type][$this->nat_vocab1->vid], 'Vid1 found in configuration');
+    $this->assertTRUE($nat_config['types'][$this->nat_type][$this->nat_vocab2->vid], 'Vid2 found in configuration');
+
+    // Multiple selectboxes currently can't be checked through an assertion.
+    // http://drupal.org/node/699132
+    // $this->assertFieldByName('types[story][]', $this->nat_vocab1->vid, 'Vid1 for story was set');
+    // $this->assertFieldByName('types[story][]', $this->nat_vocab2->vid, 'Vid2 for story was set');
+    $this->assertFieldByName('body[' . $this->nat_type . ']', 1, 'Use Body as terms description was set');
+    $this->assertFieldByName('delete[' . $this->nat_type . ']', 1, 'Delete associated terms was set');
+    $this->assertFieldByName('related[' . $this->nat_type . ']', 1, 'Delete associated terms was set');
+    $this->assertFieldByName('node_links[' . $this->nat_type . ']', 1, 'Delete associated terms was set');
+
+    // Change NAT settings
+    $edit = array(
+      'types[' . $this->nat_type . '][]' => $this->nat_vocab1->vid,
+      'body[' . $this->nat_type . ']' => FALSE,
+      'delete[' . $this->nat_type . ']' => FALSE,
+      'related[' . $this->nat_type . ']' => FALSE,
+      'node_links[' . $this->nat_type . ']' => FALSE
+    );
+    $this->drupalPost('admin/settings/nat', $edit, t('Save configuration'));
+
+    // Directly get nat_config because of static caching.
+    $nat_config = variable_get('nat_config', array());
+    $this->assertTRUE(isset($nat_config['types'][$this->nat_type][$this->nat_vocab1->vid]), 'Vid1 found in configuration');
+    $this->assertFALSE(isset($nat_config['types'][$this->nat_type][$this->nat_vocab2->vid]), 'Vid2 not found in configuration');
+
+    $this->assertFieldByName('body[' . $this->nat_type . ']', FALSE, 'Use Body as terms description was not set');
+    $this->assertFieldByName('delete[' . $this->nat_type . ']', FALSE, 'Delete associated terms was not set');
+    $this->assertFieldByName('related[' . $this->nat_type . ']', FALSE, 'Delete associated terms was not set');
+    $this->assertFieldByName('node_links[' . $this->nat_type . ']', FALSE, 'Delete associated terms was  set');
+
+    $this->drupalLogout($this->nat_admin_user);
+  }
+}
+
+/**
+ *  NAT basic function test.
+ */
+class NatBasicTest extends NatWebTestCase {
+
+  // SimpleTest information data.
+  public static function getInfo() {
+    return array(
+      'name' => t('NAT Basic'),
+      'description' => t('Testing basic functions and settings.'),
+      'group' => 'NAT'
+    );
+  }
+
+  public function setUp() {
+    parent::setUp();
+
+    $this->drupalLogin($this->nat_admin_user);
+
+    // Change NAT settings
+    $edit = array(
+      'types[' . $this->nat_type . '][]' => array($this->nat_vocab1->vid, $this->nat_vocab2->vid),
+      'body[' . $this->nat_type . ']' => TRUE,
+      'delete[' . $this->nat_type . ']' => TRUE
+    );
+    $this->drupalPost('admin/settings/nat', $edit, t('Save configuration'));
+
+    $this->drupalLogout($this->nat_admin_user);
+  }
+
+  /**
+   *  NAT basic function test.
+   */
+  public function testNatBasic() {
+    $this->drupalLogin($this->nat_user);
+
+    // Create NAT node
+    $settings = array(
+      'type' => $this->nat_type,
+      'title' => $this->nat_node_title,
+      'body' => $this->nat_node_body
+    );
+    $node = $this->drupalCreateNode($settings);
+    $terms = taxonomy_get_term_by_name($node->title);
+    $this->assertTRUE(count($terms) === 2, 'Found 2 terms');
+
+    // Check if the terms are in one of the vocabularies.
+    $this->assertTRUE(($terms[0]->vid === $this->nat_vocab1->vid) || ($terms[0]->vid === $this->nat_vocab2->vid), 'Term 1 is in one of the desired vocabularies');
+    $this->assertTRUE(($terms[1]->vid === $this->nat_vocab1->vid) || ($terms[1]->vid === $this->nat_vocab2->vid), 'Term 2 is in one of the desired vocabularies');
+
+    // Check description.
+    $this->assertTRUE(($terms[0]->description === $this->nat_node_body) , 'Term 1 description is correct');
+    $this->assertTRUE(($terms[1]->description === $this->nat_node_body) , 'Term 2 description is correct');
+
+    // Delete node.
+    node_delete($node->nid);
+
+    // Check that terms are deleted.
+    $this->assertFALSE(taxonomy_get_term_by_name($this->nat_node_title), 'No terms with node title found');
+
+    $this->drupalLogout($this->nat_user);
+  }
+}
+
+/**
+ * Test different settings.
+ * Due to static settings caching we have to use a second test case for this.
+ */
+class NatSecondaryTest extends NatWebTestCase {
+
+  // SimpleTest information data.
+  public static function getInfo() {
+    return array(
+      'name' => t('NAT Secondary'),
+      'description' => t('Test alternative settings.'),
+      'group' => 'NAT'
+    );
+  }
+
+  public function setUp() {
+    parent::setUp();
+
+    $this->drupalLogin($this->nat_admin_user);
+
+    // NAT settings
+    $edit = array(
+      'types[' . $this->nat_type . '][]' => array($this->nat_vocab1->vid, $this->nat_vocab2->vid),
+      'body[' . $this->nat_type . ']' => FALSE,
+      'delete[' . $this->nat_type . ']' => FALSE,
+      'related[' . $this->nat_type . ']' => TRUE,
+      'node_links[' . $this->nat_type . ']' => TRUE
+    );
+    $this->drupalPost('admin/settings/nat', $edit, t('Save configuration'));
+
+    $this->drupalLogout($this->nat_admin_user);
+  }
+
+  /**
+   * Test different settings.
+   */
+  public function testNatAssociation() {
+    $this->drupalLogin($this->nat_user);
+
+    // Create NAT node
+    $settings = array(
+      'type' => $this->nat_type,
+      'title' => $this->nat_node_title,
+      'body' => $this->nat_node_body
+    );
+    $node = $this->drupalCreateNode($settings);
+    $terms = taxonomy_get_term_by_name($node->title);
+    $this->assertTRUE(count($terms) === 2, 'Found 2 terms');
+
+    // Check for empty description.
+    $this->assertTRUE(($terms[0]->description === ''), 'Term 1 description is correct');
+    $this->assertTRUE(($terms[1]->description === ''), 'Term 2 description is correct');
+
+    // Delete node.
+    node_delete($node->nid);
+
+    // Check that terms are not deleted.
+    $this->assertTRUE(count(taxonomy_get_term_by_name($this->nat_node_title)) === 2, 'Found 2 terms');
+
+    // Get tid in regards of the vid.
+    $vocab1_tid = $terms[0]->vid === $this->nat_vocab1->vid ? $terms[0]->tid : $terms[1]->tid;
+    $vocab2_tid = $terms[0]->vid === $this->nat_vocab2->vid ? $terms[0]->tid : $terms[1]->tid;;
+
+    // Create node with synonyms.
+    $title = $this->randomName();
+    $edit = array(
+      'title' => $title,
+      'nat[related][' . $this->nat_vocab1->vid . '][]' => $vocab1_tid,
+      'nat[related][' . $this->nat_vocab2->vid . '][]' => $vocab2_tid,
+      'nat[synonyms]' => 'Foo'
+    );
+    $this->drupalPost('node/add/' . $this->nat_type, $edit, t('Save'));
+
+    // Load the node and its edit page to check the data.
+    $node = node_load(array('title' => $title));
+    $this->drupalGet('node/' . $node->nid . '/edit');
+
+    $this->assertFieldByName('nat[related][' . $this->nat_vocab1->vid . '][]', $vocab1_tid, 'Found relation for vocab1');
+    $this->assertFieldByName('nat[related][' . $this->nat_vocab2->vid . '][]', $vocab2_tid, 'Found relation for vocab2');
+    $this->assertFieldByName('nat[synonyms]', 'Foo', 'Found synonym');
+
+    $this->drupalLogout($this->nat_user);
+  }
+}

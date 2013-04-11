@@ -1,0 +1,10 @@
+; $Id$
+name = Isa SVN
+description = A module that creates repositories for projects.
+package = "ISA Toolbox"
+core = 6.x
+version = "6.x-2.0"
+dependencies[] = content
+dependencies[] = permissions_api
+dependencies[] = project
+dependencies[] = rules

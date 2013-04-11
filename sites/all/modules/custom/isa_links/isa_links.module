@@ -1,0 +1,493 @@
+<?php
+
+require('isa_links_buttons_datas.inc');
+require('isa_links_menus_datas.inc');
+/**
+ * Implementation of hook_theme
+ */
+function isa_links_theme($existing, $type, $theme, $path) {
+  $items = array();
+  $items['block_buttons'] = array(
+    'arguments' => array('buttons' => NULL, 'links' => NULL),
+    'template' => 'block-buttons',
+  );
+  $items['block_left_menu'] = array(
+    'arguments' => array('menus' => NULL),
+    'template' => 'block-left-menu',
+  );
+  return $items;
+}
+
+/**
+ * Get the buttons depending on the path
+ */
+function isa_links_get_links($type) {
+  if ($type == 'buttons') {
+    $all_buttons = isa_links_buttons_datas();
+  }
+  elseif ($type == 'menus') {
+    $all_buttons = isa_links_menus_datas();
+  }
+  foreach ($all_buttons as $path => $buttons) {
+    $path_ini = $path;
+    // We check if the path correspond to the key.
+    $regexp = '/^(' . preg_replace(array('/(\r\n?|\n)/', '/\\\\\*/', '/(^|\|)\\\\<front\\\\>($|\|)/'), array('|', '.*', '\1' . preg_quote(variable_get('site_frontpage', 'node'), '/') . '\2'), preg_quote($path, '/')) . ')$/';
+    // Compare with the internal and path alias (if any).
+    $page_match = preg_match($regexp, $_GET['q']);
+    if (!$page_match && function_exists('drupal_get_path_alias')) {
+      $path = drupal_get_path_alias($_GET['q']);
+      if ($path != $_GET['q']) {
+        $page_match = preg_match($regexp, $path);
+      }
+    }
+    if ($page_match) {
+      eval('$buttons = ' . $buttons . ';');
+      return $buttons;
+    }
+  }
+}
+
+/**
+ * Create the buttons block
+ */
+function isa_links_create_buttons() {
+  //Get the correct buttons, depending on the path
+  $all_buttons = isa_links_get_links('buttons');
+  if (!isset($all_buttons['links'])) {
+    $all_buttons['links'] = null;
+  }
+  foreach ($all_buttons as $button_type => $buttons) {
+    $arguments = '';
+    $script = '';
+    if (isset($buttons['share-this']) && $buttons['share-this']) {
+      drupal_add_js(drupal_get_path('module', 'isa_links') . '/isabookmark/share.js');
+      $script = '<div id="share-this" class="share-links"><script type="text/javascript">
+                  iBeginShare.attachLink(\'share-this\', {
+                     share_text:\'Share this on...\'
+				  ,  share_size:\'\'
+				  });
+                  </script></div>
+                  ';
+      unset($buttons['share-this']);
+    }
+    if (count($buttons) == 0) {
+      continue;
+    }
+    foreach ($buttons as $key => $button) {
+      if (isset($button['access_callback'])) {
+        $arguments = '';
+        if (isset($button['access_arguments'])) {
+          $arguments = $button['access_arguments'];
+        }
+        eval('$callback = ' . $button['access_callback'] . '($arguments);');
+      }
+      if ((isset($button['permission']) && !user_access($button['permission'])) ||
+          (isset($button['access_callback']) && !$callback)) {
+        //Delete the button if the user have not the permission to see it
+        unset($buttons[$key]);
+      }
+      else {
+        $class = '';
+        if (isset($button['class'])) {
+          $class = ' ' . $button['class'];
+        }
+        $button['attributes'] = array('class' => $button_type . $class);
+        if (isset($button['html'])) {
+          $button['attributes'] = array('class' => $button['class']);
+          $button['title'] = l($button['title'], NULL, array('html' => TRUE, 'attributes' => array('class' => 'action propose-your','title'=>$button['title']))) . $all_buttons['quick_action'];
+        }
+        //Rewrite the url
+        if (isset($button['url_callback'])) {
+          eval('$url_callback = ' . $button['url_callback'] . '();');
+          $button['href'] = sprintf($button['href'], $url_callback);
+        }
+        $buttons[$key] = $button;
+      }
+    }
+    $all_buttons[$button_type] = isa_links_theme_buttons($buttons) . $script;
+  }
+  //remove span but causes a lot a of other errors w3c
+  //$all_buttons['action'] = ereg_replace('(.*)"><span[^>]*>(.*)</span>(.*)"','\\1 quick-actions">\\2\\3',$all_buttons['action']);
+  $block['content'] = theme('block_buttons', $all_buttons['push'] . $all_buttons['action'], $all_buttons['links']);
+  return $block;
+}
+
+/**
+ * Create the menus block
+ */
+function isa_links_create_menus() {
+  //Get the correct menus, depending on the path
+  $all_menus = isa_links_get_links('menus');
+  $menu_theme = '';
+  if (count($all_menus) > 0) {
+    foreach ($all_menus as $menu_name => $menus) {
+      //Check if the menu should be displayed
+      if (isset($menus['access_callback'])) {
+        eval('$access_callback = ' . $menus['access_callback'] . '();');
+      }
+      if ((isset($menus['permission']) && !user_access($menus['permission'])) ||
+          (isset($menus['access_callback']) && !$access_callback)) {
+        //Delete the menu if the user have not the permission to see it
+        unset($all_menus[$menu_name]);
+      }
+      else {
+        foreach ($menus['menus'] as $key => $menu) {
+          //Check if the menu item should be displayed
+          if (isset($menu)) {
+            if (isset($menu['access_callback'])) {
+              eval('$menu_callback = ' . $menu['access_callback'] . '();');
+            }
+            if ((isset($menu['permission']) && !user_access($menu['permission'])) ||
+                (isset($menu['access_callback']) && !$menu_callback)) {
+              //Delete the menu item if the user have not the permission to see it
+              unset($menus['menus'][$key]);
+            }
+            else {
+              //Rewrite the url
+              if (isset($menu['url_callback'])) {
+                eval('$url_callback = ' . $menu['url_callback'] . '();');
+                $menu['href'] = sprintf($menu['href'], $url_callback);
+              }
+              if (isset($menu['class'])) {
+                $menu['attributes'] = array('class' => $menu['class']);
+              }
+              $menus['menus'][$key] = $menu;
+            }
+          }
+          else {
+            unset($menus['menus'][$key]);
+          }
+        }
+        if (count($menus['menus']) > 0) {
+          $menu_theme .= isa_links_theme_menu($menu_name, $menus['menus']);
+          //$menu_theme .=  "<h3>$menu_name</h3>" . theme_links($menus['menus']);
+        }
+      }
+    }
+  }
+
+  $block['content'] = theme('block_left_menu', $menu_theme);
+  return $block;
+}
+
+function isa_links_get_group_short_name($group = NULL) {
+  if (!$group) {
+    $nid = variable_get('current_group', isa_toolbox_get_community_nid());
+    $group = node_load($nid);
+  }
+  if ($group) {
+    if ($group->type == ISA_COMMUNITY_TYPE) {
+      return $group->field_community_short_name[0]['value'];
+    }
+    elseif ($group->type == ISA_PROJECT_TYPE) {
+      return $group->project['uri'];
+    }
+  }
+  else {
+    return '';
+  }
+}
+
+function isa_links_theme_menu($menu_name, $menu) {
+  $initial_path = $_GET['q'];
+  $node = menu_get_object();
+  if (!$node){
+    $exploded_path = explode('/', $initial_path);
+    if ($exploded_path[0] == 'node' && is_numeric($exploded_path[1])&& $exploded_path[2] == 'edit') {
+         $node = node_load ($exploded_path[1]);
+  	}
+  }
+  $group = node_load(variable_get('current_group', isa_toolbox_get_community_nid()));
+ 
+  $short_name = isa_links_get_group_short_name($group);
+  $path = '';
+  //on a node
+  if ($node) {
+    if ($group) {
+      $path = "{$group->group_type}/{$short_name}/";    
+	}
+    switch ($node->type) {
+      case ISA_PROJECT_RELEASE_TYPE:
+        $path .= "release/all";
+        break;
+      case ISA_ISSUE_TYPE:
+        $path .= "issue/all";
+        break;
+      case ISA_PROJECT_TYPE:
+      case ISA_COMMUNITY_TYPE:
+        $path = "node/{$node->nid}";
+        break;
+      case ISA_NEWS_TYPE:
+        if (!$group) {
+          $path = 'news/news';
+          break;
+        }
+      case ISA_BLOG_TYPE:
+        if (!$group) {
+          $path = 'news/blog';
+          break;
+        }
+        $path .= 'newsandblog/all';
+        break;
+      case ISA_TOPIC_TYPE:
+        $path .= 'forum/all';
+        break;
+      case ISA_WIKI_TYPE:
+        //case of license wizard pages
+        if (strstr(drupal_get_path_alias($initial_path), 'software/license-wizard')
+            || strstr(drupal_get_path_alias($initial_path), 'node/2048')) {
+          $path = 'node/2048';
+          break;
+        }
+      case ISA_DOCUMENT_TYPE:
+        $path .= ( $group) ? 'elibrary/all' : 'elibrary/document';
+        break;
+      case ISA_CASE_TYPE:
+        $path .= 'elibrary/case';
+        break;
+      case ISA_FACTSHEET_TYPE:
+        $path .= 'elibrary/factsheet';
+        break;
+      case ISA_VIDEO_TYPE:
+        $path .= 'elibrary/video';
+        break;
+      case ISA_FEDERATED_FORGE_TYPE:
+        $path .= 'software/federated_forge';
+        break;
+      case ISA_FEDERATED_PROJECT_TYPE:
+        $path .= 'software/federated_forge';
+        break;
+      case ISA_EVENT_TYPE:
+        $path = 'event/all';
+        if (isset ($node->field_event_dates[0]['value'])){
+          $date1_timestamp = strtotime($node->field_event_dates[0]['value']);
+          $date2_timestamp = strtotime($node->field_event_dates[0]['value2']);
+          $time_limit = time() - (24*60*60); // 1 day in second
+          $day_limit = date ( 'd', $time_limit );
+          if (($date1_timestamp < $time_limit ) && ( $date2_timestamp < $time_limit )){
+            $path = 'event/archives';
+          }
+        }
+        break;
+      case ISA_IMAGE_TYPE:
+        $path = 'image/all';
+        break;
+      case ISA_STUDY_TYPE:
+      case 'page':
+        $path_alias = drupal_get_path_alias($initial_path);
+        if (strpos($path_alias, "asset/page/practice_aids") === 0){
+          $path = drupal_lookup_path('source', 'asset/page/practice_aids');
+        }elseif (strpos($path_alias, "software/page/eupl") === 0){
+          $path = drupal_lookup_path('source', 'software/page/eupl');
+        }elseif (strpos($path_alias, "software/page/virtual_forge") === 0){
+          $path = drupal_lookup_path('source', 'software/page/virtual_forge');
+        }elseif (strpos($path_alias, "software/guidelines") === 0){
+          $path = 'software/guidelines';
+        }elseif (strpos($path_alias, "software/studies") === 0){
+          $path = 'software/studies';
+        }
+        
+        break;
+    }
+  }
+  else {
+    if ($group) {
+      //specific pages
+      if (strpos($initial_path, "{$group->group_type}/{$short_name}/forum") === 0) {
+        $path .= "{$group->group_type}/{$short_name}/forum/all";
+      }
+      elseif (strpos($initial_path, "{$group->group_type}/{$short_name}/asset_assistant") === 0 ||
+          strpos($initial_path, "{$group->group_type}/{$short_name}/issue") === 0) {
+        $path .= "{$group->group_type}/{$short_name}/issue/all";
+      }
+      elseif (strpos($initial_path, "{$group->group_type}/{$short_name}/members") === 0) {
+        $path .= "{$group->group_type}/{$short_name}/members";
+     
+   // for survey page     
+     }elseif (strpos($initial_path, "{$group->group_type}/{$short_name}/release") === 0) {
+        $path .= "{$group->group_type}/{$short_name}/release/all";
+     }
+    }
+    elseif (strpos($initial_path, "admin/user/user") === 0) {
+      $path = 'admin/user/user';
+    }
+    elseif (strpos($initial_path, "admin/content/taxonomy") === 0) {
+      $path = 'admin/content/taxonomy';
+    }
+    elseif (strpos($initial_path, "admin/content/simplenews/users") === 0) {
+      $path = 'admin/content/simplenews/users';
+    }
+    elseif (strpos($initial_path, "people/all") === 0) {
+      $path = 'people/all';
+    }
+    elseif (strpos($initial_path, "people/experts") === 0) {
+      $path = 'people/experts';
+    }
+    elseif (strpos($initial_path, "people/moderators") === 0) {
+      $path = 'people/moderators';
+    }
+    elseif (strpos($initial_path, "people/recommended") === 0) {
+      $path = 'people/recommended';
+    }
+    elseif (strpos($initial_path, "asset/experts") === 0) {
+      $path = 'asset/experts';
+    }
+    else {
+      global $user;
+      $exploded_path = explode('/', $initial_path);
+      if ($exploded_path[0] == 'user' && is_numeric($exploded_path[1])) {
+        $path = "user/{$exploded_path[1]}";
+      }
+      elseif ($exploded_path[0] == 'node' && $exploded_path[1] == 'add') {
+        switch ($exploded_path[2]) {
+          case 'federated-forge':
+            $path .= 'software/federated_forge';
+            break;
+          case 'project-release':
+            $path .= "release/all";
+            break;
+          case 'project-issue':
+            $path .= "issue/all";
+            break;
+          case ISA_NEWS_TYPE:
+            if (!$group) {
+              $path = 'news/news';
+              break;
+            }
+          case ISA_BLOG_TYPE:
+            if (!$group) {
+              $path = 'news/blog';
+              break;
+            }
+            $path .= 'newsandblog/all';
+            break;
+          case ISA_TOPIC_TYPE:
+            $path .= 'forum/all';
+            break;
+          case ISA_WIKI_TYPE:
+          case ISA_DOCUMENT_TYPE:
+          case ISA_CASE_TYPE:
+          case ISA_FACTSHEET_TYPE:
+            $path .= 'elibrary/all';
+            break;
+          case ISA_IMAGE_TYPE:
+
+            $path .= 'image/all';
+            break;
+          case ISA_EVENT_TYPE:
+            
+            
+            $path = 'event/all';
+            break;
+        }
+      }
+      else {
+		$path = $initial_path;
+      }
+    }
+  }
+//  $path = drupal_get_path_alias($_GET['q']);
+  if ($path != '') {
+    $_GET['q'] = $path;
+  }
+  $menu_theme = "<h3>$menu_name</h3>" . theme_links($menu);
+  $_GET['q'] = $initial_path;
+  return $menu_theme;
+}
+
+/**
+ * Implementation of hook_block
+ */
+function isa_links_block($op = 'list', $delta = 0, $edit = array()) {
+  switch ($op) {
+    case 'list':
+      $blocks['buttons_actions']['info'] = t('Buttons actions');
+      $blocks['menus_left']['info'] = t('Menus left');
+      return $blocks;
+      break;
+    case 'view':
+      if ($delta == 'buttons_actions') {
+        $block = isa_links_create_buttons();
+        return $block;
+      }
+      elseif ($delta == 'menus_left') {
+        $block = isa_links_create_menus();
+        return $block;
+      }
+  }
+}
+
+/*
+ * Rewrite theme_links function to resolved W3C error (ul in span)
+ */
+
+function isa_links_theme_buttons($links, $attributes = array('class' => 'links')) {
+  global $language;
+  $output = '';
+
+  if (count($links) > 0) {
+    $output = '<ul' . drupal_attributes($attributes) . '>';
+
+    $num_links = count($links);
+    $i = 1;
+
+    foreach ($links as $key => $link) {
+      $class = $key;
+      // Add first, last and active classes to the list of links to help out themers.
+      if ($i == 1) {
+        $class .= ' first';
+      }
+      if ($i == $num_links) {
+        $class .= ' last';
+      }
+      if (isset($link['href']) && ($link['href'] == $_GET['q'] || ($link['href'] == '<front>' && drupal_is_front_page()))
+          && (empty($link['language']) || $link['language']->language == $language->language)) {
+        $class .= ' active';
+      }
+      $output .= '<li' . drupal_attributes(array('class' => $class)) . '>';
+
+      if (isset($link['href'])) {
+        // Pass in $link as $options, they share the same keys.
+        $link['attributes']['title'] = $link['title'];
+        $output .= l($link['title'], $link['href'], $link);
+      }
+      elseif (!empty($link['title']) || isset($link['label'])) {
+        // Some links are actually not links, but we wrap these in <span> for adding title and class attributes
+        if (empty($link['html'])) {
+          if (isset($link['label'])) {
+            //case of rate this link
+            $link['title'] = "<label>{$link['label']}</label>" . fivestar_widget_form($link['node']);
+          }
+          else {
+            $link['title'] = check_plain($link['title']);
+          }
+        }
+        $span_attributes = '';
+        if (isset($link['attributes'])) {
+          $span_attributes = drupal_attributes($link['attributes']);
+        }
+        if (isset($link['label'])) {
+          //case of rate this link
+          $output .= $link['title'];
+        }
+        else {
+          $output .= '<div' . $span_attributes . '>' . $link['title'] . '</div>';
+        }
+      }
+
+      $i++;
+      $output .= "</li>\n";
+    }
+
+    $output .= '</ul>';
+  }
+
+  return $output;
+}
+
+
+
+function isa_links_is_not_in_virtual_forge (){
+  return !isa_toolbox_is_in_virtual_forge ();
+  
+}

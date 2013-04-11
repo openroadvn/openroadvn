@@ -1,0 +1,12 @@
+; $Id: active_translation.info,v 1.1 2008/05/19 20:10:32 drewish Exp $
+name = Active Translation
+description = Allows the original, untranslated node to be displayed when a translation is not available.
+dependencies[] = locale
+dependencies[] = translation
+core = 6.x
+; Information added by drupal.org packaging script on 2010-11-13
+version = "6.x-1.5"
+core = "6.x"
+project = "active_translation"
+datestamp = "1289679666"
+

@@ -1,0 +1,276 @@
+<?php
+// $Id: project_usage.install,v 1.11 2009/08/03 18:25:15 dww Exp $
+
+function project_usage_install() {
+  // Create the database tables.
+  drupal_install_schema('project_usage');
+}
+
+function project_usage_uninstall() {
+  // Drop database tables.
+  drupal_uninstall_schema('project_usage');
+
+  $variables = array(
+    'project_usage_last_daily',
+    'project_usage_last_weekly',
+    'project_usage_active_weeks',
+    'project_usage_life_daily',
+    'project_usage_life_weekly_project',
+    'project_usage_life_weekly_release',
+    'project_usage_date_long',
+    'project_usage_date_short',
+  );
+  foreach ($variables as $variable) {
+    variable_del($variable);
+  }
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function project_usage_schema() {
+  $schema['project_usage_raw'] = array(
+    'description' => 'Table used to store raw usage information.',
+    'fields' => array(
+      'project_uri' => array(
+        'description' => 'Primary Key: The {project_projects}.uri short name of the project.',
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'timestamp' => array(
+        'description' => 'Primary Key: The Unix timestamp of when the request was made.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'site_key' => array(
+        'description' => 'Primary Key: An MD5 hash that identifies the site from which the request was made.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'api_version' => array(
+        'description' => 'The {term_data}.name of the API version requested.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'project_version' => array(
+        'description' => 'The {project_release_nodes}.version of the requested project.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'pid' => array(
+        'description' => 'The {node}.nid of the requested project.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'nid' => array(
+        'description' => 'The {node}.nid of the requested release.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'tid' => array(
+        'description' => 'The {term_data}.tid of the API compatability version of the requested release.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'ip_addr' => array(
+        'description' => 'The IP address of the incoming request (to detect possible abuse).',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+    ),
+    'primary key' => array('timestamp', 'project_uri', 'site_key'),
+  );
+
+  $schema['project_usage_day'] = array(
+    'description' => 'Table used to store daily usage information.',
+    'fields' => array(
+      'timestamp' => array(
+        'description' => 'Primary Key: The Unix timestamp of when the request was made.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'site_key' => array(
+        'description' => 'Primary Key: An MD5 hash that identifies the site from which the request was made.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'pid' => array(
+        'description' => 'Primary Key: The {node}.nid of the requested project.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'nid' => array(
+        'description' => 'The {node}.nid of the requested release.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'tid' => array(
+        'description' => 'The {term_data}.tid of the API compatability version of the requested release.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'ip_addr' => array(
+        'description' => 'The IP address of the incoming request (to detect possible abuse).',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+    ),
+    'primary key' => array('timestamp', 'site_key', 'pid'),
+  );
+
+  $schema['project_usage_week_project'] = array(
+    'description' => 'Table used to store weekly usage information by project and {term_data}.tid.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'Primary Key: The {node}.nid of the project.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'timestamp' => array(
+        'description' => 'Primary Key: A Unix timestamp.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'tid' => array(
+        'description' => 'Primary Key: The {term_data}.tid of the API compatability version of the release.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'count' => array(
+        'description' => 'The number of requests.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('nid', 'timestamp', 'tid'),
+  );
+
+  $schema['project_usage_week_release'] = array(
+    'description' => 'Table used to store weekly usage information by project and {term_data}.tid.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'Primary Key: The {node}.nid of the project.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'timestamp' => array(
+        'description' => 'Primary Key: A Unix timestamp.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'count' => array(
+        'description' => 'The number of requests.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('nid', 'timestamp'),
+  );
+
+  $schema['cache_project_usage'] = array(
+    'description' => 'Cache table for the (very expensive to generate) project usage display pages.',
+    'fields' => array(
+      'cid' => array(
+        'description' => 'Primary Key: Unique cache ID.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'data' => array(
+        'description' => 'The rendered HTML for a page of project usage data.',
+        'type' => 'blob',
+        'not null' => FALSE,
+        'size' => 'big',
+      ),
+      'expire' => array(
+        'description' => 'A Unix timestamp indicating when the cache entry should expire, or 0 for never.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'created' => array(
+        'description' => 'A Unix timestamp indicating when the cache entry was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'headers' => array(
+        'description' => 'Any custom HTTP headers to be added to cached data.',
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'serialized' => array(
+        'description' => 'A flag to indicate whether content is serialized (1) or not (0).',
+        'type' => 'int',
+        'size' => 'small',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array('expire' => array('expire')),
+    'primary key' => array('cid'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Add the 'serialized' field to {cache_project_usage}.
+ */
+function project_usage_update_6000() {
+  $ret = array();
+  $spec = array(
+    'type' => 'int',
+    'size' => 'small',
+    'default' => 0,
+    'not null' => TRUE,
+  );
+  db_add_field($ret, 'cache_project_usage', 'serialized', $spec);
+  return $ret;
+}
+

@@ -1,0 +1,423 @@
+<?php
+
+/**
+ * Form altering function for the confirm form for a single node deletion.
+ *
+ * @param string $form
+ * @param type $form_state 
+ */
+function isa_og_merge_form_node_delete_confirm_alter(&$form, $form_state) {
+ 
+ $node = node_load($form['nid']['#value']);
+ if (og_is_group_type($node->type)) {
+   $text_information = variable_get('group_delete_confirm_information', FALSE);
+    if ($text_information) {
+      $text_information = token_replace($text_information, 'global');
+
+      $form ['information'] = array(
+        '#type' => 'item',
+        '#value' => $text_information,
+        '#weight' => 90,
+      );
+    }
+    $form ['description']['#weight'] = 95;
+    $form ['actions']['#weight'] = 100;
+    array_unshift($form['#submit'], 'isa_og_merge_invoke_event_submit');
+
+    foreach ($form['#submit'] as $id => $value) {
+      if ($value == 'og_node_delete_confirm_submit') {
+        // we rewrite function "isa_og_merge_node_delete_confirm_submit"
+        // by "isa_og_merge_delete_move_memberships_roles_submit" to add parameter on node 
+        // for rule condition 'isa_og_merge_is_node_moved'
+        $form['#submit'][$id] = 'isa_og_merge_node_delete_confirm_submit';
+      } elseif ($value == 'og_node_delete_move_memberships') {
+        // we rewrite function "og_node_delete_move_memberships"
+        // by "isa_og_merge_delete_move_memberships_roles_submit" to preserve user roles
+        $form['#submit'][$id] = 'isa_og_merge_delete_move_memberships_roles_submit';
+      }
+    }
+
+    // define function to merge releases and issues
+    // only content type project has releases and issues
+    if ($node->type == ISA_PROJECT_TYPE) {
+      array_unshift($form['#submit'], 'isa_og_merge_move_releases_submit');
+      array_unshift($form['#submit'], 'isa_og_merge_move_issues_submit');
+    }
+
+    array_unshift($form['#submit'], 'isa_og_merge_move_highlight_submit');
+
+    // Option "delete nothing" is useless
+    unset($form['verb']['#options'][OG_DELETE_NOTHING]);
+    // Rename option "delete orphans", in joinup a node is only in 1 group
+    $form['verb']['#options'][OG_DELETE_ORPHANS] = t("Delete all group posts.");
+
+    // og module uses permission "administer node" to define options.
+    // We define 2 permissions to migrate contents & users
+    $options_groups = array();
+    $access = FALSE;
+    if (user_access('merges og in any group')) {
+      $options_groups = og_all_groups_options();
+      $access = TRUE;
+    } elseif (user_access('merges og in own group')) {
+      $access = TRUE;
+      global $user;
+      foreach ($user->og_groups as $gid => $group_info) {
+        $options_groups[$gid] = $group_info['title'];
+      }
+    }
+    if ($access) {
+      // remove the current group from the list
+      unset($options_groups[$form['nid']['#value']]);
+      // redefine target group list
+      $form['target']['#options'] = $options_groups;
+      $form['verb']['#options'][OG_DELETE_MOVE_NODES] = t('Move all group posts to the group listed below.');
+      $form['verb']['#options'][OG_DELETE_MOVE_NODES_MEMBERSHIPS] = t('Move all group posts and memberships to the group listed below.');
+    } else {
+      // removes options added by og
+      // case when user has permission "administer node" but no "merges og in .. group"
+      unset($form['verb']['#options'][OG_DELETE_MOVE_NODES]);
+      unset($form['verb']['#options'][OG_DELETE_MOVE_NODES_MEMBERSHIPS]);
+      $form['target']['#access'] = FALSE;
+    }
+    $form['verb']['#default_value'] = OG_DELETE_ORPHANS;
+  }
+}
+
+/**
+ * Submit handler for group node delete form.
+ * Invoke event corresponding to the action performed
+ * 
+ * @param type $form
+ * @param type $form_state 
+ */
+function isa_og_merge_invoke_event_submit($form, &$form_state) {
+  $invoke = $form_state['values']['verb'] >= OG_DELETE_MOVE_NODES;
+  if ($invoke) {
+    global $user;
+    $deleted_group_nid = $form_state['values']['nid'];
+    $deleted_group_node = node_load($deleted_group_nid);
+    $target_group_nid = $form_state['values']['target'];
+    $target_group_node = node_load($target_group_nid);
+    if ($form_state['values']['verb'] == OG_DELETE_MOVE_NODES) {
+      rules_invoke_event('og_merge_posts', $deleted_group_node, $target_group_node, $user);
+    }
+    if ($form_state['values']['verb'] == OG_DELETE_MOVE_NODES_MEMBERSHIPS) {
+      rules_invoke_event('og_merge_posts_memberships', $deleted_group_node, $target_group_node, $user);
+    }
+  }
+}
+
+/**
+ * Submit handler for group node delete form.
+ * Move issues of deleted group to target group.
+ * 
+ * @param type $form
+ * @param type $form_state 
+ */
+function isa_og_merge_move_issues_submit($form, &$form_state) {
+  $move_children = $form_state['values']['verb'] >= OG_DELETE_MOVE_NODES;
+  $issues = array();
+  if ($move_children) {
+    $deleted_group_nid = $form_state['values']['nid'];
+    $target_group_nid = $form_state['values']['target'];
+    $target_group_node = node_load($target_group_nid);
+
+    if ($target_group_node->type == ISA_PROJECT_TYPE) {
+      // move issues categories
+      $sql = "UPDATE `project_issue_categories` SET `nid` = %d WHERE `nid` = %d;";
+      db_query($sql, $target_group_nid, $deleted_group_nid);
+
+      // load issues
+      $sql = "SELECT nid FROM `project_issues` WHERE `pid` = %d;";
+      $result = db_query($sql, $deleted_group_nid);
+      while ($row = db_fetch_object($result)) {
+        $issues[$row->nid] = $row;
+      }
+
+      // move issues
+      $sql = "UPDATE `project_issues` SET `pid` = %d WHERE `pid` = %d;";
+      db_query($sql, $target_group_nid, $deleted_group_nid);
+
+
+      // update issue path
+      foreach ($issues as $issue_id => $value) {
+        $issue = node_load($issue_id);
+        node_save($issue);
+      }
+    }
+    // endif
+    // if the target group is a community, we don't migrate issues
+    // issues are deleted automatically by project_issue module
+
+    if ($count > 0) {
+      drupal_set_message(format_plural(count($issues), 'Moved 1 issue.', 'Moved @count issues.'));
+    }
+  }
+}
+
+/**
+ * Submit handler for group node delete form.
+ * Move releases of deleted group to target group.
+ * 
+ * @param type $form
+ * @param type $form_state 
+ */
+function isa_og_merge_move_releases_submit($form, &$form_state) {
+  $deleted_group_nid = $form_state['values']['nid'];
+  $deleted_group_node = node_load($deleted_group_nid);
+  $releases = project_release_get_releases($deleted_group_node);
+  // check if the project have a release(s)
+  if (!empty($releases)) {
+    $delete_orphans = $form_state['values']['verb'] == OG_DELETE_ORPHANS;
+    $move_children = $form_state['values']['verb'] >= OG_DELETE_MOVE_NODES;
+
+    if ($move_children) {
+      $count = 0;
+      $target_group_nid = $form_state['values']['target'];
+      $target_group_node = node_load($target_group_nid);
+
+// if group is project, move release and issues, else deleted the release and issues
+      if ($target_group_node->type == ISA_PROJECT_TYPE) {
+        // on change le workflow si on passe dasset a software
+        $change_workflow = ($deleted_group_node->group_type == ISA_ASSET_TYPE &&
+                $target_group_node->group_type == ISA_SOFTWARE_TYPE);
+
+        foreach ($releases as $id => $release) {
+          if ($change_workflow && ($release->_workflow == ISA_SID_RELEASE_REQUESTED || $release->_workflow == ISA_SID_RELEASE_APPROVED)) {
+            $workflow_comment = t('Assessment process is cancelled because the release is moved to a software');
+            // Change the state.
+            _workflow_node_to_state($release, ISA_SID_RELEASE_CREATED, $workflow_comment);
+          }
+          $release->project_release['pid'] = $target_group_nid;
+          $node->revision = FALSE;
+          $release->og_moved = TRUE;
+          node_save($release);
+          $count++;
+        }
+        if ($count > 0) {
+          drupal_set_message(format_plural($count, 'Moved 1 release.', 'Moved @count releases.'));
+        }
+      } elseif ($target_group_node->type == ISA_COMMUNITY_TYPE) {
+        foreach ($releases as $id => $release) {
+          node_delete($release->nid);
+        }
+      }
+      // the "project_release" module doesn't delete automatically releases, so we delete manually
+    } elseif ($delete_orphans) {
+      foreach ($releases as $id => $release) {
+        node_delete($release->nid);
+      }
+    }
+  }
+}
+
+/**
+ * Submit handler for group node delete form.
+ * Move highlights of deleted group to target group.
+ * 
+ * @param type $form
+ * @param type $form_state 
+ */
+function isa_og_merge_move_highlight_submit($form, &$form_state) {
+  if ($form_state['values']['verb'] >= OG_DELETE_MOVE_NODES) {
+    global $user;
+    $deleted_group_nid = $form_state['values']['nid'];
+    $deleted_group_node = node_load($deleted_group_nid);
+    $target_group_nid = $form_state['values']['target'];
+    $target_group_node = node_load($target_group_nid);
+    $target_group_tid = isa_highlight_get_community_tid($target_group_nid);
+    $count = 0;
+
+    $group_child_nids = og_group_child_nids($target_group_nid);
+    $hls_deleted_groups = isa_highlight_get_highlight(array('gid' => $deleted_group_nid));
+    $hls_target_groups = isa_highlight_get_highlight(array('gid' => $target_group_nid));
+
+    // get nid of node already highlighted in target group
+    foreach ($hls_target_groups as $fhid => $highlight) {
+      $nid_highlighted_in_target_group[$highlight->nid] = $highlight->nid;
+    }
+
+    foreach ($hls_deleted_groups as $fhid => $highlight) {
+      // if the node isn't already highlighted or isn't the target group
+      if (!in_array($highlight->nid, $group_child_nids) && $highlight->nid != $target_group_nid) {
+        // if the node isn't already highlighted in the target group
+        if (!in_array($highlight->nid, $nid_highlighted_in_target_group)) {
+          isa_highlight_add(node_load($highlight->nid), $target_group_nid, $tid_target_group, $highlight->uid, $highlight->timestamp, FALSE);
+          $count++;
+        }
+      }
+    }
+    if ($count > 0) {
+      drupal_set_message(format_plural($count, 'Moved 1 highlight.', 'Moved @count highlights.'));
+    }
+  }
+}
+
+/**
+ * Submit handler for group node delete form.
+ * Move memberships and roles of deleted group to target group.
+ * 
+ * @param type $form
+ * @param type $form_state 
+ */
+function isa_og_merge_delete_move_memberships_roles_submit($form, &$form_state) {
+  if ($form_state['values']['verb'] == OG_DELETE_MOVE_NODES_MEMBERSHIPS) {
+    $deleted_group_nid = $form_state['values']['nid'];
+    $target_group_nid = $form_state['values']['target'];
+    $target_group_node = node_load($target_group_nid);
+    $sql = og_list_users_sql();
+    $result = db_query($sql, $deleted_group_nid);
+    $count = 0;
+    $assignable_roles = og_user_roles_get_group_roles($target_group_node->type);
+
+    while ($row = db_fetch_object($result)) {
+      $user = user_load($row->uid);
+
+// save the user role admin, and if user is active (membership validated)
+      $is_admin = $user->og_groups[$target_group_nid]['is_admin'];
+      $is_active = ($user->og_groups[$target_group_nid]['is_active']
+              || $user->og_groups[$deleted_group_nid]['is_active']);
+      $options = array('is_admin' => $is_admin, 'is_active' => $is_active, 'is_moved' => TRUE);
+// user is added to group target
+      og_save_subscription($target_group_nid, $row->uid, $options);
+// add role of group deleted to group target
+      $user_roles = og_user_roles_get_roles_by_group($deleted_group_nid, $row->uid);
+// get assignable roles for the target group
+
+      foreach ($user_roles as $role) {
+// assign role only if the group target have this role has assignable
+        if (array_key_exists($role, $assignable_roles)) {
+          og_user_roles_role_add($target_group_nid, $row->uid, $role);
+        }
+      }
+      $count++;
+    }
+    if ($count > 0) {
+      drupal_set_message(format_plural($count, 'Moved 1 membership.', 'Moved @count memberships.'));
+    }
+  }
+}
+
+/**
+ * Implementation of hook_rules_event_info().
+ * @ingroup rules
+ */
+function isa_og_merge_rules_event_info() {
+  return array(
+      'og_merge_posts' => array(
+          'label' => t('User deletes a group: merge post'),
+          'module' => 'isa_og_merge',
+          'arguments' => array(
+              'group_deleted' => array('type' => 'node', 'label' => t('Group deleted.')),
+              'group_target' => array('type' => 'node', 'label' => t('Group target.')),
+              'user' => array('type' => 'user', 'label' => t('User who has deleted group')),
+          ),
+      ),
+      'og_merge_posts_memberships' => array(
+          'label' => t('User deletes a group: merge post and membership'),
+          'module' => 'isa_og_merge',
+          'arguments' => array(
+              'group_deleted' => array('type' => 'node', 'label' => t('Group deleted.')),
+              'group_target' => array('type' => 'node', 'label' => t('Group target.')),
+              'user' => array('type' => 'user', 'label' => t('User who has deleted group')),
+          ),
+      ),
+  );
+}
+
+/**
+ *  Implementation of hook_perm
+ * @return type 
+ */
+function isa_og_merge_perm() {
+  return array('merges og in own group', 'merges og in any group');
+}
+
+/*
+ * 
+ * This module must be executed after og. 
+ * The hook_node_delete_confirm_alter of this module must be executed after og
+ */
+
+function isa_og_merge_enable() {
+  $query_result = db_query("SELECT weight FROM {system} WHERE name ='og'");
+  $weight_og = db_result($query_result);
+  $weight = $weight_og + 10;
+  db_query("UPDATE {system} SET weight = %d WHERE name = '%s'", $weight, 'isa_og_merge');
+}
+
+/**
+ * implementation of hook_rules_condition_info()
+ */
+function isa_og_merge_rules_condition_info() {
+  return array(
+      'isa_og_merge_is_node_moved' => array(
+          'label' => t('Node is moved to other group'),
+          'arguments' => array(
+              'node' => array(
+                  'type' => 'node',
+                  'label' => t('Node'),
+              ),
+          ),
+          'help' => t('Evaluates to TRUE if the node is update because he\'s moved to other group.'),
+          'module' => 'ISA OG Merge',
+      ),
+  );
+}
+
+/**
+ * Condition that determines if the node is updated because node is moved to other group
+ * 
+ * @param type $node
+ * @param type $settings
+ * @return type 
+ */
+function isa_og_merge_is_node_moved($node, $settings) {
+  if (isset($node->og_moved) && $node->og_moved == TRUE) {
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+
+/**
+ * Submit handler for node delete form. Handles deletes to group nodes.
+ * 
+ * @param type $form
+ * @param string $form_state 
+ */
+function isa_og_merge_node_delete_confirm_submit($form, &$form_state) {
+  $deleted_group_nid = $form_state['values']['nid'];
+  $target_group_nid = $form_state['values']['target'];
+  $delete_orphans = $form_state['values']['verb'] == OG_DELETE_ORPHANS;
+  $move_children = $form_state['values']['verb'] >= OG_DELETE_MOVE_NODES;
+
+  $count = 0;
+  foreach (og_group_child_nids($deleted_group_nid) as $child_nid) {
+    $node = node_load($child_nid);
+    unset($node->og_groups[$deleted_group_nid]);
+    if ($move_children) {
+      // add parameter for don't start rule for node update (see hook_rules_condition_info)
+      $node->og_moved = TRUE;
+      $node->revision = FALSE;
+      // there is an array_unique() in og_save_ancestry which guards against duplicates so don't worry here.
+      $node->og_groups[$target_group_nid] = $target_group_nid;
+    }
+    if ($delete_orphans && count($node->og_groups) == 0) {
+      node_delete($node->nid);
+    } else {
+      node_save($node);
+    }
+    $count++;
+  }
+  if ($count > 0) {
+    if ($delete_orphans) {
+      drupal_set_message(format_plural($count, 'Deleted 1 orphan post.', 'Deleted @count orphan posts.'));
+    } elseif ($move_children) {
+      drupal_set_message(format_plural($count, 'Moved 1 orphan post.', 'Moved @count orphan posts.'));
+    }
+  }
+  if ($move_children) {
+    $form_state['redirect'] = 'node/' . $target_group_nid;
+  }
+}

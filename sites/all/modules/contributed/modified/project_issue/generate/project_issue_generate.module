@@ -1,0 +1,43 @@
+<?php
+// $Id: project_issue_generate.module,v 1.8 2009/03/21 18:50:17 thehunmonkgroup Exp $
+
+/**
+ * Implementation of hook_menu().
+ */
+function project_issue_generate_menu() {
+  $items = array();
+  $items['admin/generate/generate_issue'] = array(
+    'title' => 'Generate issues',
+    'description' => 'Generate random issues and issue comments.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('project_issue_generate_issues_form'),
+    'access arguments' => array('administer nodes'),
+  );
+  return $items;
+}
+
+function project_issue_generate_issues_form($form_state) {
+  $form['issues'] = array(
+    '#type' => 'textfield',
+    '#title' => t('How many issues would you like to generate?'),
+    '#default_value' => 100,
+    '#size' => 4,
+  );
+  $form['comments'] = array(
+    '#type' => 'textfield',
+    '#title' => t('How many issue comments would you like to generate?'),
+    '#default_value' => 200,
+    '#size' => 4,
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Do it!'),
+  );
+  return $form;
+}
+
+function project_issue_generate_issues_form_submit($form, &$form_state) {
+  module_load_include('inc', 'project_issue_generate');
+  project_issue_generate_issues($form_state['values']['issues']);
+  project_issue_generate_issue_comments($form_state['values']['comments']);
+}

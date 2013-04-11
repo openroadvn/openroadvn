@@ -1,0 +1,47 @@
+/* $Id: theme_editor.css,v 1.1.2.1 2009/03/18 14:28:22 arcaneadam Exp $
+*/
+.theme_editor_red {
+color:#FF0000;
+font-weight:bold;
+}
+.theme_editor_blue {
+color:#0006E2;
+}
+div.theme_editor_form_wrap {
+width:80%;
+height:100%;
+float:left;
+}
+div.theme_editor_files_links {
+margin:0 0 0 83%;
+width:16%;
+}
+.theme_editor_filelist li{
+list-style:none;
+background:none;
+padding:0 1px 0.2em 1.75em;
+}
+
+li.theme_editor_filetype_title{
+padding:0;
+}
+.unwriteable .file_ne{
+font-size:8px;
+color:#FF0000;
+vertical-align:super;
+}
+div.theme_editor_tabs_wrap {
+padding:8px 0 0 0;
+}
+.new_sup{
+font-size:8px;
+color:#0E871B;
+vertical-align:super;
+}
+li.active_file {
+background-color:#FFECBE;
+}
+.theme_editor_files_links form{
+margin:0;
+padding:0;
+}

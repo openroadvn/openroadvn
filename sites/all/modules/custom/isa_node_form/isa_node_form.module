@@ -1,0 +1,1431 @@
+<?php
+
+function isa_node_form_form_alter(&$form, &$form_state, $form_id) {
+  isa_node_form_hide_tags($form, 'View any keywords/tags');
+  if (isset($form['buttons']['preview']))
+    unset($form['buttons']['preview']);
+
+  // modify title of taxonomy, Vocabulary to Categories
+  if (isset($form['taxonomy']) && isset($form['taxonomy']['#title'])) {
+    $form['taxonomy']['#title'] = t('Categories');
+  }
+
+  //check permission access for fieldset 'comment settings'
+  if (isset($form['comment_settings'])) {
+    $form['comment_settings']['#access'] = user_access('access comment settings');
+  }
+  //check permission access for fieldset 'revision information'
+  if (isset($form['revision_information'])) {
+    $form['revision_information']['#access'] = user_access('access revision information');
+  }
+//check permission access for fieldset 'authoring information'
+  if (isset($form['author'])) {
+    $form['author']['#access'] = user_access('access authoring information');
+  }
+  if (isset($form['admin']['author'])) {
+    $form['admin']['#access'] = user_access('access authoring information');
+  }
+//check permission access for fieldset 'publishing options'
+  if (isset($form['options'])) {
+    $form['options']['#access'] = user_access('access publishing options');
+  }
+  if (isset($form['#theme']) && $form['#theme'] == 'confirm_form' && isset($form['actions']['cancel'])
+          || isset($form['buttons']['cancel'])) {
+    isa_node_form_cancel_button_alter($form);
+  }
+  switch ($form_id) {
+    case 'user_confirm_delete' :
+      $form['#redirect'] = '<front>';
+      break;
+    case ISA_FACTSHEET_TYPE . '_node_form':
+      isa_node_form_factsheet($form);
+      break;
+    case 'case_node_form':
+      $form = isa_node_form_case_node($form);
+      //isa_node_form_manage_workflow_news_moderation ($form);
+      break;
+    case 'document_node_form':
+      $form ['body_field']['body']['#required'] = TRUE;
+      $form = isa_node_form_document_node($form);
+      isa_node_form_alter_og_audience_form($form, $form_state, $form_id);
+      break;
+    case 'federated_project_node_form':
+      $form = isa_node_form_federated_project($form);
+      isa_node_form_prefill_translation($form);
+      break;
+    case 'federated_forge_node_form':
+      $form = isa_node_form_federated_forges($form);
+      break;
+    //case 'search_block_form':
+    //  unset($form['search_block_form']['#title']);
+    //  break;
+    case 'profile_node_form':
+      if (isset($form['#node']->path)) {
+        $form['#redirect'] = 'people/' . $form['#node']->uid;
+      }
+    case 'user_register':
+      isa_node_form_profile($form, $form_state);
+      
+      break;
+    case 'user_profile_form':
+      // no use #redirect,else if the user click on delete button, he will be redirect to his profile
+      //  see isa_toolbox_user
+      //$form['#redirect'] = 'people/' . $form['#uid'];
+      // hidden field language
+      if (isset($form['locale']['language'])) {
+        $form['locale']['#access'] = FALSE;
+      }
+      if (isset($form['mimemail'])) {
+        $form['mimemail']['#access'] = FALSE;
+      }
+      $form['#submit'][] = 'isa_node_form_redirect_user';
+      $form["#validate"][] = 'isa_node_form_profile_contact_validate';
+      break;
+    case 'news_node_form':
+      $form = isa_node_form_news($form);
+      isa_node_form_alter_og_audience_form($form, $form_state, $form_id);
+      // for workflow fields see isa_workflow
+      break;
+    case 'community_node_form':
+      // for workflow fields see isa_workflow
+      $form = isa_node_form_community($form);
+      break;
+    case 'project_project_node_form':
+      
+      $form = isa_node_form_project($form, $form_state);
+      // for workflow fields see isa_workflow
+      isa_node_form_prefill_translation($form);
+
+      break;
+
+    case 'wiki_node_form':
+      $form = isa_node_form_wiki($form);
+      isa_node_form_alter_og_audience_form($form, $form_state, $form_id);
+      break;
+
+    case 'image_node_form':
+      $form = isa_node_form_image($form);
+      isa_node_form_alter_og_audience_form($form, $form_state, $form_id);
+      break;
+
+    case ISA_TOPIC_TYPE . '_node_form':
+      $form = isa_node_form_topic($form);
+      isa_node_form_alter_og_audience_form($form, $form_state, $form_id);
+      break;
+    case ISA_EVENT_TYPE . '_node_form':
+      $form = isa_node_form_event($form);
+      break;
+    case ISA_NEWSLETTER_TYPE . '_node_form':
+      isa_node_form_newsletter($form);
+      break;
+    case 'blog_node_form':
+      $form = isa_node_form_blog($form);
+      break;
+    case 'og_confirm_subscribe':
+      isa_node_form_og_confirm_subscribe ($form);
+    case 'og_confirm_unsubscribe':
+      isa_node_form_alter_title($form);
+      break;
+    case 'project_issue_node_form':
+      isa_node_form_alter_project_issue_node_form($form, $form_state);
+      break;
+    case 'project_issue_project_edit_form':
+      isa_node_form_alter_project_issue_project_edit_form($form, $form_state);
+      break;
+    case 'comment_form':
+      $node = node_load($form['nid']['#value']);
+      if ($node->type == ISA_ISSUE_TYPE) {
+        isa_node_form_alter_issues_comment($form);
+      }
+      break;
+    case 'user_admin_account':
+      break;
+    case 'project_release_node_form':
+      $form ['body_field']['body']['#required'] = TRUE;
+      $form ['project_release']['#weight'] = 0;
+      $form ['project_release_files']['#weight'] = 10;
+      $form['field_release_component']['#weight'] = 5;
+      // for workflow fields see isa_workflow
+      break;
+    case 'node_delete_confirm':
+      isa_node_form_redirect_node_deletion($form, $form_state);
+      break;
+//    case 'contact_mail_page':
+    case 'video_node_form':
+      $form = isa_node_form_videos($form);
+      break;
+    case 'views_exposed_form':
+      isa_node_form_views_exposed_search($form);
+      break;
+  }//switch
+}
+
+function isa_node_form_og_confirm_subscribe(&$form) {
+  $gid = variable_get('current_group', og_get_group_context());
+  if ($gid) {
+    $group = node_load($gid);
+    if ($group) {
+      if ($group->type == ISA_COMMUNITY_TYPE) {
+        $body = variable_get('membership_benefits_text_community', '');
+      } elseif ($group->type == ISA_PROJECT_TYPE) {
+        $body = variable_get('membership_benefits_text_project', '');
+      }
+      $body = token_replace($body, 'node', $group);
+      $form['membership_benefits'] = array(
+          '#type' => 'item',
+          '#value' => $body,
+          '#weight' => 0,
+      );
+    }
+  }
+}
+
+function isa_node_form_redirect_user ($form,$form_state){
+  if ($form_state['clicked_button']['#value'] == 'Save' && isset ($form['#uid'])){
+    drupal_goto ('people/'.$form['#uid']);
+  }
+}
+
+function isa_node_form_cancel_button_submit(&$form, &$form_state) {
+  if ($form_state['clicked_button']['#value'] == 'Cancel') {
+    if (isset ($form['actions']['cancel']['#href'])){
+      drupal_goto($form['actions']['cancel']['#href']);
+    }elseif ($form['buttons']['cancel']['#href'] == 'content_lock_release_own_item'){
+		content_lock_release_own_item ($form['nid']['#value']);
+	}
+    
+  }
+}
+
+function isa_node_form_cancel_button_alter(&$form) {
+  //case for og subscribe and unsubscibe, redirect to group homepage
+  if ($form['#id'] == 'og-confirm-subscribe' || $form['#id'] == 'og-confirm-unsubscribe') {
+    if (isset($form_state['values']['gid'])) {
+      $gid = $form_state['values']['gid'];
+      $group = node_load($gid);
+    }
+    elseif (og_get_group_context()) {
+      $group = og_get_group_context();
+      $gid = $group->nid;
+    }
+    $shortname = isa_links_get_group_short_name($group);
+    $form['actions']['cancel']['#href'] = "$group->type/$shortname/home";
+   
+
+  }elseif( isset ($form['buttons']['cancel'])
+	    && strpos ($form ['buttons']['cancel']['#value'],'canceledit')){
+	$form['buttons']['cancel']['#type'] = 'button';
+    $form['buttons']['cancel']['#executes_submit_callback'] = TRUE;
+    $form['buttons']['cancel']['#value'] = t('Cancel');
+    $form['buttons']['cancel']['#submit'] = array('isa_node_form_cancel_button_submit');
+	$form['buttons']['cancel']['#href'] = 'content_lock_release_own_item';
+$form['buttons']['cancel']['#validate'] = TRUE;
+  }
+
+ if (isset ($form['actions']['cancel'])){ 
+    $base = base_path();
+    preg_match('#<a href="' . $base . '(.*?)">#', $form['actions']['cancel']['#value'], $out);
+    $form['actions']['cancel']['#href'] = $out[1];
+    $form['actions']['cancel']['#type'] = 'button';
+    $form['actions']['cancel']['#executes_submit_callback'] = TRUE;
+    $form['actions']['cancel']['#value'] = t('Cancel');
+    $form['actions']['cancel']['#submit'] = array('isa_node_form_cancel_button_submit');
+    $form['actions']['cancel']['#attributes']['class'] = 'popups-close';
+  }
+	// disable form validation if cancel button is clicked
+  $form['#after_build'][] = 'isa_node_form_after_build';
+}
+
+/*
+ * After build handler
+ */
+function isa_node_form_after_build($form, &$form_state) {
+  if($form_state['clicked_button']['#value'] == 'Cancel') {
+    _isa_node_form_disable_validation($form);
+  }
+  return $form;
+}
+
+/*
+ * Recursive function.
+ * Removes required validation flag for specified form element and all its children.
+ */
+function _isa_node_form_disable_validation(&$element) {
+  unset($element['#needs_validation']);
+  foreach(element_children($element) as $key) {
+    _isa_node_form_disable_validation($element[$key]);
+  }
+}
+
+
+function isa_node_form_views_exposed_search(&$form) {
+  switch ($form['#id']) {
+    case 'views-exposed-form-my-communities-block-1':
+    case 'views-exposed-form-moderation-block-1':
+    case 'views-exposed-form-my-items-block-1':
+    case 'views-exposed-form-People-List-page-1':
+    case 'views-exposed-form-People-List-page-2':
+    case 'views-exposed-form-People-List-page-3':
+    case 'views-exposed-form-People-List-page-4':
+    case 'views-exposed-form-Community-members-page':
+    case 'views-exposed-form-Asset-members-page':
+    case 'views-exposed-form-Software-members-page':
+      break;
+    default:
+      $facet_display = 0;
+      $current_view = views_get_current_view();
+      $current_display_id = $current_view->current_display;
+      $current_display = $current_view->display[$current_display_id];
+      $project_type = NULL;
+
+      if ($current_display->display_options['defaults']['filters']) {
+        $current_display = $current_view->display['default'];
+      }
+      if (isset($current_display->display_options['filters']['type'])) {
+        if (count($current_display->display_options['filters']['type']['value']) == 1) {
+          $type = array_shift($current_display->display_options['filters']['type']['value']);
+        }
+        if (isset($current_display->display_options['filters']['field_project_common_type_value']['value']['value'])) {
+          $project_type = $current_display->display_options['filters']['field_project_common_type_value']['value']['value'];
+        }
+      }
+
+
+      $all_type = node_get_types();
+      if (!isset($all_type[$type])) {
+        $type = NULL;
+      }
+      $view = views_get_view('facet_node_type');
+      foreach ($view->display as $display_name => $display) {
+        if (isset($display->display_options['filters']['type']['value'])) {
+          if ($project_type === NULL) {
+            if (array_key_exists($type, $display->display_options['filters']['type']['value'])) {
+              $facet_display = $display_name;
+            }
+          } else {
+            if (isset($display->display_options['filters']['field_project_common_type_value']['value']['value'])
+                    && $project_type == $display->display_options['filters']['field_project_common_type_value']['value']['value']) {
+              $facet_display = $display_name;
+            }
+          }
+        }
+      }
+      $form['submit']['#value'] = t('Search');
+      $form['advanced_search']['#type'] = 'item';
+      // javascript:advanced_search() => see theme/joinup/scripts/init.js
+      $form['advanced_search']['#value'] =
+              l(t('Advanced Search'), 'search/apachesolr_search', array('attributes' => array('id' => 'adsearch',
+              'onclick' => "javascript:advanced_search('$facet_display')")));
+      
+  }
+}
+
+function isa_node_form_newsletter(&$form) {
+  $form['group_newsletter_information']['#access'] = TRUE;
+  $form['group_newsletter_information']['title'] = $form['title'];
+  $form['group_newsletter_information']['body_field'] = $form['body_field'];
+  $form['simplenews']['#weight'] = $form['group_newsletter_information']['#weight'] + 5;
+  unset($form['title']);
+  unset($form['body_field']);
+  // only send action "Send one test newsletter to the test address" when
+  // user have administer newsletters permissions (remove this option for moderations)
+  if (!user_access('administer newsletters')) {
+    if (isset($form['simplenews']['send'])) {
+      unset($form['simplenews']['send']['#options']['2']);
+    }
+    if (isset($form['simplenews']['advanced'])) {
+      $form['simplenews']['advanced']['#access'] = FALSE;
+    }
+  }
+}
+
+function isa_node_form_factsheet(&$form) {
+  $form['group_factsheet_informations']['title'] = $form['title'];
+  $form['group_factsheet_informations']['body_field'] = $form['body_field'];
+  unset($form['title']);
+  unset($form['body_field']);
+  
+}
+
+function isa_node_form_case_node($form) {
+  $form['group_case_info']['title'] = $form['title'];
+  $form['group_case_info']['body_field'] = $form['body_field'];
+  //field name of the date
+  $form['group_case_info']['field_start_end_date']['#pre_render'] = array('isa_node_form_date_label');
+  unset($form['title']);
+  unset($form['body_field']);
+
+  // taxonomy country isn't mandatory
+  $form['taxonomy'][variable_get('country_vid', NULL)]['#required'] = 0;
+
+  return $form;
+}
+
+function isa_node_form_document_node($form) {
+  $form['group_document_information']['title'] = $form['title'];
+  $form['group_document_information']['body_field'] = $form['body_field'];
+  unset($form['title']);
+  unset($form['body_field']);
+  return $form;
+}
+
+function isa_node_form_federated_project($form) {
+  $form['taxonomy'][30]['#required'] = 0; // Turns off 'Required' for 'Development status'.
+  //Can't turn it off in the taxonomy itself, as it's required for 'Projects'
+  $form['group_forge_project_info']['title'] = $form['title'];
+  $form['group_forge_project_info']['body_field'] = $form['body_field'];
+  $form['field_project_common_type']['#default_value'][0]['value'] = 1;
+  unset($form['title']);
+  unset($form['body_field']);
+  $form['field_project_common_type']['#access'] = FALSE;
+
+  isa_node_form_alter_language_field($form);
+  return $form;
+}
+
+/**
+ * Alter the federated forges form to place title + body inside the info fieldset
+ */
+function isa_node_form_federated_forges($form) {
+  $form['group_forge_info']['title'] = $form['title'];
+  $form['group_forge_info']['body_field'] = $form['body_field'];
+  unset($form['title']);
+  unset($form['body_field']);
+  return $form;
+}
+
+/* * This function alter the comment issue form
+ * Remove the fielset edit issue setting if the user isn't group member
+ *
+ * @param array $form
+ */
+
+function isa_node_form_alter_issues_comment(&$form) {
+  $gid = isa_toolbox_get_community_nid();
+  $group_node = node_load($gid);
+  global $user;
+  $node = node_load($form['nid']['#value']);
+  if ($user->uid == $node->uid || $group_node->uid == $user->uid) {
+    $is_owner = TRUE;
+  }
+  if (!og_is_group_member($gid, FALSE) && !isa_toolbox_is_omnipotent()) {
+    unset($form['attachments']);
+  }
+  if (isset($form['original_issue'])) {
+    if (user_access('Comment form: Edit issue settings') || $is_owner) {
+      //no edit the project name of issue
+      $form['original_issue']['project_info']['project_title']['#access'] = FALSE;
+
+      // filled the field assigned
+      $form['original_issue']['project_info']['assigned']['#options'] = isa_toolbox_get_assignable_members($gid);
+
+      //if user haven't permission to modify issue,
+      // and he's group member => only access to assigned field
+    }
+    elseif (og_is_group_member($gid, FALSE)) {
+      $default_select = $form['original_issue']['project_info']['assigned']['#default_value'];
+      // if the issue is not assigned
+      if ($default_select == 0) {
+        $form['original_issue']['project_info']['assigned']['#options'][0] = 'Unassign';
+        $form['original_issue']['project_info']['assigned']['#options'][$user->uid] = strip_tags(theme('username', $user->uid));
+
+        //remove other field
+        $form['original_issue']['project_info']['project_title']['#access'] = FALSE;
+        $form['original_issue']['project_info']['component']['#access'] = FALSE;
+        $form['original_issue']['issue_info']['#access'] = FALSE;
+        $form['original_issue']['title']['#access'] = FALSE;
+
+        // remove field "version"
+        if (isset($form['original_issue']['project_info']['rid'])) {
+          if ($form['original_issue']['project_info']['rid']['#default_value'] != 0) {
+            $form['original_issue']['project_info']['rid']['#access'] = FALSE;
+          }
+          else {
+            unset($form['original_issue']['project_info']['rid']);
+          }
+        }
+        unset($form['original_issue']['#description']);
+      }
+      else {
+        $form['original_issue']['#access'] = FALSE;
+      }
+    }
+    else {
+      $form['original_issue']['#access'] = FALSE;
+    }
+  }
+}
+
+/**
+ * Alter the project issue form to fit to the data model (spec 8.14)
+ */
+function isa_node_form_alter_project_issue_node_form(&$form, &$form_state) {
+  $form['issue_details']['#weight'] = 0;
+  $form['issue_details']['#title'] = 'Main Information';
+  $form['attachments']['#title'] = 'Files';
+  $form['attachments']['#description'] = substr($form['issue_info']['attachments']['#description'], 0, strpos($form['issue_info']['attachments']['#description'], '.') + 1);
+
+  $pid = $form['project_info']['pid']['#value'];
+  $form['issue_info']['assigned']['#options'] = isa_toolbox_get_assignable_members($pid);
+}
+
+/**
+ * enforce the activation of the issue tracker to
+ * display the abstract block of issues in a software homepage
+ */
+function isa_node_form_alter_project_issue_project_edit_form(&$form, &$form_state) {
+  $form['issue']['issues']['#default_value'] = 1;
+  $form['issue']['issues']['#return_value'] = 1;
+}
+
+/**
+ * Modify the project form
+ *
+ * @param array $form the form updated
+ * @param array $form_state
+ * @return array $form
+ */
+function isa_node_form_project($form, &$form_state) {
+  $path = explode('/', drupal_get_normal_path($_GET['q']));
+  $edit = NULL;
+  if ($path[2] == "edit" || ($path[2] == "revisions" && $path[4] == "edit")) {
+    $node = node_load($path[1]);
+    $edit = $node->group_type;
+  }
+  if (isset($_GET['type']) || $edit) {
+    // move all field from "group_project_common_info" to "project_node"
+    // ----- SOFTWARE and ASSET ----- //
+    if (isset($form['group_project_common_info'])) {
+      foreach ($form['group_project_common_info'] as $key => $value) {
+        if (substr_count($key, 'field_project') != 0) {
+          $form['project_node'][$key] = $form['group_project_common_info'][$key];
+          unset($form['group_project_common_info'][$key]);
+        }
+      }
+      unset($form['group_project_common_info']);
+    }
+
+    //set the weight of "title", "project", "body", and "og_description" for move "og_description" under "project"
+    $form['project_node']['title']['#weight'] = '0';
+    $form['project_node']['project']['uri']['#weight'] = '5';
+    $form['og_description']['#weight'] = '10';
+    $form['project_node']['body_field']['#weight'] = '15';
+
+    // modify Title of "og_desctiption" to "Abstract"
+    $form['og_description']['#title'] = t('Abstract');
+
+    //"og_desctiption" move to "project_node"
+    $form['project_node']['og_description'] = $form['og_description'];
+    unset($form['og_description']);
+
+    // only moderated adhesion
+    //$form['og_selective']['#default_value'] = '1';
+    //$form['og_selective']['#type'] = 'hidden';
+
+    // remove og register & og directory
+    unset($form['og_register']);
+    unset($form['og_directory']);
+
+    // field "private group"
+    $form['og_private']['#type'] = 'hidden';
+    $form['og_private']['#default_value'] = '0';
+
+
+
+    if ($edit) {
+      $form['project_node']['project']['uri']['#value'] = $form['project_node']['project']['uri']['#default_value'];
+      $form['project_node']['project']['uri']['#access'] = FALSE;
+      $form['project_node']['project']['uri_item']['#title'] = t('Shortname');
+      $form['project_node']['project']['uri_item']['#type'] = 'item';
+      $form['project_node']['project']['uri_item']['#value'] = $form['project_node']['project']['uri']['#default_value'];
+    }else{
+      $form['#validate'][] = 'isa_node_form_shortname_validate'; //Validate the short name
+    }
+
+    //rename the field title ("Project name" to "name"
+    $form['project_node']['title']['#title'] = t('Name');
+    // rename the fild uri ("short project name" to "Short name")
+    $form['project_node']['project']['uri']['#title'] = t('Short name');
+
+    $vf_tid = isa_toolbox_is_in_virtual_forge();
+    $vf_vid = variable_get('isa_vf_access_vid_virtual_forge', NULL);
+    //in virtual forge
+    if ($vf_tid && $edit == null) {
+      //pre fill taxonomy of virtual forge and readonly this field
+      $form['taxonomy'][$vf_vid]['#default_value'] = array(0 => $vf_tid);
+    }
+    $form['taxonomy'][$vf_vid]['#access'] = user_access('view/edit virtual forge vocabulary');
+
+    //alter worklow
+    // isa_node_form_manage_workflow_community ($form);
+    // alter language
+    isa_node_form_alter_language_field($form);
+
+    // ---- SOFTWARE ---- //
+    if ($_GET['type'] == 'OSS' || $edit == ISA_SOFTWARE_TYPE) {
+      isa_node_form_software($form);
+
+      // ----- ASSET ----- //
+    }
+    elseif ($_GET['type'] == 'asset' || $edit == ISA_ASSET_TYPE) {
+      isa_node_form_asset($form);
+    }
+  }
+  // MODIF BY RVN
+  if (!empty($form['nid']['#value'])) {
+    unset($form['field_ten_rules']);
+  }
+  else {
+    $form['#validate'][] = 'isa_node_form_project_ten_rules_validate';
+  }
+  // END OF MODIF BY RVN
+  return $form;
+}
+
+/**
+ * Modify the project form for a software
+ *
+ * @param array $form the form updated
+ */
+function isa_node_form_software(&$form) {
+  // move all field from "group_project_soft_info" to "project_node"
+  if (isset($form['group_project_soft_info'])) {
+    foreach ($form['group_project_soft_info'] as $key => $value) {
+      if (substr_count($key, 'field_project') != 0) {
+        $form['project_node'][$key] = $form['group_project_soft_info'][$key];
+        unset($form['group_project_soft_info'][$key]);
+      }
+    }
+    unset($form['group_project_soft_info']);
+  }
+  //remove fieldset of asset
+  unset($form['group_project_asset_info']);
+
+  //rename "project informations" to "software informations"
+  $form['project_node']['#title'] = t('Software informations');
+
+  // rename CVS tree field to SVN tree
+  $form ['project']['cvs']['#title'] = "Source repository";
+  $form ['project']['cvs']['#description'] = t("Link to the repository.");
+
+  // open the fieldset project
+  $form ['project']['#collapsed'] = FALSE;
+
+  //move more link to fieldset "project"
+  //$form ['project']['field_project_soft_more_lin'] = $form['field_project_soft_more_lin'];
+  //unset($form['field_project_soft_more_lin']);
+  //remove useless fields from project
+  unset(
+      $form ['project']['license'], $form ['project']['screenshots'], $form ['project']['changelog'], $form ['project']['demo']
+  );
+
+  // field project type
+  $form['field_project_common_type']['#default_value'] = array('value' => 1);
+  $form['field_project_common_type']['#access'] = FALSE;
+
+  // rename title of workflow fieldset
+  if (isset($form['workflow'])) {
+    $form['workflow']['#title'] = t('Software moderation');
+  }
+
+  // remove asset taxonomies
+  unset($form['taxonomy'][variable_get('asset_status_vid', -1)]);
+  unset($form['taxonomy'][variable_get('represented_countries_vid', -1)]);
+
+  if (arg(1) == 'add') {
+    drupal_set_title(t('Create Software Project'));
+  }
+  else {
+    drupal_set_title('');
+  }
+  
+  $form['#validate'][] = 'isa_node_form_validate_url';
+}
+
+
+function isa_node_form_validate_url(&$form, $form_state) {
+ if (!empty($form_state['values']['project']['homepage'])) {
+    if (!valid_url($form_state['values']['project']['homepage'],TRUE)) {
+      form_set_error("project][homepage", t('The %field field is not a valid URL..', array('%field' => $form['project']['homepage']['#title'])));
+    }
+  }
+  if (!empty($form_state['values']['project']['documentation'])) {
+    if (!valid_url($form_state['values']['project']['documentation'], TRUE)) {
+      form_set_error("project][documentation", t('The %field field is not a valid URL..', array('%field' => $form['project']['documentation']['#title'])));
+    }
+  }
+  if (!empty($form_state['values']['project']['cvs'])) {
+    if (!valid_url ($form_state['values']['project']['cvs'],TRUE)) {
+      form_set_error("project][cvs", t('The %field field is not a valid URL..', array('%field' => $form['project']['cvs']['#title'])));
+    }
+  }
+}
+
+
+
+/**
+ * Modify the project form for a software
+ *
+ * @param array $form the form updated
+ */
+function isa_node_form_asset(&$form) {
+  // move all field from "group_project_asset_info" to "project_node"
+  if (isset($form['group_project_asset_info'])) {
+    foreach ($form['group_project_asset_info'] as $key => $value) {
+      if (substr_count($key, 'field_project') != 0) {
+        $form['project_node'][$key] = $form['group_project_asset_info'][$key];
+        unset($form['group_project_asset_info'][$key]);
+      }
+    }
+    unset($form['group_project_asset_info']);
+  }
+  //remove fieldset of software
+  unset($form['group_project_soft_info']);
+  //rename "project informations" to "Asset informations"
+  $form['project_node']['#title'] = t('Asset informations');
+
+  unset($form ['project']);
+  //only moderated adhesion
+  //$form['og_selective']['#default_value'] = '1';
+  //$form['og_selective']['#type'] = 'hidden';
+  // remove og register & og directory
+  unset($form['og_register']);
+  unset($form['og_directory']);
+
+  // rename title of workflow fieldset
+  if (isset($form['workflow'])) {
+    $form['workflow']['#title'] = t('Asset moderation');
+  }
+  // field project type
+  $form['field_project_common_type']['#default_value'] = array('value' => 0);
+  $form['field_project_common_type']['#access'] = FALSE;
+
+  //remove sponsort logo
+  unset($form ['field_project_soft_sponsor_logo']);
+
+  // remove software taxonomies
+  unset($form['taxonomy'][variable_get('intended_audience_vid', NULL)]);
+  unset($form['taxonomy'][variable_get('operating_system_vid', NULL)]);
+  unset($form['taxonomy'][variable_get('programming_language_vid', NULL)]);
+  unset($form['taxonomy'][variable_get('categories_vid', NULL)]);
+  unset($form['taxonomy'][variable_get('development_status_vid', NULL)]);
+    
+  $form['taxonomy'][variable_get('asset_status_vid', NULL)]['#access'] = user_access ('edit field asset status') || isa_toolbox_is_omnipotent();
+  
+  // remove the software field more link
+  unset($form['field_project_soft_more_lin']);
+
+  if (arg(1) == 'add') {
+    drupal_set_title(t('Create a Shared Asset'));
+  }
+  else {
+    drupal_set_title('');
+  }
+}
+
+function isa_node_form_project_ten_rules_validate(&$form, $form_state) {
+  if ($form_state['values']['field_ten_rules'][0]['value'] === 0) {
+    form_set_error('field_ten_rules', t('Please accept the 10 "Principles" of ISA'));
+  }
+}
+
+/**
+ * Validate the short name of a community
+ * @param $form
+ * @param $form_state
+ */
+function isa_node_form_shortname_validate($form, &$form_state) {
+  if ($form['form_id']['#value'] == 'community_node_form') {
+    $form_state['values']['field_community_short_name']['0']['value'] = strtolower($form_state['values']['field_community_short_name']['0']['value']);
+    $short_name = $form_state['values']['field_community_short_name']['0']['value'];
+    $type = 'community';
+  }
+  else {
+    $form_state['values']['project']['uri'] = strtolower($form_state['values']['project']['uri']);
+    $short_name = $form_state['values']['project']['uri'];
+    $type = 'project';
+  }
+
+  // Is it a node edition?
+  $edition = (isset($form['nid']['#value']) && $form['nid']['#value'] > 0);
+
+  // Make sure short name isn't already in use (in communities)
+  $query = "SELECT COUNT(*) FROM {node}
+            INNER JOIN {content_type_community} USING (nid, vid)
+            WHERE type = '%s' AND field_community_short_name_value = '%s' ";
+  if ($type == 'community' && $edition) {
+    $query .= sprintf(' AND nid <> %d', $form['nid']['#value']);
+  }
+  if (db_result(db_query($query, 'community', $short_name))) {
+    form_set_error('field_community_short_name', t('A community already uses this shortname.'));
+  }
+
+  // Make sure short name isn't already in use (in projects)
+  $query = "SELECT COUNT(*) FROM {node}
+            INNER JOIN {project_projects} USING (nid)
+            WHERE type = '%s' AND uri = '%s' ";
+  if ($type == 'project' && $edition) {
+    $query .= sprintf(' AND nid <> %d', $form['nid']['#value']);
+  }
+  if (db_result(db_query($query, 'project_project', $short_name))) {
+    form_set_error('field_community_short_name', t('A project already uses this shortname.'));
+  }
+
+  // Validate short name.
+  if (empty($short_name)) {
+    form_set_error('field_community_short_name', t('A short name is required.'));
+  }
+  else {
+    // Make sure short name only includes valid characters. Note: the following
+    // regexp is based on the ACCEPTABLE_LISTNAME_CHARACTERS parameter that can
+    // be found in Mailman's Defaults.py file.
+    if (!preg_match('/^[-+_.=a-z0-9]+$/', $short_name)) {
+      form_set_error('field_community_short_name', t('Please only use lowercase characters, digits, dashes, underscores, plusses, equals or dots for the short name.'));
+    }
+  }
+}
+
+function isa_node_form_alter_title($form) {
+  $title = drupal_get_title();
+  //retrieve group node from subscribe form
+  $group_node = node_load($form['gid']['#value']);
+  if (!$group_node) {
+    //retrieve group node from unsubscribe form
+    $group_node = $form['group_node']['#value'];
+  }
+  $type = $group_node->group_type;
+  switch ($type) {
+    case ISA_SOFTWARE_TYPE:
+      $type = 'software';
+      break;
+    case ISA_ASSET_TYPE:
+      $type = 'shared asset';
+      break;
+  }
+
+  $title = ereg_replace('(Are you sure you want to (join|leave)) (the group)(.*)', "\\1 the $type\\4", $title);
+  drupal_set_title($title);
+
+  return $form;
+}
+
+// Function used by isa_custom_after_form_alter
+// This function alter the community form
+function isa_node_form_news($form) {
+  //Push title and body in the cck group 'group_community_information'
+  $form['group_news_basic_info']['title'] = $form['title'];
+  $form['group_news_basic_info']['body_field'] = $form['body_field'];
+  unset($form['body_field'], $form['title']);
+  unset($form['notifications']);
+  return $form;
+}
+
+// Function used by isa_custom_after_form_alter
+// This function alter the community form
+function isa_node_form_community($form) {
+  // modify Title of og_desctiption to Abstract
+  $form['og_description']['#title'] = t('Abstract');
+  // remove choise for group moderated (//option not available temporarily)
+  //unset($form['og_selective']['#options']['1']);
+  // remove choise for group invite only
+  //unset($form['og_selective']['#options']['2']);
+  // remove choise for group closed
+  //unset($form['og_selective']['#options']['3']);
+
+  //change the message of og_selective
+  //$form['og_selective']['#description'] = t('If you select "moderated", users become member after community facilitator has approved the membership request.');
+  //$form['og_selective']['#description'] = '';
+
+  //Push title and body in the cck group 'group_community_information'
+  $form['group_community_information']['title'] = $form['title'];
+  $form['group_community_information']['body_field'] = $form['body_field'];
+
+  //set the weidth
+  //$form['group_community_information']['body_field']['#weight'] = 0;
+  $form['group_community_information']['field_community_short_name']['#weight'] = -1;
+
+// ???
+  $form['group_community_information']['language'] = $form['language'];
+  $form['group_community_information']['og_description'] = $form['og_description'];
+  $form['group_community_member_settings']['og_selective'] = $form['og_selective'];
+//  $form['group_community_member_settings']['og_register'] = $form['og_register'];
+//  $form['group_community_member_settings']['og_private'] = $form['og_private'];
+//  $form['group_community_member_settings']['og_directory'] = $form['og_directory'];
+
+
+
+  unset(
+      $form['body_field'], $form['title'], $form['language'], $form['og_description'], $form['og_selective'], $form['og_register'], $form['og_private'], $form['og_directory'], $form['notifications']
+  );
+
+  $form['group_community_member_settings']['#access'] = TRUE;
+
+  isa_node_form_alter_language_field($form);
+
+  $path = explode('/', drupal_get_normal_path($_GET['q']));
+  //shortname not modifiable (pb with readonly, so display item)
+  if ($path[2] == "edit"|| ($path[2] == "revisions" && $path[4] == "edit")) {
+    $form['group_community_information']['field_community_short_name'][0]['#access'] = FALSE;
+    $form['group_community_information']['field_community_short_name'][1]['#value'] = $form['group_community_information']['field_community_short_name'][0]['#default_value']['value'];
+
+    $form['group_community_information']['field_community_short_name'][1]['#title'] = t('Shortname');
+    $form['group_community_information']['field_community_short_name'][1]['#type'] = 'item';
+    $form['group_community_information']['field_community_short_name'][1]['#value'] = $form['group_community_information']['field_community_short_name'][0]['#default_value']['value'];
+  }
+  else {
+    $form['#validate'][] = 'isa_node_form_shortname_validate'; //Validate the short name
+  }
+  //isa_node_form_manage_workflow_community ($form);
+  return $form;
+}
+
+// Function used by isa_custom_after_form_alter
+// This function alter the wiki form
+function isa_node_form_wiki($form) {
+  //Push title and body in the cck group 'group_wiki_information'
+  $form['group_wiki_information']['title'] = $form['title'];
+  $form['group_wiki_information']['body_field'] = $form['body_field'];
+  $form['group_wiki_information']['#access'] = TRUE;
+  unset($form['body_field'], $form['title'], $form['notifications']);
+
+  return $form;
+}
+
+// Function used by isa_custom_after_form_alter
+// This function alter the image form
+function isa_node_form_image($form) {
+  //Push title and body in the cck group 'group_image_information'
+  $form['group_image_information']['title'] = $form['title'];
+  $form['group_image_information']['body_field'] = $form['body_field'];
+  $form['group_image_information']['#access'] = TRUE;
+  unset($form['body_field'], $form['title'], $form['notifications']);
+
+  return $form;
+}
+
+// Function used by isa_custom_after_form_alter
+// This function alter the topic form
+function isa_node_form_topic($form) {
+
+  //Push title and body in the cck group 'group_wiki_information'
+  $form['group_topic_information']['title'] = $form['title'];
+  $form['group_topic_information']['body_field'] = $form['body_field'];
+  $form['group_topic_information']['#access'] = TRUE;
+  // unset fields
+  unset($form['body_field'], $form['title'], $form['notifications']
+  );
+
+  //set the default value for forum field
+  if (isset($_GET['tid'])) {
+    $forum_vid = variable_get('forum_vid', NULL);
+    if ($forum_vid != NULL) {
+      // check if the tid exist
+      if (isa_toolbox_get_term_name($_GET['tid']) != NULL) {
+        $form['taxonomy'][$forum_vid]['#default_value'] = $_GET['tid'];
+        $form['taxonomy'][$forum_vid]['#disabled'] = TRUE;
+      }
+    }
+  }
+
+  //disable the fieldset comment for moderator and facilitator
+  global $user;
+  if ((in_array(ISA_MODERATOR_ROLE_RID, $user->roles) || in_array(ISA_FACILITOR_ROLE_RID, $user->roles)) && !isa_toolbox_is_omnipotent()) {
+//if ((array_key_exists(variable_get ("moderator_rid",NULL), $user->roles)
+    // || in_array(ISA_FACILITOR_ROLE_RID,$user->roles))&& !isa_toolbox_is_omnipotent())  {
+    unset($form['comment_settings']);
+  }
+
+  return $form;
+}
+
+// This function alters the event form
+function isa_node_form_event($form) {
+  $form['group_event_information']['title'] = $form['title'];
+  $form['group_event_information']['body_field'] = $form['body_field'];
+  $form['group_event_information']['body_field']['body']['#title'] = t('Description');
+  $form['group_event_information']['body_field']['body']['#required'] = TRUE;
+  $form['group_event_information']['#access'] = TRUE;
+  unset($form['body_field'], $form['title']);
+
+  //field name of the date
+  $form['group_event_information']['field_event_dates']['#pre_render'] = array('isa_node_form_date_label');
+
+  $form['taxonomy'][variable_get('country_vid', 26)]['#weight'] = -7;
+  $form['taxonomy'][variable_get('scope_vid', 45)]['#weight'] = -6;
+  $form['taxonomy'][variable_get('languages_vid', 29)]['#weight'] = -5;
+  $form['taxonomy'][variable_get('domains_vid', 27)]['#weight'] = -4;
+  $form['taxonomy'][variable_get('free_event_vid', 59)]['#weight'] = -3;
+  $form['taxonomy'][variable_get('open_event_vid', 60)]['#weight'] = -2;
+  $form['taxonomy'][variable_get('organisation_type_vid', 63)]['#weight'] = -1;
+  $form['taxonomy'][variable_get('keywords_vid', 28)]['#weight'] = 0;
+  $form['field_event_rating']['#access'] = FALSE;
+  return $form;
+}
+
+// Function used by isa_custom_after_form_alter
+// This function alter the blog form
+function isa_node_form_blog($form) {
+  //Push title and body in the cck group 'group_wiki_information'
+  $form['group_blog_information']['title'] = $form['title'];
+  $form['group_blog_information']['body_field'] = $form['body_field'];
+  $form['group_blog_information']['#access'] = TRUE;
+  unset($form['body_field'], $form['title'], $form['notifications']);
+
+  return $form;
+}
+
+// Function used by isa_custom_after_form_alter
+// Removes freetagging keywords if user doesn't have permission
+function isa_node_form_hide_tags(&$form, $perm) {
+  $ok = user_access($perm);
+  $own_user_profile = (isset ($form['#id'])&& isset ($form['type']['#value']) && $form['#id'] == 'node-form' && $form['type']['#value'] == 'profile');
+  
+  if (isset($form['type']) && !$ok && !$form['type']['#value']) {
+    
+    if (isset($form['taxonomy']['tags'])) {
+      foreach ($form['taxonomy']['tags'] as $key => $value) {
+        $value['#access'] = FALSE;
+        $form['taxonomy']['tags'][$key] = $value;
+      }
+    }
+    if (isset($form['field_autotag'])) {
+      $form['field_autotag']['#access'] = FALSE;
+      $form['field_autotag']['#default_value'] = 0;
+    }
+  }
+}
+
+function isa_node_form_profile(&$form, &$form_state) {  
+  //isa_node_form_alter_language_field($form);
+  if (isset($form['uid'])) {
+    $user = user_load($form['uid']['#value']);
+    $form['group_personal']['field_profile_email'][0]['#default_value']['value'] = $user->mail;
+  }
+  $form['group_personal']['field_profile_email']['#access'] = FALSE;
+  if ($form['form_id']['#value'] == 'user_register')
+    $form['mail']['#description'] = t("A valid e-mail address. All e-mails from "
+        . "the system will be sent to this address. The e-mail address will be "
+        . "used if you wish to receive a new password or wish to receive "
+        . "certain news or notifications by e-mail. The e-mail address can also "
+        . "be made public if you decide to.");
+  $form['title']['#access'] = FALSE;
+  if (isset ($form['mail'])){
+    $form["#validate"][] = 'isa_node_form_profile_contact_validate';
+  }
+}
+
+/**
+ * Alter the OG audience form:
+ *   - when creating the node (access restrict by isa_node_form_access)
+ *   - when edit the node
+ *
+ * @param  $form
+ * @param  $form_state
+ * @param  $form_id
+ * @see isa_node_form_access
+ */
+function isa_node_form_alter_og_audience_form(&$form, &$form_state, $form_id) {
+  global $user;
+  //the gid of the parent community
+  $group_nid = array_shift(array_values($form['og_nodeapi']['visible']['og_groups']['#default_value']));
+  $community = node_load($group_nid);
+
+  $path_alias = explode('/', $form['path']['path']['#default_value']);
+  if ($path_alias[1] == 'license-wizard') {
+    // license wizard pages must be editable, and they have no particular audience
+    $form['og_nodeapi']['visible']['og_public']['#default_value'] = 1;
+    $form['og_nodeapi']['visible']['og_groups']['#required'] = FALSE;
+    $form['og_nodeapi']['#access'] = FALSE;
+  }
+  else {
+    //audiance is required
+    $form['og_nodeapi']['visible']['og_groups']['#required'] = TRUE;
+  }
+
+  // $form['og_nodeapi']['visible']['og_groups']['#multiple'] = FALSE;
+
+  $path = explode('/', drupal_get_normal_path($_GET['q']));
+
+  // if a node is posted in a community, set the default community and hidden field audience
+  if ((!empty($_GET['gids']) && $path[1] == "add")
+      || ((!empty($form['og_nodeapi']['visible']['og_groups']['#default_value'])) && $path[2] == "edit")) {
+
+    //set the checkbox "public" according if the community is open or private
+    if ($community->og_selective == 0 || $community->type == ISA_PROJECT_TYPE) { // public community
+      $form['og_nodeapi']['visible']['og_public']['#default_value'] = 1;
+      $og_public = 1;
+    }
+    else { //private community
+      $og_public = 0;
+      $form['og_nodeapi']['visible']['og_public']['#default_value'] = 0;
+    }
+
+    //the title of the parent community
+    // moderators can create all contents in all groups,if moderators isn't member of he current group, search the group title in 'Other groups'
+    if (isset($form['og_nodeapi']['visible']['og_groups']['#options']['My groups'])) {
+      if (isset($form['og_nodeapi']['visible']['og_groups']['#options']['My groups'][$group_nid])) {
+        $group_title = $form['og_nodeapi']['visible']['og_groups']['#options']['My groups'][$group_nid];
+      }
+      elseif (isset($form['og_nodeapi']['visible']['og_groups']['#options']['Other groups'][$group_nid])) {
+        $group_title = $form['og_nodeapi']['visible']['og_groups']['#options']['Other groups'][$group_nid];
+      }
+    }
+    else {
+      $group_title = $form['og_nodeapi']['visible']['og_groups']['#options'][$group_nid];
+    }
+
+    // visible part: the title of the parent community
+    $form['og_nodeapi']['visible']['og_groups_visible'] = array(
+      '#type' => 'item',
+      '#title' => t('Parent ') . $community->group_type,
+      '#value' => $group_title,
+    );
+    $form['og_nodeapi']['#title'] = ucfirst($community->group_type);
+    //By default open the fieldset
+    $form['og_nodeapi']['#collapsed'] = FALSE;
+
+    // non-visible part:  this 'value' element persists the audience value during submit process
+    $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => array($group_nid => $group_nid));
+    unset($form['og_nodeapi']['visible']['og_groups']);
+
+    $form['og_nodeapi']['visible']['og_public']['#type'] = 'hidden';
+
+    $form['#suffix'] = '<div class="message warning">Please note, that the facilitator of this ' . $community->group_type . ' may edit your content after publication for quality assurance reasons</div>';
+  }
+  else {  // if a node isn't posted in a community
+    if ($form['type']['#value'] == 'news' || $form['type']['#value'] == 'document') {
+      // remove the field andience if the news is not posted in a community
+      unset($form['og_nodeapi']);
+      unset($form['og_initial_groups']);
+    }
+  }
+}
+
+/**
+ * implementation of hook_menu_alter()
+ */
+function isa_node_form_menu_alter(&$items) {
+  // Defines the access callback for add wiki form in a community
+  $items['node/add/wiki']['access callback'] = 'isa_node_form_access_og_audience_form';
+  // Defines the access callback for add image form in a community
+  $items['node/add/image']['access callback'] = 'isa_node_form_access_og_audience_form';
+  // Defines the access callback for add document form in a community
+  $items['node/add/document']['access callback'] = 'isa_node_form_access_og_audience_form';
+  // Defines the access callback for add topic form in a community
+  $items['node/add/' . ISA_TOPIC_TYPE]['access callback'] = 'isa_node_form_access_og_audience_form';
+  // Defines the access callback for add blog form
+  //$items['node/add/blog']['access callback'] = 'isa_node_form_access_og_audience_form';
+  // Defines the access callback for add news form
+  $items['node/add/news']['access callback'] = 'isa_node_form_access_og_audience_form';
+  // Defines the access callback for add project
+  $items['node/add/project-project']['access callback'] = 'isa_node_form_access_project_form';
+  // Defines the access callback for the tab issues in a software (edit)
+  $items['node/%node/edit/issues']['access callback'] = 'isa_node_form_access_project_issues_edit_form';
+  //hide the menu item My Projects
+  $items['project/user']['access callback'] = FALSE;
+}
+
+/**
+ * hide the issues tab in a softawre edition
+ */
+function isa_node_form_access_project_issues_edit_form() {
+  return FALSE;
+}
+
+function isa_node_form_access_project_form($op, $node, $account = NULL) {
+  $node_type = str_replace('_', '-', $node);
+  $path = explode('/', drupal_get_normal_path($_GET['q']));
+  if ($path[1] == 'add' && strstr($path[2], $node_type)) {
+    if (isa_toolbox_is_omnipotent()) {
+      return node_access($op, $node);
+    }
+    if (isset($_GET['type'])) {
+      if ($_GET['type'] == 'OSS' || $_GET['type'] == 'asset') {
+        return node_access($op, $node);
+      }
+    }
+
+    drupal_set_message('Missing the project type.', "error");
+    return FALSE;
+  }
+  else {
+    return node_access($op, $node);
+  }
+}
+
+/**
+ * Check the access for add content in a group
+ *
+ * @global $user
+ * @param  $op
+ * @param  $node
+ * @param  $account
+ * @return boolean
+ *
+ * @see isa_node_form_menu_alter
+ */
+function isa_node_form_access_og_audience_form($op, $node, $account = NULL) {
+  global $user;
+  $node_type = str_replace('_', '-', $node);
+  $path = explode('/', drupal_get_normal_path($_GET['q']));
+  if ($path[1] == 'add' && strstr($path[2], $node_type)) {
+
+    if (isa_toolbox_is_omnipotent($user) || user_access('administer nodes')) {
+      return TRUE;
+    }
+// Start by collecting all groups that the user is a member of
+    $user_community = og_get_subscriptions($user->uid);
+
+    if (!empty($_GET['gids'])) {
+      $provided_gids = $_GET['gids']['0'];
+// is it one of the user's community ?
+      if (in_array($provided_gids, array_keys($user_community))) {
+        return node_access($op, $node);
+      }
+    }
+    elseif ($node == 'news' || $node == 'document') {
+      return node_access($op, $node);
+    }
+    drupal_set_message('The provided gids were rejected.', "error");
+    return FALSE;
+  }
+  else {
+    return node_access($op, $node);
+  }
+}
+
+function isa_node_form_enable() {
+  db_query("UPDATE {system} SET weight = 10000 WHERE name = 'isa_node_form'");
+}
+
+function isa_node_form_alter_language_field(&$form) {
+  // hide the language
+  if (isset($form['language'])) {
+    if ($form['type']['#value'] == 'project_project' || $form['type']['#value'] == 'profile') {
+      if ($form['language']['#default_value'] == '') {
+        $form['language']['#default_value'] = 'en';
+      }
+      $form['language']['#access'] = FALSE;
+    }
+    elseif ($form['type']['#value'] == 'federated_project') {
+      if ($form['language']['#default_value'] == '') {
+        $form['language']['#required'] = TRUE;
+      }
+      else {
+        $form['language']['#access'] = FALSE;
+      }
+    }
+  }
+  if (isset($form['og_language'])) {
+    $form['og_language']['#access'] = FALSE;
+  }
+}
+
+/**
+ * Redirect users to the releases list after a release is deleted
+ * @param array $form the node deletion form
+ */
+function isa_node_form_redirect_node_deletion(&$form, &$form_state) {
+  $node = node_load($form['nid']['#value']);
+// redirect user to homepage after deleting community or project
+//  if (!isset($form['#redirect'])){
+//    if (isset ($form['nid'])){
+//      $node = node_load ($form['nid']['#value']);
+//        if (og_is_group_type ($node->type)){
+//          $form['#redirect'] = '<front>';
+//        }
+//    }
+//  }
+
+  switch ($node->type) {
+    case ISA_PROJECT_RELEASE_TYPE:
+      $redirect_url = $form['#parameters']['2']->path;
+      $redirect_url = explode('/', $redirect_url);
+      $redirect_url = $redirect_url[0] . '/' . $redirect_url[1] . '/releases/all';
+      $form['#redirect'] = array($redirect_url);
+      break;
+  }
+}
+
+/**
+ * Prefill a project basic information for the translation form
+ * @param array $form the translation form
+ * @param object $node the translation source node
+ */
+function isa_node_form_prefill_translation_basic_project_information(&$form, &$node) {
+  // << Modify "Name" >>
+  $form['project_node']['title']['#default_value'] =
+      $node->title . " "
+      . isa_language_get_language_native_from_language_code($form['language']['#default_value']);
+  // << Prefill "Short name" >>
+  $form['project_node']['project']['uri']['#default_value'] =
+      $node->project['uri'] . "_"
+      . $form['language']['#default_value'];
+  // << Prefill "Abstract" >>
+  $form['project_node']['og_description']['#default_value'] =
+      $node->og_description;
+}
+
+/**
+ * Prefill a project dependencies for the translation form
+ * @param array $form the translation form
+ * @param object $node the translation source node
+ */
+function isa_node_form_prefill_translation_dependencies(&$form, &$node) {
+  // << Fill all the dependencies >>
+  // - If 0 dependency in original node, 2 fields are kept empty in translation.
+  // - If 1 dependency in original node, first field replaced, second field kept empty in translation.
+  // - If 2 dependencies or more in original node, 2 fields replaced in translation.
+  // - In order to keep at least one empty field under dependencies,
+  //   one empty field must be inserted if there are at least 2 dependencies.
+  $dependencies = $node->field_project_common_using;
+  $nb_dependencies = count($dependencies);
+  if ($nb_dependencies >= 2)
+    $dependencies[$nb_dependencies] = array('nid' => '');
+  foreach ($dependencies as $key => $nid) {
+    $dependency = $form['group_project_common_related']['field_project_common_using'][0];
+    $dependency['#default_value']['nid'] = $nid['nid'];
+    $dependency['_weight']['#default_value'] = $key;
+    $dependency['#weight'] = $key;
+    $dependency['#delta'] = $key;
+    $form['group_project_common_related']['field_project_common_using'][$key] = $dependency;
+  }
+}
+
+/**
+ * Prefill a project categories for the translation form
+ * @param array $form the translation form
+ * @param object $node the translation source node
+ */
+function isa_node_form_prefill_translation_categories(&$form, &$node) {
+  // << Prefill "Categories" >>
+  // Get keywords vocabulary vid (not stores the same manner as other vocabularies in the form)
+  // Then insert vocabulary terms into vocabularies fields
+  foreach ($form['taxonomy']['tags'] as $key => $terms) {
+    $tags_vid = $key;
+  }
+  $tags_tab = array();
+  foreach ($node->taxonomy as $key => $term) {
+    if ($term->vid == $tags_vid)
+      $tags_tab[] = $term->name;
+    else
+      $form['taxonomy'][$term->vid]['#default_value'][] = $term->tid;
+  }
+  $form['taxonomy']['tags'][$tags_vid]['#default_value'] = implode(', ', $tags_tab);
+}
+
+/**
+ * Prefill a project resources for the translation form
+ * @param array $form the translation form
+ * @param object $node the translation source node
+ */
+function isa_node_form_prefill_translation_resources(&$form, &$node) {
+  // << Prefill "Homepage" >>
+  $form['project']['homepage']['#default_value'] = $node->project['homepage'];
+  // << Prefill "Documentation" >>
+  $form['project']['documentation']['#default_value'] = $node->project['documentation'];
+  // << Prefill "Source repository" >>
+  $form['project']['cvs']['#default_value'] = $node->project['cvs'];
+}
+
+/**
+ * Prefill a federated project name for the translation form
+ * @param array $form the translation form
+ * @param object $node the translation source node
+ */
+function isa_node_form_prefill_translation_federated_project_name(&$form, &$node) {
+  // << Modify "Name" >>
+  $form['group_forge_project_info']['title']['#default_value'] =
+      $node->title . " "
+      . isa_language_get_language_native_from_language_code($form['language']['#default_value']);
+}
+
+/**
+ * Prefill content translation forms with source node information
+ * @param array $form the translation form
+ */
+function isa_node_form_prefill_translation(&$form) {
+  $tnid = $_GET['translation'];
+  if ($tnid) {
+    $node = $form['#node']->translation_source;
+    switch ($node->type) {
+      // ===== Prefill projects fields =====
+      case ISA_PROJECT_TYPE:
+        switch ($node->group_type) {
+          // === Prefill assets fields ===
+          case ISA_ASSET_TYPE:
+            isa_node_form_prefill_translation_basic_project_information($form, $node);
+            isa_node_form_prefill_translation_dependencies($form, $node);
+            isa_node_form_prefill_translation_categories($form, $node);
+            break;
+          // === Prefill software fields ===
+          case ISA_SOFTWARE_TYPE:
+            isa_node_form_prefill_translation_basic_project_information($form, $node);
+            isa_node_form_prefill_translation_dependencies($form, $node);
+            isa_node_form_prefill_translation_categories($form, $node);
+            isa_node_form_prefill_translation_resources($form, $node);
+            break;
+        }
+        break;
+      // ===== Prefill federated projects fields =====
+      case ISA_FEDERATED_PROJECT_TYPE:
+        isa_node_form_prefill_translation_federated_project_name($form, $node);
+        isa_node_form_prefill_translation_categories($form, $node);
+        break;
+    }
+  }
+}
+
+/**
+ * Updates date labels on node form.
+ *
+ * @param array $element
+ * @return array
+ */
+function isa_node_form_date_label($element) {
+  $element[0]['value']['#title'] = t('Start Date');
+  $element[0]['value2']['#title'] = t('End Date');
+  return $element;
+}
+
+/**
+ * This function alters the videos form
+ * @param array $form the videos form
+ * @return array $form the modified form
+ */
+function isa_node_form_videos($form) {
+  $form['group_video_information']['title'] = $form['title'];
+  $form['group_video_information']['body_field'] = $form['body_field'];
+  $form['group_video_information']['#access'] = TRUE;
+  unset($form['body_field'], $form['title']);
+  return $form;
+}
+
+
+/**
+ * Implementation of hook_perm
+ * @return type 
+ */
+function isa_node_form_perm() {
+  return (
+  array(
+      'edit field asset status', //permission granted to the administrator role
+      'access revision information',
+      'access comment settings',
+      'access authoring information',
+      'access publishing options',
+  )
+  );
+}
+
+
+/**
+ * Implementation of hook_validate
+ * more validation on email field
+ * @return type 
+ */
+function isa_node_form_profile_contact_validate($form, &$form_state) {
+  if (!filter_var($form_state['values']['mail'], FILTER_VALIDATE_EMAIL)) {
+    return form_set_error('mail', t('Your email must be valid'));
+  }
+}

@@ -1,0 +1,2340 @@
+<?php
+define ('MAX_DISPLAY_FILENAME_WIDTH' ,60);
+
+define('ISA_NEWS_TYPE', 'news');
+define('ISA_COMMUNITY_TYPE', 'community'); ///< Name of the content type used for communities
+define('ISA_SOFTWARE_TYPE', 'software'); ///< Name of the content type used for software
+define('ISA_ASSET_TYPE', 'asset'); ///< Name of the content type used for asset
+define('ISA_PROJECT_TYPE', 'project_project'); ///< Name of the content type used for project
+define('ISA_FEDERATED_PROJECT_TYPE', 'federated_project'); ///< Name of the content type used for federated project
+define('ISA_FEDERATED_FORGE_TYPE', 'federated_forge'); ///< Name of the content type used for federated forge
+define('ISA_TOPIC_TYPE', 'topic'); ///< Name of the content type used for topic
+define('ISA_ISSUE_TYPE', 'project_issue'); ///< Name of the content type used for project_issue
+define('ISA_DOCUMENT_TYPE', 'document'); ///< Name of the content type used for document
+define('ISA_CASE_TYPE', 'case'); ///< Name of the content type used for case
+define('ISA_EVENT_TYPE', 'event'); ///< Name of the content type used for event
+define('ISA_FACTSHEET_TYPE', 'factsheet'); ///< Name of the content type used for factsheet
+define('ISA_PROJECT_RELEASE_TYPE','project_release');
+define('ISA_NEWSLETTER_TYPE', 'newsletter');
+define('ISA_BLOG_TYPE', 'blog');
+define('ISA_VIDEO_TYPE', 'video');
+define('ISA_WIKI_TYPE', 'wiki');
+define('ISA_IMAGE_TYPE', 'image');
+define('ISA_STUDY_TYPE', 'study');
+
+//define("ISA_MODERATOR_ROLE", 'moderator');
+//define("ISA_MODERATOR_ROLE_RID", '3');
+//define("ISA_FACILITATOR_ROLE", 'facilitator');
+//define("ISA_FACILITATOR_ROLE_RID", '4');
+
+// WORKFLOW RELEASE STATES ID //
+define("ISA_SID_RELEASE_APPROVED", '18');
+define("ISA_SID_RELEASE_REQUESTED", '17');
+define("ISA_SID_RELEASE_CREATION", '16');
+define("ISA_SID_RELEASE_CREATED", '24');
+
+
+// WORKFLOW NEWS STATES ID //
+define("ISA_SID_NEWS_SUSPENDED", '5');
+define("ISA_SID_NEWS_VALIDATED", '4');
+define("ISA_SID_NEWS_DRAFT", '3');
+define("ISA_SID_NEWS_PROPOSED", '2');
+define("ISA_SID_NEWS_CREATION", '1');
+define ('ISA_SID_NEWS_CREATED','21');
+define ('ISA_SID_NEWS_REQUEST_PUBLICATION','22');
+define ('ISA_SID_NEWS_PUBLISHED','23');
+
+// WORKFLOW COMMUNITY STATES ID //
+define("ISA_SID_COMMUNITY_REJECTED", '10');
+define("ISA_SID_COMMUNITY_VALIDATED", '9');
+define("ISA_SID_COMMUNITY_DRAFT", '7');
+define("ISA_SID_COMMUNITY_PROPOSED", '8');
+define("ISA_SID_COMMUNITY_CREATION", '6');
+
+// WORKFLOW FEDEDERATED PROJECTS STATES ID //
+define("ISA_SID_FEDPROJ_PUBLISHED", '15');
+define("ISA_SID_FEDPROJ_CREATED", '14');
+define("ISA_SID_FEDPROJ_CREATION", '13');
+
+define ('ISA_UPDATE_VF_USERS_ROLES_TIME' , '86400'); // 24h
+
+function isa_toolbox_themeibak (){
+
+return array(
+    'filefield_file' => array(
+      'arguments' => array('file' => NULL),
+      'file' => 'filefield_formatter.inc',
+    ),
+);
+}
+
+
+
+
+/**
+ * Implementation of hook_perm
+ */
+function isa_toolbox_perm() {
+  return (
+    array(
+      'View any keywords/tags',
+      'administer ISA', // permission granted to the "administrator" role
+      'Assets Assistants', // permission granted to use the asset asssistant
+      'administer ISA mails', // permission granted to the "administrator" role
+      'access software list', // permission granted to the "administrator" role
+      'Comment form: Edit issue settings', //permission granted to the developer, administrator roles
+      'View profile privacy fields', //permission granted to the administrator and moderator roles
+      'manage users',
+    )
+  );
+}
+
+/**
+ * Checks to see if a user is allowed to access a community.
+ * Affects community details and community quick links blocks
+ * @param node $node Group node
+ * @return bool Returns TRUE if user is allowed to access the community
+ */
+function isa_toolbox_check_community_access($node) {
+  $member = og_is_group_member($node->nid);
+  if ($member) {
+    return TRUE;
+  } else {
+    $ok = $node->status;
+    if ($ok)
+      $ok = (!$node->og_private);
+    return $ok;
+  }
+}
+
+/**
+ * Changes a node's taxonomy from VID - TID to an array with vocab names as key
+ * and a full list of terms as value (a string, not an array)
+ * @param node $node The affected node
+ */
+function isa_toolbox_create_taxonomy_list(&$node, $include = NULL , $linked = FALSE) {
+  if ($include == NULL) {
+    $include = array(variable_get('domains_vid',NULL), variable_get('languages_vid',NULL));
+  }
+
+  $taxonomies = array();
+  $taxonomies_by_id = array();
+  if ($node->taxonomy && !empty ($node->taxonomy)){
+    foreach ($node->taxonomy as $tid => $value) {
+      $vocab = taxonomy_vocabulary_load($value->vid);
+      if (in_array($vocab->vid, $include)) { // Check to make sure no unwanted vocabs appear in the list
+        if (!isset($taxonomies[$vocab->name])) {
+          $taxonomies[$vocab->name] = array ();
+          $taxonomies_by_id[$vocab->name] = array();
+        }
+        $term_name = isa_toolbox_get_term_name($tid);
+      
+        if ($linked){
+          $taxonomies[$vocab->name][] = l($term_name, "taxonomy/terms/{$tid}");
+        }else{
+          $taxonomies[$vocab->name][] = $term_name;
+        }
+      }
+    }
+    foreach ($taxonomies as $term_name => $value) {
+      $taxonomies[$term_name] = implode(", ", $value);
+    }
+    $node->taxonomy_terms = $taxonomies;
+  }else{
+	$node->taxonomy_terms = array ();
+  }
+}
+
+function isa_toolbox_get_user_country(&$node) {
+  $country_vid = variable_get('country_vid',NULL);
+  foreach ($node->taxonomy as $tid => $value) {
+    if ($value->vid == $country_vid) {
+      $vocab = taxonomy_vocabulary_load($value->vid);
+      $node->country = isa_toolbox_get_term_name($tid);
+    }
+  }
+}
+
+/**
+ * Returns the term's name, based on a given term ID.
+ * Can be replaced by a proper Drupal function if one exists. Couldn't find one, so wrote this.
+ * @param int $tid
+ * @return string term name
+ */
+function isa_toolbox_get_term_name($tid) {
+  $sql = "SELECT name FROM {term_data} WHERE tid = %d";
+  $term = db_result(db_query($sql, $tid));
+  return $term;
+}
+
+/**
+ * Implementation of hook_user
+ */
+function isa_toolbox_user($op, &$edit, &$account, $category = NULL) {
+  switch ($op) {
+    case 'update':
+      $params = array('uid' => $account->uid, 'type' => 'profile');
+      $node = node_load($params);
+// For some reason, I can't do the following:
+// $node->field_profile_email[0]['value'] = $edit['mail'];
+// field_profile_email is read-only here
+// So we have to do the query manually
+      $sql = "UPDATE {content_type_profile} SET field_profile_email_value = '%s' WHERE nid = %d";
+      db_query($sql, $edit['mail'], $node->nid);
+// Got to flush caches, because the old email address is cached somewhere
+      drupal_flush_all_caches();
+	//  drupal_goto ('people/' . $account->uid);
+      break;
+    case 'load':
+
+      $profile = content_profile_load('profile', $account->uid);
+      if ($profile) {
+        $picture = isa_toolbox_picture_fix($profile, 'profile_photo');
+      }
+      $account->picture = $picture;
+    //link kudos
+    case 'view':
+      $account->content['userpoints']['what'] = array(
+        '#type' => 'user_profile_item',
+        '#title' => l(t('What are Kudos?'), isa_toolbox_get_kudos_page()),
+      );
+      break;
+	case 'delete':
+	//drupal_goto ('<front>');
+	break;
+  }
+}
+
+/**
+ * Gets a given profile's photo and processes it using its Imagecache settings
+ * @param object $profile node object
+ * @param string $preset the preset that should be loaded
+ * @return string picture path
+ */
+function isa_toolbox_picture_fix($profile, $preset = 'field_photo') {
+  if (isset($profile->field_photo['0'])) {
+    $path = $profile->field_photo['0']['filepath'];
+  } else {
+    $picture = isa_toolbox_default_imagefield('field_photo', 'profile');
+    $path = $picture['filepath'];
+  }
+  $picture = theme_imagecache($preset, $path, $profile->field_firstname[0]['value'] . ' ' . $profile->field_lastname[0]['value']);
+
+  //$picture['#item'] = $picture;
+  //$picture = theme_imagecache_formatter_default($picture);
+  //$picture = str_replace('imagecache//', 'imagecache/profile_photo/', $picture);
+  return $picture;
+}
+
+/**
+ * Implementation of hook_nodeapi
+ */
+function isa_toolbox_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  switch ($op) {
+    case 'insert':
+      switch ($node->type) {
+        case 'profile':
+          $node->language = 'en';
+          break;
+      }
+    case 'presave':
+      switch ($node->type) {
+        case 'profile':
+          $user = user_load($node->uid);
+          if (isset($user->mail)) {
+            $node->field_profile_email[0]['value'] = $user->mail;
+          }
+          break;
+        case 'advertisement':
+          $node->field_image[0]['data']['alt'] = $node->title;
+          $node->field_image[0]['data']['title'] = $node->title;
+          break;
+      }
+      break;
+    case 'load':
+      switch ($node->type) {
+        case 'profile':
+          $picture = isa_toolbox_picture_fix($node, 'profile_photo');
+          $node->picture = $picture;
+          break;
+        case ISA_PROJECT_TYPE:
+          if ($node->field_project_common_type[0]['value'] == '1') {
+            $node->group_type = ISA_SOFTWARE_TYPE;
+          } else {
+            $node->group_type = ISA_ASSET_TYPE;
+          }
+          break;
+        case ISA_COMMUNITY_TYPE:
+          $node->group_type = ISA_COMMUNITY_TYPE;
+          break;
+        case ISA_FEDERATED_PROJECT_TYPE:
+          $node->group_type = 'federatedproject';
+          break;
+      }
+      break;
+  }
+}
+
+/**
+ * Gets the current group's NID
+ * @return int Current group's NID
+ */
+
+/**
+ * Gets the current group's NID
+ * @param $node : Node of which you want to know the group nid
+ * @return int Current group's NID ou group NID from the given node
+ */
+function isa_toolbox_get_community_nid($node = null) {
+  if ($node == null) {
+    $node = og_get_group_context();
+    if (isset($node)) {
+      return $node->nid;
+    } else {
+      $nid = isa_og_helper_get_group_nid ();
+    }
+  } elseif ($node->type == 'project_issue') {
+      $nid = $node->project_issue['pid'];
+  } elseif ( $node->type == 'project_release') {
+      $nid = $node->project_release['pid'];
+  } else {
+		if (isset ($node->og_groups)){
+			$nid = array_shift(array_keys($node->og_groups));
+		}
+  }
+  return $nid;
+}
+
+/**
+ * Gets the path of the current page
+ * @return array containing all path data
+ */
+function isa_toolbox_get_path() {
+  $path = $_GET['q'];
+  $path = menu_get_item($path);
+  return $path;
+}
+/**
+ * Return a complete link for a activity (example when content has changed)
+ * @param type $node
+ * @return String a path link 
+ */
+function isa_toolbox_activity_path($node) {
+//    module_load_include('inc', 'pathauto');
+//    $exp = explode('/', $node->path);
+//    array_pop($exp);
+//    $exp[sizeof($exp)] = pathauto_cleanstring($node->title);    
+//    $path_imp = implode('/', $exp);
+    return l($node->title,  "node/".$node->nid, array('absolute' => TRUE));
+}
+
+/**
+ * implementation of hook_token_values()
+ */
+function isa_toolbox_token_values($type, $object = NULL, $options = array()) {
+  $values = array();
+  $gid = null;
+  if ($type == 'global'){
+    $values['contact_admin_url'] = url ('contact', array('absolute' => TRUE));
+  }elseif ($type == 'node') {
+    $node = $object;
+    $path = explode('/',$node->path);
+    $values['isa_node_type'] = strtolower(check_plain(node_get_types('name', $node)));    
+    $values['isa_node_link'] = isa_toolbox_activity_path($node);
+    $values['node_revisions_url'] = l($node->title, "node/{$node->nid}/revisions", array('absolute' => TRUE));
+    $values['isa_node_add_or_register'] = 'has created'; //by default (use in activity monitoring)
+    switch ($node->type) {
+      case ISA_STUDY_TYPE:
+        $values['isa_path_studies'] = ($node->field_type_study[0]['value'] == 'guidelines_study') ? 'guidelines' : 'studies';
+      case ISA_NEWS_TYPE:
+        $values['news_workflow_url'] = l($node->title, "node/{$node->nid}/workflow", array('absolute' => TRUE));
+        $values['news_url'] = l($node->title, "node/{$node->nid}"/*$node->path"news/{$node->nid}"*/, array('absolute' => TRUE));
+        break;
+      case ISA_CASE_TYPE:
+        $values['news_workflow_url'] = l($node->title, "node/{$node->nid}/workflow", array('absolute' => TRUE));
+        $values['case_url'] = l($node->title, "node/{$node->nid}"/*$node->path"node/{$node->nid}"*/, array('absolute' => TRUE));
+        break;
+      case ISA_DOCUMENT_TYPE:
+        $values['news_workflow_url'] = l($node->title, "node/{$node->nid}/workflow", array('absolute' => TRUE));
+        $values['document_url'] = l($node->title, "node/{$node->nid}"/*$node->path"node/{$node->nid}"*/, array('absolute' => TRUE));
+        $values['news_workflow_url'] = l($node->title, "node/{$node->nid}/workflow", array('absolute' => TRUE));
+        break;
+      case ISA_EVENT_TYPE:
+        $values['news_workflow_url'] = l($node->title, "node/{$node->nid}/workflow", array('absolute' => TRUE));
+        break;
+      case ISA_COMMUNITY_TYPE:
+      case ISA_PROJECT_TYPE:
+        $gid = $node->nid;
+        if ($node->field_project_common_type[0]['value'] == '1') {
+            $node->group_type = ISA_SOFTWARE_TYPE;
+            $values['isa_node_type'] = 'software';    
+            // used in activity monitoring
+            $values['isa_node_add_or_register'] = 'has registered'; 
+          } elseif ($node->field_project_common_type[0]['value'] == '0'){
+            $node->group_type = ISA_ASSET_TYPE;
+            $values['isa_node_type'] = 'shared asset';
+          }
+        
+        // ['isa_node_link'] used in activity monitoring
+        if ($node->type == ISA_COMMUNITY_TYPE){
+          $values['isa_node_link'] = l($node->title,$node->type."/".$node->field_community_short_name['0']['value']."/home", array('absolute' => TRUE));
+        }else{
+          $values['isa_node_link'] = l($node->title,$node->group_type."/".$node->project['uri']."/home", array('absolute' => TRUE));
+        }
+        
+        $values['community_description'] = $node->body;
+        isa_toolbox_create_taxonomy_list($node);
+        $domains = taxonomy_vocabulary_load(variable_get('domains_vid',NULL));
+        $languages = taxonomy_vocabulary_load(variable_get('languages_vid',NULL));
+        $values['community_domains'] = $node->taxonomy_terms[$domains->name];
+        $values['community_languages'] = $node->taxonomy_terms[$languages->name];
+        $values['community_privacy'] = (($node->og_selective == OG_OPEN) ? 'Public' : 'Private');
+        $values['community_workflow_url'] = l($node->title, "node/{$node->nid}/workflow", array('absolute' => TRUE));
+        $values['community_overview_url'] = l($node->title, "node/".$node->nid /*$node->path"{$node->group_type}/{$node->nid}/home"*/, array('absolute' => TRUE));
+        $values['community_manage_members_url'] = l($node->title, "{$path[0]}/{$path[1]}/members/edit", array('absolute' => TRUE));
+        $values['group_url'] = l ($node->title ,$node->path/*"{$node->group_type}/{$node->nid}/home"*/, array('absolute' => TRUE));
+        $values['group_abstract'] = $node->og_description;
+        break;
+      /** now use the token [isa_node_link]
+      case ISA_WIKI_TYPE:
+      case ISA_TOPIC_TYPE:
+        $values["{$node->type}_url"] = l($node->title, "{$group->group_type}/{$gid}/{$node->type}/{$node->nid}", array('absolute' => TRUE));
+        break;
+      */
+      case ISA_ISSUE_TYPE:
+        if (isset ($node->project_issue)) {
+          $gid = $node->project_issue['pid'];
+        }elseif (isset ($node->pid) && is_numeric($node->pid)) {
+          $gid = $node->pid;
+        }
+        $values['isa_node_type']='issue';
+        break;
+      case ISA_PROJECT_RELEASE_TYPE:
+        $gid = $node->project_release ['pid'];
+        $group = node_load ($gid);
+        $values['release_url'] = l ($node->title, $node->path/*"{$group->group_type}/{$group->uri}/release/{$node->title}"*/,array('absolute' => TRUE));
+        $values['survey_url'] = l($node->title . " survey", "{$node->path}/survey"/*"{$group->group_type}/{$group->uri}/release/{$node->title}/survey"*/, array('absolute' => TRUE));
+        $values['dl_project_title'] = $group->title;
+        $values['isa_node_type']='release';
+        break;
+      case 'profile':
+        $values['author_firstname'] = $node->field_firstname[0]['value'];
+        $values['author_lastname'] = $node->field_lastname[0]['value'];
+        $values['isa_long_name_linked'] = l($node->field_firstname[0]['value']." ".$node->field_lastname[0]['value'],"people/$node->uid",array('absolute' => TRUE));
+        $values['profile_company']    = $node->field_company_name[0]['value'];
+        break;
+      case ISA_NEWSLETTER_TYPE:
+        $values ['newsletter_body']= $node->body;
+        $values ['newsletter_title'] = check_plain($node->title);
+        isa_toolbox_create_taxonomy_list($node);
+        $domains = taxonomy_vocabulary_load(variable_get('domains_vid',NULL));
+        if ($node->taxonomy_terms[$domains->name]) {
+          $values ['newsletter_domains'] = t('Domains : ') . $node->taxonomy_terms[$domains->name];
+        }else {
+          $values ['newsletter_domains'] = '';
+        }
+        break;
+    }
+    
+    // get the gid
+    if ( og_is_group_post_type($node->type) || og_is_wiki_type($node->type)){
+      if ($node->og_groups) {
+        $gid = array_shift(array_keys($node->og_groups));
+      }
+    }
+    // token for the autopath (for group)
+    if ($gid) {
+      $group = node_load($gid);
+      if (isset($group->group_type)) {
+        $values['isa_group_type'] = $group->group_type;
+        if ($group->group_type == ISA_COMMUNITY_TYPE ) {
+            $values['isa_short_name'] = $group->field_community_short_name[0]['value'];
+          } else {
+            $values['isa_short_name'] = $group->project['uri'];
+          }
+      }
+    }
+    //ADD LCT, tocken for node autopath
+    $values['isa_node_path_prefix'] =  "";
+    if (isset( $values['isa_group_type'] )) {
+      $values['isa_node_path_prefix'] =  "{$values['isa_group_type']}/{$values['isa_short_name']}/";
+    }
+    elseif ($node->type == ISA_DOCUMENT_TYPE) {
+      $values['isa_node_path_prefix'] =  "elibrary/";
+    }
+
+  }
+  elseif ($type == 'workflow'){
+    $node = $object;
+     $sql = "SELECT h.sid, u.uid FROM {workflow_node_history} h LEFT JOIN {users} u ON h.uid = u.uid WHERE nid = %d AND h.sid = %d ORDER BY stamp DESC";
+      $history_requested = db_fetch_object(db_query_range($sql, $node->nid,ISA_SID_NEWS_REQUEST_PUBLICATION, 0, 1));
+      if ($history_requested->uid){
+        $profile = content_profile_load('profile', $history_requested->uid);
+        $values ['request-publication-lastname'] = $profile->field_lastname[0]['value'];
+        $values ['request-publication-firstname'] = $profile->field_firstname[0]['value'];
+        $values ['node-edit-url'] = l($node->title, "node/{$node->nid}/edit", array('absolute' => TRUE));
+      }
+  }
+  elseif ($type == 'user'){
+    $values ['isa_username_linked'] = theme("username",$object->uid);
+  
+    
+  }elseif ($type == 'comment'){
+    $node = node_load ($object['nid']);
+    $values ['isa_comment_link'] = l( $object['subject'], $node->path,array('absolute' => TRUE,'fragment' => 'comment-'.$object['cid']));
+  }
+
+  return $values;
+}
+
+/**
+ * implementation of hook_token_list()
+ */
+function isa_toolbox_token_list($type = 'all') {
+  if ($type == 'node' || $type == 'all') {
+    $tokens['ISA custom']['news_workflow_url'] = t('Node url for "news worflow"');
+    $tokens['ISA custom']['node_revisions_url'] = t('Node url for "revisions"');
+    $tokens['ISA custom']['community_description'] = t('Community descritpion');
+    $tokens['ISA custom']['community_domains'] = t('Community domains');
+    $tokens['ISA custom']['community_languages'] = t('Community languages');
+    $tokens['ISA custom']['community_privacy'] = t('Community privacy');
+    $tokens['ISA custom']['community_workflow_url'] = t('Community workflow url');
+    $tokens['ISA custom']['community_manage_members_url'] = t('Community manage members url');
+    $tokens['ISA custom']['community_overview_url'] = t('Community overview url');
+    $tokens['ISA custom']['wiki_url'] = t('url for view the wiki');
+    $tokens['ISA custom']['topic_url'] = t('url for view the topic');
+    $tokens['ISA custom']['news_url'] = t('url for view the news');
+    $tokens['ISA custom']['document_url'] = t('url for view the document');
+    $tokens['ISA custom']['recipient-firstname'] = t("Firstname of the current user");
+    $tokens['ISA custom']['community_node type'] = t('Community node type');
+    $tokens['ISA custom']['isa_group_type'] = t('Group type');
+    // token project_in_vf is set in isa_workflow_community and isa_workflow_mail
+    $tokens['ISA custom']['project_in_vf'] = t('Project is created in virtual forge');
+    $tokens['ISA custom']['author_firstname'] = t('Firstname of the user');
+    $tokens['ISA custom']['author_lastname'] = t('Lastname of the user');
+    $tokens['ISA custom']['profile_company'] = t('Company name of the user profile');
+    $tokens['ISA custom']['group_url'] = t('The title of group linked to homepage');
+    $tokens['ISA custom']['release_url'] = t('The title of release linked to homepage');
+    $tokens['ISA custom']['newsletter_title'] = t('The newsletter title');
+    $tokens['ISA custom']['newsletter_body'] = t('The newsletter body');
+    $tokens['ISA custom']['newsletter_domains'] = t('Newsletter domains');
+    $tokens['ISA custom']['survey_url'] = t('Survey URL');
+    $tokens['ISA custom']['dl_project_title'] = t('Downloaded project title');
+    $tokens['ISA custom']['request-publication-lastname'] = t('The lastname of the user who requested publication');
+    $tokens['ISA custom']['request-publication-firstname'] = t('The firstname of the user who requested publication');
+    $tokens['ISA custom']['node-edit-url'] = t('Node edition form url');
+    $tokens['ISA custom']['isa_node_type'] = t('Node type formated');
+    $tokens['ISA custom']['isa_node_add_or_register'] = t('Node action formated');
+    $tokens['ISA custom']['isa_short_name'] = t('Node short name formated');
+    $tokens['ISA custom']['isa_node_path_prefix'] = t('Node path prefix depending of the group context');
+    $tokens['ISA custom']['isa_node_link'] = t('Link to the node or to group homepage (if on a group)');
+    $tokens['ISA custom']['isa_long_name_linked'] = t('Link to user long name)');
+    $tokens['ISA custom']['isa_path_studies'] = t('Part of the path for guidelines/case studies');
+  }
+  elseif ($type=="user" || $type=="all") {
+        $tokens['ISA custom']['isa_username_linked'] = t('firstname lastname link');
+  }elseif ($type == 'comment'){
+    $tokens['ISA custom']['isa_comment_link'] = t('Comment link');
+    
+  }elseif ($type = 'global'){
+    $tokens['ISA custom']['contact_admin_url'] = t('Url to contact form');
+    
+  }
+  return $tokens;
+}
+
+/**
+ * Loads the default image of a field, based on field name and content type
+ * @param string $field of the field we want the default image for
+ * @param string $content_type of the content type we want the default image for
+ * @return array Picture array, structured like a CCK image field
+ */
+function isa_toolbox_default_imagefield($field, $content_type) {
+  $sql = 'SELECT widget_settings FROM {content_node_field_instance} WHERE field_name = "%s" && type_name = "%s"';
+  $result = db_result(db_query($sql, $field, $content_type));
+  $data = unserialize($result);
+  return $data['default_image'];
+}
+
+/**
+ * Checks if a string is empty
+ * @param string The string to check
+ * @return bool TRUE if string is empty, FALSE otherwise
+ */
+function empty_string($string) {
+  return (!drupal_strlen(trim($string)));
+}
+
+/**
+ * Checks if a user is admin or not
+ * @param object $user object to check. If empty, the current user is used
+ * @return bool TRUE if user is admin, FALSE otherwise
+ */
+function isa_toolbox_is_omnipotent($user = NULL) {
+
+  if (is_null($user)) {
+    $user = $GLOBALS['user'];
+  }
+  if ($user->uid == '1') {
+    return true;
+  }
+
+  $omnipotent = user_access('administer ISA', $user);
+  return ($omnipotent);
+}
+
+/**
+ * Adds user roles to a given group to the referenced array of user objects
+ * @param array $users_array Array of users objects, keyed by their uid. These objects
+ *   will get an og_groups attribute, actually an array listing the roles of
+ *   each user within the given group. This array is keyed by role id.
+ * @param int $gid The group node id
+ * @return bool FALSE if something went wrong, TRUE otherwise
+ * @see og_user_roles_grant_roles()
+ */
+function isa_toolbox_get_users_og_roles(&$users_array, $gid) {
+  if (!is_array($users_array) || !is_numeric($gid)) {
+    return (FALSE);
+  }
+
+  if (empty($users_array)) {
+    return (TRUE);
+  }
+
+// initialize the og_roles attribute of each user object
+  foreach ($users_array as $uid => $users) {
+    $users_array[$uid]->og_roles = array();
+  }
+
+// fetch the user/roles associations for the given gid
+  $sql_query = sprintf(
+    'SELECT ogur.uid, ogur.rid, r.name
+    FROM {og_users_roles} ogur
+    INNER JOIN {role} r
+    ON r.rid = ogur.rid
+    WHERE ogur.uid IN(%s)
+    AND ogur.gid = %%d',
+    db_placeholders(array_keys($users_array))
+  );
+  $sql_args = array_keys($users_array);
+  array_push($sql_args, $gid);
+  $result = db_query($sql_query, $sql_args);
+
+// associate roles and users
+  while ($role = db_fetch_object($result)) {
+    if (isset($users_array[$role->uid])) {
+      $users_array[$role->uid]->og_roles[$role->rid] = $role->name;
+    }
+  }
+
+  return (TRUE);
+}
+
+/**
+ * implementation of hook_menu()
+ */
+function isa_toolbox_menu() {
+  $items = array();
+// Defines the menu for the ISA custom modules configuration
+  $items['admin/isa'] = array(
+    'title' => 'ISA',
+    'description' => 'ISA custom modules',
+    'access arguments' => array('administer ISA'),
+    'page callback' => 'system_admin_menu_block_page',
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+    'weight' => 50,
+  );
+//define the menu for manage isa mails
+  $items['admin/isa/mail'] = array(
+    'title' => 'Template Mails',
+    'description' => 'Manage the template mails from ISA custom modules',
+    'access arguments' => array('administer ISA mails'),
+    'page callback' => 'system_admin_menu_block_page',
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+    'weight' => 0,
+  );
+  //define the menu for software list
+  $items['software/all'] = array(
+    'title' => 'Software',
+    'description' => 'Software List',
+    'access arguments' => array('access software list'),
+    'page callback' => 'isa_toolbox_get_software_page',
+    'weight' => -48,
+    'type' => MENU_NORMAL_ITEM,
+    'menu_name' => 'primary-links',
+  );
+  //define the menu for "My Page"
+  $items['people/mypage'] = array(
+    'title' => 'My Page',
+    'description' => 'My Page',
+    'access callback' => 'isa_toolbox_my_page_access',
+    'page callback' => 'isa_toolbox_my_page',
+    'weight' => -49,
+    'type' => MENU_NORMAL_ITEM,
+    'menu_name' => 'primary-links',
+  );
+  //define the menu for isa homepage
+  $items['homepage'] = array(
+    'title' => 'Home',
+    'access arguments' => array('access content'),
+    'page callback' => 'isa_toolbox_get_homepage',
+    'weight' => -100,
+    'type' => MENU_NORMAL_ITEM,
+    'menu_name' => 'primary-links',
+  );
+  //define the path for manage the static texts in ISA
+  $items['admin/isa/isa_static_texts'] = array(
+    'title' => 'Manage static texts',
+    'description' => 'Manage the static texts of ISA',
+    'access arguments' => array('administer nodes'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_toolbox_static_texts_form'),
+    'weight' => 0,
+    //'type' => MENU_LOCAL_TASK,
+  );
+  //define the path for manage template mail of simple news module
+  $items['admin/isa/mail/newsletters'] = array(
+    'title' => 'Newsletters',
+    'description' => 'Manage template mail for newsletters',
+    'access arguments' => array('administer ISA mails'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_toolbox_newsletters_template_mail'),
+    'weight' => 0,
+    //'type' => MENU_LOCAL_TASK,
+  );
+  //define the path for manage template mail for all mails
+  $items['admin/isa/mail/all_emails'] = array(
+    'title' => 'All mails',
+    'description' => 'Manage templates mails',
+    'access arguments' => array('administer ISA mails'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_toolbox_all_mails_template_mail'),
+    'weight' => 0,
+    //'type' => MENU_LOCAL_TASK,
+  );
+  //define the path for the subscriptions page (to display subscriptions options in a popup
+  $items['node/%/subscribe'] = array(
+    'title' => 'Subscriptions',
+    'description' => 'Subscriptions options for current page',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('subscriptions_ui_node_form',1),
+    'access callback' =>'isa_toolbox_subscribe',
+    'access arguments' => array(1),
+    'type' => MENU_CALLBACK,
+  );
+  
+  $items['community/%/home'] = array(
+    'title' => 'Welcome',
+    'page callback' => 'empty_page',
+    'access callback' => TRUE,
+  );
+  $items['asset/%/home'] = array(
+    'title' => 'Welcome',
+    'page callback' => 'empty_page',
+    'access callback' => TRUE,
+  );
+  $items['software/%/home'] = array(
+    'title' => 'Welcome',
+    'page callback' => 'empty_page',
+    'access callback' => TRUE,
+  );
+  return $items;
+}
+
+/**
+ *
+ * @param <type> $node :current node
+ * @return <boolean> True if the subscribe link should be accessible
+ */
+function isa_toolbox_subscribe($node) {
+  // don't display the "Subscribe" link for license wizard wiki pages
+  $path_alias = explode('/', $node->path);
+  if ($path_alias[1] == 'license-wizard')
+    return FALSE;
+
+  if (is_numeric($node)){
+    $node = node_load ($node);
+  }
+
+  $group_types = array(ISA_COMMUNITY_TYPE,ISA_PROJECT_TYPE);
+  $is_group = in_array($node->type,$group_types);
+  
+  if (!$is_group && subscriptions_content_type_is_blocked($node->type) && !user_access('subscribe to all content types')) {
+    return FALSE;
+  }
+  
+  if ($is_group) {
+    if (!og_is_group_member($node->nid) && !isa_toolbox_is_omnipotent()) {
+      return FALSE;
+    }
+  } else {
+    $gid = isa_toolbox_get_community_nid($node);
+    //if we are in a group the user must be a member to subscribe to content
+    if ($gid) {
+      if (!og_is_group_member($gid)) {
+        return FALSE;
+      }
+    } else {
+      if ($node->_workflow && $node->_workflow != ISA_SID_NEWS_VALIDATED) {
+        return FALSE;
+      }
+    }
+  }
+  return TRUE;
+}
+
+function empty_page() {
+  return ' ';
+}
+
+function isa_toolbox_my_page() {
+  global $user;
+  drupal_goto('people/' . $user->uid);
+}
+
+function isa_toolbox_my_page_access() {
+  global $user;
+  return ($user->uid != 0);
+}
+
+function isa_toolbox_all_mails_template_mail () {
+  $form['prefix_subject_mail_title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Prefix of mails subject'),
+    '#default_value' => variable_get("prefix_subject_mail_title", ""),
+    '#description' => t('The prefix of all mails subject.')
+  );
+  return system_settings_form($form);
+}
+function isa_toolbox_newsletters_template_mail() {
+  $form['token_list'] = array(
+      '#type' => 'item',
+      '#value' => theme('token_tree', array('node'), TRUE, FALSE),
+  );
+  $form['newsletters'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Newsletters'),
+      '#collapsible' => TRUE,
+      '#collapsed' => FALSE,
+  );
+  $form['newsletters']['newsletters_mail_body'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Mail body'),
+      '#default_value' => variable_get("newsletters_mail_body", "..."),
+      '#description' => t('The body of the message sent to member when newsletter is created')
+  );
+  $form['newsletters']['newsletters_mail_footer'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Mail footer'),
+      '#default_value' => variable_get("newsletters_mail_footer", "..."),
+      '#description' => t('The footer of the message sent to member when newsletter is created')
+  );
+  return system_settings_form($form);
+}
+
+function isa_toolbox_get_homepage() {
+  return ' ';
+}
+
+function isa_toolbox_static_texts_form() {
+  $form = array();
+
+  $form['header_block'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Header blocks'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  //Text for the header block in asset list
+  $form['header_block']['header_block_assets_list'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Assets list'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['header_block']['header_block_assets_list']['header_block_assets_list_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Title'),
+      '#default_value' => variable_get("header_block_assets_list_title", "title..."),
+      '#description' => t('Title for the header block in assets list')
+  );
+  $form['header_block']['header_block_assets_list']['header_block_assets_list_description'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Body'),
+      '#default_value' => variable_get("header_block_assets_list_description", "general description..."),
+      '#description' => t('General description for the header block in assets list')
+  );
+  // Text for the header block in e-Library list
+  $form['header_block']['header_block_elibrary_list'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('E-Library list'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['header_block']['header_block_elibrary_list']['header_block_elibrary_list_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Title'),
+      '#default_value' => variable_get("header_block_elibrary_list_title", "Title..."),
+      '#description' => t('Title for the header block in e-Library list')
+  );
+  $form['header_block']['header_block_elibrary_list']['header_block_elibrary_list_description'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Body'),
+      '#default_value' => variable_get("header_block_elibrary_list_description", "General description..."),
+      '#description' => t('General description for the header block in e-Library list')
+  );
+
+  $form['software_related_projects'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Software homepage: related projects block'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['software_related_projects']['related_projects_information'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Related projects block information'),
+      '#default_value' => variable_get("related_projects_information", "description..."),
+      '#description' => t('Information for the related projects block from software homepage'),
+  );
+  // Text for the header block in events calendar
+  $form['header_block']['header_block_events_calendar'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Events calendar'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['header_block']['header_block_events_calendar']['header_block_events_calendar_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Title'),
+      '#default_value' => variable_get("header_block_events_calendar_title", "Title..."),
+      '#description' => t('Title for the header block in the events calendar')
+  );
+  $form['header_block']['header_block_events_calendar']['header_block_events_calendar_description'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Body'),
+      '#default_value' => variable_get("header_block_events_calendar_description", "General description..."),
+      '#description' => t('General description for the header block in the events calendar')
+  );
+  // Text for the header block in "My Page"
+  $form['header_block']['header_block_my_page'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('My Page'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['header_block']['header_block_my_page']['header_block_my_page_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Title'),
+      '#default_value' => variable_get("header_block_my_page_title", "Title..."),
+      '#description' => t('Title for the header block in "My Page"')
+  );
+  $form['header_block']['header_block_my_page']['header_block_my_page_description'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Body'),
+      '#default_value' => variable_get("header_block_my_page_description", "General description..."),
+      '#description' => t('General description for the header block in the events calendar')
+  );
+  // Text for the header block in "Administration pages"
+  $form['header_block']['header_block_admin'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Administration page'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['header_block']['header_block_admin']['header_block_admin_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Title'),
+      '#default_value' => variable_get("header_block_admin_title", "Title..."),
+      '#description' => t('Title for the header block in "Administration pages"')
+  );
+  $form['header_block']['header_block_admin']['header_block_admin_description'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Body'),
+      '#default_value' => variable_get("header_block_admin_description", "General description..."),
+      '#description' => t('General description for the header block in "Administration pages"')
+  );
+  // Text for the header block in "Information pages"
+  $form['header_block']['header_block_information'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Information page'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['header_block']['header_block_information']['header_block_information_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Title'),
+      '#default_value' => variable_get("header_block_information_title", "Title..."),
+      '#description' => t('Title for the header block in "Information pages"')
+  );
+  $form['header_block']['header_block_information']['header_block_information_description'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Body'),
+      '#default_value' => variable_get("header_block_information_description", "General description..."),
+      '#description' => t('General description for the header block in "Information pages"')
+  );
+  // Text for the header block in "User Profile"
+  $form['header_block']['header_block_user_profile'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('User Profile'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['header_block']['header_block_user_profile']['header_block_user_profile_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Title'),
+      '#default_value' => variable_get("header_block_user_profile_title", "Title..."),
+      '#description' => t('Title for the header block in the events calendar')
+  );
+  $form['header_block']['header_block_user_profile']['header_block_user_profile_description'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Body'),
+      '#default_value' => variable_get("header_block_user_profile_description", "General description..."),
+      '#description' => t('General description for the header block in the events calendar')
+  );
+  // Text for the header block in newslettersview
+  $form['header_block']['header_block_newsletters_list'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Newsletters list page'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['header_block']['header_block_newsletters_list']['header_block_' . ISA_NEWSLETTER_TYPE . 's_list_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Title'),
+      '#default_value' => variable_get('header_block_' . ISA_NEWSLETTER_TYPE . 's_list_title', "Title..."),
+      '#description' => t('Title for the header block in the newsletters list page')
+  );
+  $form['header_block']['header_block_newsletters_list']['header_block_' . ISA_NEWSLETTER_TYPE . 's_list_description'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Body'),
+      '#default_value' => variable_get('header_block_' . ISA_NEWSLETTER_TYPE . 's_list_description', 'General description...'),
+      '#description' => t('General description for the header block in the newsletters list page')
+  );
+
+  // Text for anonymous validation for download release
+  $form['anonymous_download_page'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Anonymous download release'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['anonymous_download_page']['anonymous_validation_page_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Page title'),
+      '#default_value' => variable_get('anonymous_validation_page_title', "Title..."),
+      '#description' => t('')
+  );
+  $form['anonymous_download_page']['anonymous_validation_page_login_desciption'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Description login'),
+      '#default_value' => variable_get('anonymous_validation_page_login_desciption', 'General description...'),
+      '#description' => t('The text that is displayed before link to login')
+  );
+  $form['anonymous_download_page']['anonymous_validation_page_login_link_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Link title to login'),
+      '#default_value' => variable_get('anonymous_validation_page_login_link_title', "Login"),
+      '#description' => t('The title of the link to login on joinup'),
+      '#maxlength' => 256,
+  );
+  $form['anonymous_download_page']['anonymous_validation_page_download_desciption'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Description download'),
+      '#default_value' => variable_get('anonymous_validation_page_download_desciption', 'General description...'),
+      '#description' => t('The text that is displayed before link download release')
+  );
+  $form['anonymous_download_page']['anonymous_validation_page_download_link_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Link title to download release'),
+      '#default_value' => variable_get('anonymous_validation_page_download_link_title', "Download"),
+      '#description' => t('The title of the link to download release'),
+      '#maxlength' => 256,
+  );
+  $form['anonymous_download_page']['anonymous_validation_page_not_allowed_desciption'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Description download not allowed for anonymous'),
+      '#default_value' => variable_get('anonymous_validation_page_not_allowed_desciption', 'General description...'),
+      '#description' => t('The text that is displayed if the release download is not allowed for anonymous.')
+  );
+  // Surveys introduction text
+  $form['surveys'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Surveys'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['surveys']['surveys_introduction_text'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Surveys introduction text'),
+      '#default_value' => variable_get("surveys_introduction_text", "Introduction text..."),
+      '#description' => t('Introduction text written before surveys questions')
+  );
+  //General texts
+  $form['general'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('General'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['general']['anonymous_connect'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Anonymous (need to connect) text'),
+      '#default_value' => variable_get("anonymous_connect_text", "You should connect to display this page"),
+      '#description' => t('Introduction text written for recommended pages if the user is anonymous')
+  );
+  // Text for the header block in people list
+  $form['header_block']['header_block_people_list'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('People list'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['header_block']['header_block_people_list']['header_block_people_list_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Title'),
+      '#default_value' => variable_get("header_block_people_list_title", "Title..."),
+      '#description' => t('Title for the header block in people list')
+  );
+  $form['header_block']['header_block_people_list']['header_block_people_list_description'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Body'),
+      '#default_value' => variable_get("header_block_people_list_description", "General description..."),
+      '#description' => t('General description for the header block in people list'),
+  );
+
+  // Text for the header block in news list
+  $form['header_block']['header_block_news_list'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('News list'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['header_block']['header_block_news_list']['header_block_news_list_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Title'),
+      '#default_value' => variable_get("header_block_news_list_title", "Title..."),
+      '#description' => t('Title for the header block in news list')
+  );
+  $form['header_block']['header_block_news_list']['header_block_news_list_description'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Body'),
+      '#default_value' => variable_get("header_block_news_list_description", "General description..."),
+      '#description' => t('General description for the header block in news list'),
+  );
+
+  // Text for the header block in communities list
+  $form['header_block']['header_block_communities_list'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Communities list'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['header_block']['header_block_communities_list']['header_block_communities_list_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Title'),
+      '#default_value' => variable_get("header_block_communities_list_title", "Title..."),
+      '#description' => t('Title for the header block in communities list')
+  );
+  $form['header_block']['header_block_communities_list']['header_block_communities_list_description'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Body'),
+      '#default_value' => variable_get("header_block_communities_list_description", "General description..."),
+      '#description' => t('General description for the header block in communities list'),
+  );
+
+  // Text for the header block in software list
+  $form['header_block']['header_block_software_list'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Software list'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['header_block']['header_block_software_list']['header_block_software_list_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Title'),
+      '#default_value' => variable_get("header_block_software_list_title", "Title..."),
+      '#description' => t('Title for the header block in software list')
+  );
+  $form['header_block']['header_block_software_list']['header_block_software_list_description'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Body'),
+      '#default_value' => variable_get("header_block_software_list_description", "General description..."),
+      '#description' => t('General description for the header block in software list'),
+  );
+
+  // Text for the header block in homepage (site mission)
+  $form['header_block']['header_block_homepage'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Homepage'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['header_block']['header_block_homepage']['header_block_homepage_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Title'),
+      '#default_value' => variable_get("header_block_homepage_title", "Welcome"),
+      '#description' => t('Title for the header block in homepage')
+  );
+  $form['header_block']['header_block_homepage']['site_mission'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Body'),
+      '#default_value' => variable_get("site_mission", "Welcome to the new programme improving electronic cooperation among public administrations in EU Member States..."),
+      '#description' => t('General description for the header block in homepage'),
+  );
+  // on popup request membershit
+  $form['membership_benefits'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Text on popup for request membership'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+    $form['membership_benefits']['token_list'] = array(
+      '#type' => 'item',
+      '#value' => theme('token_tree', array('node'), TRUE, FALSE),
+  );
+  $form['membership_benefits']['membership_benefits_text_community'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Text for a community'),
+      '#default_value' => variable_get("membership_benefits_text_community", "As a member, you will be able to post community related content, such as news or documents, participate in forum discussions and subscribe to community mailing lists. As a member, you will also be automatically subscribed to all community related notifications. You can later unsuscribe at any time under the My Page - Subscriptions page. As member of a software or shared asset project, the facilitator will be able to grant you further rights (e.g. developer right)."),
+      '#description' => t('Text displayed in the pop-up window when a user click on "request membership" in a community'),
+  );
+    $form['membership_benefits']['membership_benefits_text_project'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Text for a project'),
+      '#default_value' => variable_get("membership_benefits_text_project", "As a member, you will be able to post community related content, such as news or documents, participate in forum discussions and subscribe to community mailing lists. As a member, you will also be automatically subscribed to all community related notifications. You can later unsuscribe at any time under the My Page - Subscriptions page. As member of a software or shared asset project, the facilitator will be able to grant you further rights (e.g. developer right)."),
+      '#description' => t('Text displayed in the pop-up window when a user click on "request membership" in a project (Asset or Software)'),
+  );
+    // help text on the comfirm delete form for a group
+  $form['group_delete_confirm'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Text on the confirm delete page of group'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+    $form['group_delete_confirm']['token_list'] = array(
+      '#type' => 'item',
+      '#value' => theme('token_tree', array('global'), TRUE, FALSE),
+  );
+  $form['group_delete_confirm']['group_delete_confirm_information'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Text'),
+      '#default_value' => variable_get("group_delete_confirm_information", "<p>If you move all posts from a project (asset or software) to a community, all releases and issues will be deleted.<br/>If you need more information, you can contact administrator by the <a href=\"[contact_admin_url]\">contact form</a></p>"),
+      '#description' => t('Text displayed in the confirm delete form of a group.'),
+  );
+    
+  return system_settings_form($form);
+}
+
+function isa_toolbox_get_software_page() {
+  drupal_set_title(t('Find Software'));
+  return ' ';
+}
+
+/**
+ * Simple debug function, based on drupal_set_message, which ensures the message
+ * has been seen.
+ * @param string/object $args stuff to print_r
+ * @param string $message additionnal message to distinguish debug messages
+ */
+function dsk($args, $message = '') {
+  static $krumo_included = FALSE;
+  if (!$krumo_included) {
+    $krumo_included = include_once(drupal_get_path('module', 'devel') . '/krumo/class.krumo.php');
+  }
+  if (!$krumo_included) {
+    return;
+  }
+
+  $final_message = $message . ' :' . krumo_ob($args);
+  drupal_set_message($final_message);
+}
+
+/**
+ * Gets the user's mail address
+ * @param int $uid uid of the user you want to know the mail address
+ * @return string The user's mail address
+ */
+function isa_toolbox_get_mail_address_from_user($uid) {
+  return db_result(db_query("SELECT mail FROM {users} WHERE uid = '%d'", $uid));
+}
+
+/**
+ * return users by roles id
+ *
+ * @param numeric $rid the role id
+ * @return array users
+ */
+function isa_toolbox_get_users_by_roles ($rid) {
+  if (!is_array($rid)) {
+    $rid = array ( 0 => $rid);
+  }
+  foreach ($rid as $key=>$value) {
+    $sql = 'SELECT *
+      FROM {users} a
+      LEFT JOIN {users_roles} b ON (a.uid = b.uid)
+      WHERE b.rid =%d';
+    $res = db_query($sql,$value);
+    while ($row = db_fetch_object($res)) {
+      $users[$row->uid] = $row;
+    }
+  }
+  if (isset ($users)) {
+    return $users;
+  }else {
+    return NULL;
+  }
+}
+
+/** Return users by roles id and for a virtual forge
+ *
+ * @param numeric $rid role id
+ * @param string/numeric $vf_tid the term id or term name of virtual forge
+ * @return array users
+ */
+function isa_toolbox_get_users_by_vf_roles ($rid,$vf_tid) {
+  if (!is_array($rid)) {
+    $rid = array ( 0 => $rid);
+  }
+
+  if (is_numeric($vf_tid)) {
+    $term = taxonomy_get_term($vf_tid);
+    $vf_name = $term->name;
+  }else {
+    $vf_name = $vf_tid;
+  }
+  foreach ($rid as $key=>$value) {
+    $sql = 'SELECT *
+      FROM {users} a
+      LEFT JOIN %s_users_roles b ON (a.uid = b.uid)
+      WHERE b.rid =%d';
+    $res = db_query($sql,$vf_name,$value);
+    while ($row = db_fetch_object($res)) {
+      $users[$row->uid] = $row;
+    }
+  }
+  if (isset ($users)) {
+    return $users;
+  }else {
+    return NULL;
+  }
+}
+/**
+ * Count number of post of a user
+ * @param Int $uid user id
+ * @return Int
+ */
+function isa_toolbox_get_users_topics_count($uid) {
+  $query = "SELECT count( 'nid' ) AS cptpost
+  FROM `node`
+  WHERE `type` LIKE '%s'
+  AND `uid` = %d ";
+  $res = db_query($query,$uid,ISA_TOPIC_TYPE); 
+  return $res->cptpost;
+  
+}
+
+/**
+ * Returns a list of users belonging to a given group and having a given role
+ * @param int $gid Group ID
+ * @param string $role Role name
+ * @return array list of users (contains UID and mail address)
+ */
+function isa_toolbox_get_users_by_og_roles($gid, $role_id) {
+  $list_users = array();
+  //$role_id = db_result(db_query("SELECT rid FROM {role} WHERE name = '%s'", $role));
+  $sql = 'SELECT a.uid, a.mail
+          FROM {users} a
+          LEFT JOIN {og_users_roles} b
+          ON (a.uid = b.uid)
+          WHERE b.rid = %d AND b.gid = %d';
+  $res = db_query($sql, $role_id, $gid);
+  while ($row = db_fetch_object($res)) {
+    $list_users[$row->uid] = $row;
+  }
+  return $list_users;
+}
+
+/**
+ * Sets title / body fields and a token tree for each given form field.
+ * Used for building mailing template forms
+ * @param array $form_fields Array of all form fields
+ * @param string $token_type Type of token. Defaults to 'all'
+ * @return array Form array
+ */
+function isa_toolbox_get_form_template_message($form_fields, $token_type = 'all') {
+  if (!is_array($token_type)){
+    $token_type = array ($token_type);
+  }
+  $form['token_list'] = array(
+    '#type' => 'item',
+    '#value' => theme('token_tree', $token_type, TRUE, FALSE),
+  );
+
+  foreach ($form_fields as $id => $field) {
+//fildset
+    $form [$field['name']] = array(
+      '#type' => 'fieldset',
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#title' => $field['fieldset_title']
+    );
+//title
+    isset ($field['default_title']) ? $default_title = $field['default_title'] : $default_title = 'title...';
+    isset ($field['default_body']) ? $default_body = $field['default_body'] : $default_body = 'body...';
+
+    $form[$field['name']]['notifications'][$field['name'] . '_mail_title'] = array(
+      '#type' => 'textfield',
+      '#title' => $field['title_title'],
+      '#default_value' => variable_get($field['name'] . "_mail_title", $default_title),
+      '#description' => $field['description_title']
+    );
+//body
+    $form[$field['name']]['notifications'][$field['name'] . '_mail_body'] = array(
+      '#type' => 'textarea',
+      '#title' => $field['title_body'],
+      '#default_value' => variable_get($field['name'] . "_mail_body", $default_body),
+      '#description' => $field['description_body']
+    );
+  }
+  return $form;
+}
+
+/**
+ * implementation of hook_link_alter
+ */
+function isa_toolbox_link_alter(&$links, $node, $comment = NULL) {
+// remove the reply link on topic comment
+  if (isset($comment) && $node->type == 'topic') {
+    unset($links['comment_reply']);
+    $links['comment_delete']['attributes'] = array('class' => 'popups-form', 'title' => t('Delete this comment'));
+  }
+
+  //remove the comment edit link of a comment for everyone exept the comment author & administrator
+  global $user;
+  if (isset($comment) && $user->uid != $comment->uid && !isa_toolbox_is_omnipotent()) {
+    unset($links['comment_delete']);
+  }
+}
+
+/**
+ * Returns role ID and name for a given role ID
+ * @param int $rid Role ID
+ * @return array Array containing rid (Role ID) and name
+ */
+function isa_toolbox_get_role_by_rid($rid) {
+  $role = db_result(db_query('SELECT r.name FROM {role} r WHERE r.rid=%d', $rid));
+  return array('rid' => $rid, 'name' => $role);
+}
+
+/**
+ * Implementation of hook_views_query_alter
+ */
+function isa_toolbox_views_query_alter(&$view, &$query) {
+  if (isset($view->query->table_queue['node_users_node_data_field_photo'])) {
+    $view->query->table_queue['node_users_node_data_field_photo']['join']->type = 'INNER';
+  }
+  if (isset($view->query->table_queue['node_counter'])) {
+// SGS
+//    $view->query->table_queue['node_counter']['join']->type = 'INNER';
+  }
+  if (isset($view->query->table_queue['node_users_heartbeat_activity_node_data_field_photo'])) {
+    $view->query->table_queue['node_users_heartbeat_activity_node_data_field_photo']['join']->type = 'INNER';
+  }
+  if ($view->name == 'Comment_moderated' && $view->current_display == 'block_2') {
+    global $user;
+    $groups = array();
+    // Get all GIDs of groups of which the current user is admin
+    foreach ($user->og_groups as $group) {
+      if ($group['is_admin'] == 1)
+        $groups[] = $group['nid'];
+    }
+    $count = count($groups);
+    // Get where clauses (select blabla from blabla WHERE)
+    $where = $query->where[0];
+    $txt = 'node_comments__og_ancestry.group_nid IN (';
+
+    // Fill the IN () part with placeholders (eg. IN (%d, %d, %d))
+    for ($i = 0; $i < $count; $i++) {
+      $txt .= '%d';
+      if ($i < ($count - 1))
+        $txt .= ', ';
+    }
+
+    $txt .= ')';
+    // Add the text with placeholders to the WHERE clauses
+    $where['clauses'][] = $txt;
+
+    // Add the GIDs to the WHERE clause
+    foreach ($groups as $gid)
+      $where['args'][] = $gid;
+
+    // Replace the first WHERE clause with the one we created
+    $query->where[0] = $where;
+  }
+  // remove the current project to the related projects (CCK in project form)
+  if ($view->name == 'CCK_using_by') {
+    $gid = variable_get('current_group' , isa_toolbox_get_community_nid());
+    if (is_numeric($gid)) {
+      $query->where[0]['clauses'][] = "node.nid != {$gid}";
+    }
+  }
+  // for view AllNews_view add to query the news who are validated
+  if ($view->name == 'AllNews_view' && ($view->current_display == 'page_1' || $view->current_display == 'feed_1' || $view->current_display == 'page_5')) {
+    // displays only blog, and news who are validated
+    $view->query->add_where('workflow_node' , "workflow_node.sid = '%s'", ISA_SID_NEWS_VALIDATED );
+    $view->query->add_where('workflow_node' , "workflow_node.sid = '%s'", ISA_SID_NEWS_PUBLISHED );
+    $view->query->add_where('workflow_node' , "node.type = '%s'", ISA_BLOG_TYPE );
+    $view->query->set_where_group('OR','workflow_node');
+    $view->query->add_table ('workflow_node');
+  }
+  // for view elibrary add to query the cases and document who are validated
+  if ($view->name == 'elibrary_view' && $view->current_display == 'page_1') {
+    $view->query->add_where('workflow_node', "workflow_node.sid = '%s'", ISA_SID_NEWS_VALIDATED);
+    $view->query->add_where('workflow_node' , "workflow_node.sid = '%s'", ISA_SID_NEWS_PUBLISHED );
+    $view->query->add_where('workflow_node', "node.type = '%s'", ISA_FACTSHEET_TYPE);
+    $view->query->add_where('workflow_node', "node.type = '%s'", ISA_VIDEO_TYPE);
+    $view->query->set_where_group('OR','workflow_node');
+    $view->query->add_table ('workflow_node');
+  }
+
+  // for view add to query the project issue and release
+  if($view->name == 'activities_group' ) {
+//    $join = new views_join();
+//    $join->definition = array(
+//      'table' => 'project_release_nodes',
+//      'field' => 'pid',
+//      'left_table' => 'heartbeat_activity',
+//      'left_field' => 'nid',
+//    );
+//    $join->construct();    
+//    $view->query->add_relationship('project_release_nodes_alias', $join,'heartbeat_activity',NULL);     
+    
+    //heartbeat_activity.`nid`
+    $view->query->add_where('0', "heartbeat_activity.`nid`
+    IN (select nid from project_release_nodes where pid = %d)", (int)$view->query->where[0]['args'][0]);
+    $view->query->set_where_group('OR','0');
+    
+    $view->query->add_where('0', "heartbeat_activity.`nid`
+    IN (select nid from project_issues where pid = %d)", (int)$view->query->where[0]['args'][0]);
+    $view->query->set_where_group('OR','0');    
+    
+    $view->query->add_where('0', "heartbeat_activity.`nid`
+    IN (select nid from og_ancestry where group_nid = %d)", (int)$view->query->where[0]['args'][0]);
+    $view->query->set_where_group('OR','0');    
+  }
+  if($view->name == 'isa_activity_user') {
+    global $user;
+    $view->query->set_where_group('AND','0');  
+    $view->query->add_where('0', "heartbeat_activity.language = '%s'", $user->language);
+    
+  }
+  // get the federated projects linked to a federated forge, based on the URI
+  if($view->name == 'Softwares_list' && $view->current_display == 'block_2') {
+    $title = explode('/', drupal_get_normal_path($_GET['q']));
+    $title = $title[1];
+    $view->query->add_where('0', "node_data_field_fed_project_forge.field_fed_project_forge_nid = '$title'");
+  }
+  
+  // replace INNER JOIN by LEFT JOIN project_project, federated forge ins't a project
+  if ($view->name == 'Softwares_list' && 
+      ( $view->current_display == 'block_4' ||
+      $view->current_display == 'page_2'||
+      $view->current_display == 'page_4'||
+      $view->current_display == 'page_5'||
+      $view->current_display == 'page_6')){
+    $query->table_queue['project_projects']['join']->type = 'LEFT';
+    
+  }
+  //for all view to get recommended list
+  if (($view->name == 'People_List' && $view->current_display == 'page_4') ||
+      ($view->name == 'AllNews_view' && ($view->current_display == 'page_5' || $view->current_display == 'feed_5')) ||
+      ($view->name == 'Softwares_list' && ($view->current_display == 'page_5' || $view->current_display == 'feed_4')) ||
+      ($view->name == 'Assets_list' && ($view->current_display == 'page_3' || $view->current_display == 'feed_2')) ||
+      ($view->name == 'Communities_list' && ($view->current_display == 'page_3' || $view->current_display == 'feed_3')) ||
+      ($view->name == 'event_browser' && ($view->current_display == 'page_2' || $view->current_display == 'feed_3' || $view->current_display == 'block_3')) ||
+      ($view->name == 'elibrary_view' && ($view->current_display == 'page_6' || $view->current_display == 'feed_6' )) ) {
+    global $user;
+    $profile = NULL;
+    if (isset ($user->node_profile)) {
+      $profile = $user->node_profile;
+    }
+    else {
+      $profile = content_profile_load ('profile',$user->uid );
+    }
+
+    //limit nodes with the $profuser profile term of vocabulary 'domains'
+    $term = taxonomy_node_get_terms_by_vocabulary($profile, variable_get('domains_vid',27));
+    $term_list = array_keys ($term);
+
+    if (count($term_list) > 0){
+      $term_placeholders = implode(',', array_fill(0, count($term_list), "%d"));
+      switch($view->name){
+        case 'People_List':
+          if ($view->current_display == 'page_4') {
+            $view->query->add_where('0', "term_data_node.tid in ($term_placeholders)", $term_list);
+          }
+          break;
+        case 'Softwares_list':
+        case 'Assets_list':
+        case 'Communities_list':
+        case 'AllNews_view':
+        case 'event_browser':
+        case 'elibrary_view':
+          $view->query->add_where('0', "term_data_node.tid in ($term_placeholders)", $term_list);
+          break;
+      }
+      
+    }
+  }
+    
+
+
+  if ($view->name == 'user_latest_content') {
+
+    global $user;
+    $profile = NULL;
+    if (isset($user->node_profile)) {
+      $profile = $user->node_profile;
+    }
+    else {
+      $profile = content_profile_load('profile', $user->uid);
+    }
+    //limit nodes with the user profile term of vocabulary 'domains'
+    $term = taxonomy_node_get_terms_by_vocabulary($profile, variable_get('domains_vid', 27));
+    $term_list = array_keys($term);
+    if (count($term_list) > 0) {
+      $term_placeholders = implode(',', array_fill(0, count($term_list), "'%s'"));
+      $view->query->add_where('0', "term_data_node.tid in ($term_placeholders)", $term_list);
+    }
+    //limit nodes with workflow states validated
+    $view->query->add_where('workflow_node', "workflow_node.sid NOT IN ('%s','%s','%s','%s','%s')", ISA_SID_NEWS_DRAFT, ISA_SID_NEWS_PROPOSED, ISA_SID_COMMUNITY_DRAFT, ISA_SID_COMMUNITY_PROPOSED, ISA_SID_FEDPROJ_CREATED);
+    $view->query->add_where('workflow_node', "node.type NOT IN ('%s','%s','%s','%s','%s','%s')", ISA_NEWS_TYPE, ISA_PROJECT_TYPE, ISA_COMMUNITY_TYPE, ISA_DOCUMENT_TYPE, ISA_EVENT_TYPE, ISA_CASE_TYPE, ISA_FEDERATED_PROJECT_TYPE);
+    $view->query->set_where_group('OR', 'workflow_node');
+    $view->query->add_table('workflow_node');
+
+  }
+
+  if ($view->name == 'items' && $view->current_display == 'block_3') {
+    $query->where[0]['clauses'][] = sprintf("(node.type IN ('%s', '%s') AND workflow_node.sid NOT IN ('%s','%s'))", ISA_DOCUMENT_TYPE, ISA_CASE_TYPE, ISA_SID_NEWS_DRAFT, ISA_SID_NEWS_PROPOSED);
+    $view->query->set_where_group('OR', '0');
+    $view->query->add_table('workflow_node');
+  }
+
+  if ($view->name == 'user_community_and_project') {
+    $path = explode('/', drupal_get_normal_path($_GET['q']));
+    $uid = $path[1];
+    $join = new views_join;
+    $join->construct('og_uid', 'node', 'nid', 'nid');
+    $view->query->add_relationship('og_uid', $join, 'node');
+    $view->query->add_where('og_uid', "og_uid.uid = '%d'", $uid);
+  }
+
+  if ($view->name == 'People_List') {
+    $join = new views_join;
+    $join->construct('term_node', 'node', 'nid', 'nid', 'node.vid = term_node.vid');
+    $view->query->add_relationship('term_node', $join, 'node');
+    $join = new views_join;
+    $join->construct('term_data', 'term_node', 'tid', 'tid', 'term_data.vid = ' . variable_get('country_vid', 26), 'INNER');
+    $view->query->add_relationship('term_data', $join, 'term_node');
+    $view->query->add_field('term_data', 'name');
+  }
+}
+
+
+
+/**
+ * Protects email addresses by changing @ to [at]
+ * and . to [dot]
+ * @param string $email The email address to protect
+ * @return string Protected email address
+ */
+function isa_toolbox_protect_email($email) {
+  $email = str_replace('@', '@', $email);
+  $email = str_replace('.', '.', $email);
+  return $email;
+}
+
+/**
+ *  implementation of hook_views_pre_render
+ *
+ * @param <type> $view
+ *
+ * @uses isa_toolbox_get_community_nid () , isa_toolbox_get_term_name () , og_is_group_member ()
+ */
+function isa_toolbox_views_pre_render(&$view) {
+  // Check if the view is the wiki list
+  switch ($view->name) {
+    case 'Softwares_list':
+      foreach($view->result as $key => $result) {
+        if ($result->node_type != 'federated_project') {
+          $result->og_og_description = '<div class="field field-unknown">' . $result->post_count . ' ' . t('posts') . ' | ';
+          if ($result->member_count > 1) {
+            $result->og_og_description .= $result->member_count . ' ' . t('members') . '</div>';
+          }
+          else {
+            $result->og_og_description .= $result->member_count . ' ' . t('member') . '</div>';
+          }
+        $view->result[$key] = $result;
+        }
+      }
+      //if ($view->current_display == 'page_2')
+      //  $view->display_handler->set_option('header', drupal_get_form('isa_sort_form_get_views_sort_form',
+      //                                                               'softwares'));
+      break;
+
+    case 'Forges_list':
+      $sql = 'SELECT count(*) as q FROM {content_type_federated_project} ctfp WHERE ctfp.field_fed_project_forge_nid = %d';
+      foreach($view->result as $key => $result) {
+        $q = db_result(db_query($sql, $result->nid));
+        $result->node_comment_statistics_comment_count = $q;
+        $view->result[$key] = $result;
+      }
+      break;
+
+    case 'People_List' :
+      $header = $view->display_handler->get_option('header') . isa_blocks_people_letter_links();
+      $view->display_handler->set_option('header', $header);
+      break;
+    case 'Community_members' :
+    case 'Asset_members':
+    case 'Software_members':
+      if ($view->current_display == 'page' ) {
+        $view->display_handler->set_option('header', isa_toolbox_letters_links_members());
+      }
+      break;
+  }
+}
+
+
+/**
+ * Create the letters links for the members list
+ */
+function isa_toolbox_letters_links_members() {
+  $letter = array();
+  if (arg(3) != 'add' && arg(3) != 'edit' && arg(1) != 'denied') {
+    $args = $_GET;
+    unset($args['q']);
+    for ($i = 65; $i < 91; $i++) {
+      $letter_upper = chr($i);
+      $letter_lower = chr($i + 26 + 6);
+      $url = arg(0) . '/' . arg(1) . '/' . arg(2) . '/' . $letter_lower;
+      $letter[] = array(
+        "title" => $letter_upper,
+        "href" => $url,
+        "html" => "true",
+        'query' => $args,
+        "attributes" => array("class" => "members-letter"),);
+    }
+    $letter[] = array('title' => '|');
+    $letter[] = array(
+      "title" => 'All',
+      "href" => arg(0) . '/' . arg(1) . '/' . arg(2),
+      "html" => "true",
+      "attributes" => array("class" => "members-letter"),);
+    $links = "<div class='alpha-sort'>" . theme("links", $letter) . "</div>";
+  }
+  return $links;
+}
+
+/**
+ *Implementation of hook_views_pre_build
+ * @param <type> $view
+ */
+function isa_toolbox_views_pre_build(&$view) {
+  // set args 'term_id' in virtual forges
+  if (($view->name == 'Softwares_list' || $view->name == 'Assets_list' ||$view->name == 'groups_lists')) {
+    if (variable_get('isa_vf_access_tid_virtual_forge',NULL) != 0) {
+      $view->args = array ( 0 => variable_get('isa_vf_access_tid_virtual_forge',NULL));
+    }
+  }
+}
+
+/**
+ *
+ * @global object $user the current user
+ * @param array $profile
+ * @return boolean TRUE if languages&domains must be displayed, FALSE if must be hidden
+ */
+function isa_toolbox_check_profile_visibility ($profile) {
+  global $user;
+  // return true if the user is moderator or administrator
+  if (user_access ('View profile privacy fields') || $user->uid == $profile->uid ) {
+    return TRUE;
+  }
+  if (isset ($profile->field_profile_visibility)) {
+    if ($profile->field_profile_visibility[0]['value'] == 0 ) {
+      return FALSE;
+    }elseif ($profile->field_profile_visibility[0]['value'] == 1) {
+      return TRUE;
+    }
+  }
+  return NULL;
+}
+/**
+ * @global object $user the current user
+ * @param array $profile : the profile
+ * @return boolean TRUE if the email must be displayed, FALSE if must be hidden
+ */
+function isa_toolbox_check_email_visibility ($profile) {
+  global $user;
+  // no display email if the current user is anonymous
+  if ($user->uid == 0){
+    return FALSE;
+  }
+  // return true if the user is moderator or administrator
+  if (user_access ('View profile privacy fields') || $user->uid == $profile->uid) {
+    return TRUE;
+  }
+  if (isset ($profile->field_email_visibility )) {
+    //if ($profile->field_email_visibility[0]['value'] == 0 || $user->uid == $profile->uid ) 
+    if ($profile->field_email_visibility[0]['value'] == 0  ) {
+      return FALSE;
+    }elseif ($profile->field_email_visibility[0]['value'] == 1) {
+      return TRUE;
+    }
+  }
+  return NULL;
+}
+
+/**
+ * modify the 'Assigned select list regarding the connected user and permission
+ * @param $form : the assigned list of this form will be modified
+ * @param $pid : the id of the software
+ */
+function isa_toolbox_get_assignable_members($pid) {
+  if (is_numeric ($pid)) {
+    $software = node_load($pid);
+    $assignable_users = array();
+    $assignable_users [0] = 'Unassign';
+    if (user_access('assign and be assigned project issues') || og_is_group_admin($software)) {
+      $users = db_query(og_list_users_sql(),$pid);
+      while ($user = mysqli_fetch_array($users)) {
+        $assignable_users[$user['uid']] = strip_tags(theme('username',$user['uid']));
+      }
+    } else {
+      global $user;
+      if (og_is_group_member($pid,NULL)) {
+        $assignable_users[$user->uid] = strip_tags(theme('username',$user->uid));
+      }
+    }
+  }
+  return $assignable_users;
+}
+/**
+ * Return the nid of the last release created
+ *
+ * @param integer $pid the nid of the project
+ * @return integer nid the nid of the last relase
+ */
+function isa_toolbox_get_last_release ($pid) {
+  if (is_numeric($pid)) {
+    $sql = "SELECT n.nid
+            FROM {node} n
+            LEFT JOIN {project_release_nodes} prn
+            ON n.nid = prn.nid
+            LEFT JOIN {workflow_node} wn
+            ON wn.nid = n.nid
+            WHERE prn.pid = %d
+            ORDER BY n.created DESC";
+
+    $nid = db_result(db_query_range($sql, $pid, ISA_SID_RELEASE_APPROVED, 0, 1));
+    return $nid;
+  }
+}
+
+/**
+ * Implementation of hook_cron
+ */
+function isa_toolbox_cron () {
+  ////////////////////////////////
+  // UPDATE USER_ROLES SUBSITES //
+  ////////////////////////////////
+  $cron_last = variable_get ('isa_toolbox_cron_last',0);
+  $time = time ();
+  // update users_roles subsites every ISA_UPDATE_VF_USERS_ROLES_TIME
+  if (($time-$cron_last) > ISA_UPDATE_VF_USERS_ROLES_TIME || isset($_GET['run'] )) {
+    variable_set ('isa_toolbox_cron_last',time ());
+    // don't execute update user_roles when cron is started by a subsite
+    if (!isa_toolbox_is_in_virtual_forge()) {
+      // get the name of table users_roles for isa ( in case when table prefix is used , don't delete datas from this table)
+      $sql = "SHOW TABLES LIKE '{users_roles}'";
+      $isa_table = db_result(db_query($sql));
+
+      $sql = "SHOW TABLES LIKE '%_users_roles'";
+      $querry = db_query($sql);
+
+      while ($result = db_fetch_array($querry)) {
+        $table = array_shift($result);
+        //in case when table prefix is used (for db isa), don't delete datas from this table
+        // don't delete datas from og_users_roles
+        if ( $table != 'og_users_roles' && $table != $isa_table) {
+          $tables[] = $table;
+
+          // delete datas for moderator and administrators role
+          $sql = "DELETE FROM %s WHERE %s.rid IN ('%d','%d')";
+          $result_delete = db_query( $sql , $table,$table,variable_get ('moderator_rid',NULL),variable_get('administrator_rid'));
+          if ($result_delete != 1) {
+            drupal_set_message(t("Error when delete data from $table."));
+          }
+
+          //update datas from isa users_roles to subsite users_role (only for moderator and administrator roles)
+          $sql = "INSERT INTO %s (uid, rid)
+        SELECT uid, rid
+        FROM {users_roles} ur
+        WHERE ur.rid = '%d'
+        OR ur.rid = '%d'";
+          $result_insert = db_query( $sql,$table,variable_get ('moderator_rid',NULL),variable_get('administrator_rid'));
+          if ($result_insert != 1) {
+            drupal_set_message(t("Error when insert data in $table."));
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * This function return the tid of the current virtual forge,
+ * FALSE if isn't in virtual forge
+ *
+ * @return integer tid or FALSE
+ */
+function isa_toolbox_is_in_virtual_forge () {
+  if (variable_get('isa_vf_access_tid_virtual_forge' , -1) == 0) {
+    return FALSE;
+  }elseif (variable_get('isa_vf_access_tid_virtual_forge' , -1) > 0) {
+    return variable_get('isa_vf_access_tid_virtual_forge' , -1);
+  }else {
+    return FALSE;
+  }
+}
+
+/**
+ * This function add table in query
+ *
+ * @param object $query the current view query
+ * @param string $name table name
+ */
+function isa_toolbox_query_add_table(&$query, $name) {
+  $join = new views_join();
+  $join->construct($name, 'node', 'nid', 'nid');
+  $table = array(
+    'table' => $name,
+    'num' => 1,
+    'alias' => $name,
+    'join' => $join,
+    'relationship' => 'node'
+  );
+
+  $query->table_queue[$name] = $table;
+  $query->tables['node'][$name] = array('count' => 1, 'alias' => $name);
+}
+
+/**
+ * Implementation of hook_menu_alter
+ */
+function isa_toolbox_menu_alter(&$items) {
+  //change access arguments and access callback of admin/user/user/create for add permission
+  $items['admin/user/user/list']['access arguments'] = '';
+  $items['admin/user/user/list']['access callback']  = 'isa_toolbox_access_admin_user';
+  $items['admin/user/user']['access arguments'] = '';
+  $items['admin/user/user']['access callback']  = 'isa_toolbox_access_admin_user';
+  // We want to ensure an anonymous user will not be able to view the "Edit" and "Revisions" menus,
+  // especially for the license wizard wikis
+  $items['node/%node/edit']['access callback'] = 'isa_toolbox_menu_access_node_edit';
+  $items['node/%node/edit']['access arguments'] = array(1);
+  $items['node/%node/revisions']['access callback'] = 'isa_toolbox_menu_access_node_revisions';
+  $items['node/%node/revisions']['access arguments'] = array(1);
+
+  /*Alter menus for the menu on the left */
+  if (!user_access('administer taxonomy')) {
+    unset($items['admin/content/taxonomy/list']);
+  }
+}
+
+/**
+ * Access callback for nodes "Edit" menu
+ * @param object $node the node given as an access argument
+ * @return boolean permission or not permission
+ */
+function isa_toolbox_menu_access_node_edit($node) {
+  global $user;
+  $op = 'update';
+  if (!isset ($user->uid) || $user->uid == 0){
+    return FALSE;
+    
+    // when project release is in maturity state, bypass permission "administer project" and check access grants.
+    // see node_access(),project_release_access() 
+  }elseif ($node->type == ISA_PROJECT_RELEASE_TYPE){
+    if ($node->_workflow == ISA_SID_RELEASE_APPROVED){
+          $grants = array();
+    foreach (node_access_grants($op, $account) as $realm => $gids) {
+      foreach ($gids as $gid) {
+        $grants[] = "(gid = $gid AND realm = '$realm')";
+      }
+    }
+    $grants_sql = '';
+    if (count($grants)) {
+      $grants_sql = 'AND ('. implode(' OR ', $grants) .')';
+    }
+
+    $sql = "SELECT 1 FROM {node_access} WHERE (nid = 0 OR nid = %d) $grants_sql AND grant_$op >= 1";
+    $result = db_query_range($sql, $node->nid, 0, 1);
+      return (bool) db_result($result);
+    }
+  }
+    
+  return og_menu_access_node_edit($node);
+}
+
+
+/**
+ * Access callback for nodes "Revisions" menu
+ * @param object $node the node given as an access argument
+ * @return boolean permission or not permission
+ */
+function isa_toolbox_menu_access_node_revisions($node) {
+  global $user;
+  if (!isset ($user->uid) || $user->uid == 0)
+    return FALSE;
+  return diff_node_revision_access($node);
+}
+
+/**
+ * access callback of admin/user/user/create
+ * @see isa_toolbox_menu_alter ()
+ */
+function isa_toolbox_access_admin_user () {
+  return user_access ('administer users') || user_access ('manage users');
+}
+
+/**implementation of hook_user_operations
+ *
+ * implement this hook for add the permission "manage users" for edit users roles
+ * in page /admin/user/user/list
+ */
+function isa_toolbox_user_operations($form_state = array()) {
+  $operations = array ();
+  if (! user_access('administer permissions') && user_access ('manage users')) {
+    $roles = user_roles(TRUE);
+    if (isa_toolbox_is_in_virtual_forge()) {
+      $vf_admin_rid = variable_get ('vf_admin_rid', NULL);
+      if ($vf_admin_rid) {
+        $add_roles['add_role-'. $vf_admin_rid] = $roles[$vf_admin_rid];
+        $remove_roles['remove_role-'. $vf_admin_rid] = $roles[$vf_admin_rid];
+      }
+    }else {
+      $moderator_rid = variable_get ('moderator_rid', NULL);
+      if ($moderator_rid) {
+        $add_roles['add_role-'. $moderator_rid] = $roles[$moderator_rid];
+        $remove_roles['remove_role-'. $moderator_rid] = $roles[$moderator_rid];
+        ;
+      }
+      $cp_manager = variable_get ('clearing_process_manager_rid', NULL);
+      if ($cp_manager) {
+        $add_roles['add_role-'. $cp_manager] = $roles[$cp_manager];
+        $remove_roles['remove_role-'. $cp_manager] = $roles[$cp_manager];
+        ;
+      }
+    }
+    $role_operations = array(
+      t('Add a role to the selected users') => array(
+        'label' => $add_roles,
+      ),
+      t('Remove a role from the selected users') => array(
+        'label' => $remove_roles,
+      ),
+    );
+    $operations += $role_operations;
+  }
+  // If the form has been posted, we need to insert the proper data for
+  // role editing if necessary.
+  if (!empty($form_state['submitted'])) {
+    $operation_rid = explode('-', $form_state['values']['operation']);
+    $operation = $operation_rid[0];
+    if ($operation == 'add_role' || $operation == 'remove_role') {
+      $rid = $operation_rid[1];
+      if (!user_access('administer permissions') && user_access ('manage users')) {
+        $operations[$form_state['values']['operation']] = array(
+          'callback' => 'user_multiple_role_edit',
+          'callback arguments' => array($operation, $rid),
+        );
+      }
+      else {
+        watchdog('security', 'Detected malicious attempt to alter protected user fields.', array(), WATCHDOG_WARNING);
+        return;
+      }
+    }
+  }
+  return $operations;
+}
+
+/**
+ * Return the number of federated projects published in a federated forge
+ *
+ * @param integer $nid the nid of the federated forge
+ * @return integer $nb_fed_proj the number of published federated projects
+ */
+function isa_toolbox_get_federated_projects_count_from_federated_forge($nid) {
+  $sql = "SELECT COUNT(*)
+          FROM {content_type_federated_project} ctfp
+          INNER JOIN {workflow_node} wn ON wn.nid = ctfp.nid
+          INNER JOIN {node} n ON n.nid = ctfp.nid
+          WHERE ctfp.field_fed_project_forge_nid = '%d'
+          AND wn.sid = '%d'
+          AND (n.tnid = 0 OR n.tnid = n.nid)";
+  return db_result(db_query($sql, $nid, ISA_SID_FEDPROJ_PUBLISHED));
+}
+
+/**
+ * Return the list of all links to translations available for a node
+ *
+ * @param integer $nid the nid of the node
+ * @return array $translations the list of links
+ */
+function isa_toolbox_get_translations_list($nid) {
+  global $language;
+  $translations = array ();
+  $node = node_load($nid);
+  $t_translation = translation_node_get_translations($node->tnid);
+  if ($t_translation){
+    foreach($t_translation as $lg => $value) {
+      if ($node->language != $lg) {
+        $language_name = locale_language_name($lg);
+        $path = 'node/' . $value->nid;
+        $path = drupal_get_path_alias($path, $lg);
+        $node_translation = l($value->title, $path, array(language => ''));
+        $translations[$language_name] = $node_translation;
+      }
+    }
+  }
+  return $translations;
+}
+
+/**
+ * implementation of hook_init
+ *
+ */
+function isa_toolbox_init () {
+  
+  // redirect url /profile/username to /people/uid
+  $path = explode('/', $_GET['q']);
+  if ($path[0] == 'node'){
+    $node = menu_get_object();
+    if ($node->type == 'profile'){
+      drupal_goto ('people/'.$node->uid);
+    }
+  }
+  
+  $gid = isa_toolbox_get_community_nid();
+  if ($gid) {
+    global $conf;
+    $conf['current_group'] = $gid;
+  }
+  global $user;
+  $profile = content_profile_load ('profile', $user->uid);
+  if ($profile){
+    $user->node_profile = $profile;
+  }  
+}
+
+
+/**
+ * Return the path to the 'What are Kudos?' page
+ *
+ * @return string path to page
+ */
+function isa_toolbox_get_kudos_page() {
+  $sql = "SELECT nid FROM {node} WHERE title = '%s'";
+  $nid = db_result(db_query($sql, 'What are Kudos?'));
+  $path = 'node/' . $nid;
+  return $path;
+}
+
+/**
+ * Return a formatted date with user timezone
+ *
+ * @param date $date the date to format
+ * @param string $timezone user timezone (optional)
+ * @return string $date formatted date
+ */
+function isa_toolbox_get_timezone_date($date, $timezone = NULL) {
+  if ($timezone == NULL)
+    $timezone = date_default_timezone_name(TRUE);
+  $type = DATE_DATETIME;
+  $date = date_make_date($date, 'UTC', $type);
+  date_timezone_set($date, timezone_open($timezone));
+  $date = date_format_date($date, 'custom', 'd F Y - g:ia');
+  $date .= " (" . $timezone . " time)";
+  return $date;
+}
+
+/**
+ * Return the original node of a translated node
+ * @param object $node the translated node
+ * @return object $node the original node
+ */
+function isa_toolbox_get_original_node($node) {
+  $tnid = $node->tnid;
+  if ($tnid == 0)
+    $tnid = $node->nid;
+  $node = node_load($tnid);
+  return $node;
+}
+
+/**
+ * implementation of hook_rules_condition_info()
+ */
+function isa_toolbox_rules_condition_info() {
+  return array(
+    'isa_toolbox_condition_is_group_public' => array(
+      'label' => t('Group is public'),
+      'arguments' => array(
+        'group' => array(
+          'type' => 'node',
+          'label' => t('Group'),
+        ),
+      ),
+      'help' => t('Evaluates to TRUE if the group is public.'),
+      'module' => 'ISA Toolbox',
+    ),
+    'isa_toolbox_condition_is_software' => array(
+      'label' => t('Group is software'),
+      'arguments' => array(
+        'group' => array(
+          'type' => 'node',
+          'label' => t('Group'),
+        ),
+      ),
+      'help' => t('Evaluates to TRUE if the group is a software.'),
+      'module' => 'ISA Toolbox',
+    ),
+    'isa_toolbox_condition_is_asset' => array(
+      'label' => t('Group is asset'),
+      'arguments' => array(
+        'group' => array(
+          'type' => 'node',
+          'label' => t('Group'),
+        ),
+      ),
+      'help' => t('Evaluates to TRUE if the group is an asset.'),
+      'module' => 'ISA Toolbox',
+    ),
+  );
+}
+
+/**
+ * Condition that determines if the group is public or private
+ */
+function isa_toolbox_condition_is_group_public($node, $settings) {
+  return ($node->og_selective == OG_OPEN);
+}
+
+function isa_toolbox_condition_is_software($node, $settings) {
+  return ($node->group_type == ISA_SOFTWARE_TYPE);
+}
+
+function isa_toolbox_condition_is_asset($node, $settings) {
+  return ($node->group_type == ISA_ASSET_TYPE);
+}
+
+/**
+ * Implementation of hook_views_api().
+ */
+function isa_toolbox_views_api() {
+  return array(
+    'api' => 2.0,
+    'path' => drupal_get_path('module', 'isa_toolbox') .'/includes',
+  );
+}
+
+/**
+ * Get a view title from a menu item
+ * @param array $menu_item use menu_get_item
+ * @return string the view title
+ */
+function isa_toolbox_get_view_title($menu_item) {
+  if (count($menu_item['page_arguments']) != 2) {
+    return '';
+  }
+  $sql = "SELECT vd.display_options
+    FROM views_view vv
+    INNER JOIN views_display vd ON vv.vid = vd.vid
+    WHERE vv.name = '%s'
+    AND vd.id = '%s'";
+  $view = unserialize(db_result(db_query($sql,
+    (is_string($menu_item['page_arguments'][0])) ? $menu_item['page_arguments'][0] : $menu_item['page_arguments'][0]->name,
+    $menu_item['page_arguments'][1])));
+  return $view['title'];
+}
+
+
+function isa_toolbox_get_size_formatted($file_size){
+	if ($file_size >= 1073741824) 
+	{
+		$file_size = round($file_size / 1073741824 * 100) / 100 . " GB";
+	}
+	elseif ($file_size >= 1048576) 
+	{
+		$file_size = round($file_size / 1048576 * 100) / 100 . " MB";
+	}
+	elseif ($file_size >= 1024) 
+	{
+		$file_size = round($file_size / 1024 * 100) / 100 . " KB";
+	}
+	else 
+	{
+		$file_size = $file_size . " B";
+	} 
+	return $file_size;
+}
+
+/**
+ * Return true if the node is a licese-wizard wiki page
+ * 
+ * @param object $node the node
+ * @return boolean 
+ */
+function isa_toolbox_is_license_wizard_wiki ($node){
+    $path_alias = explode('/', $node->path);
+    return ($path_alias[1] == 'license-wizard');
+}
+/**
+ * return true if the node concern a sofware or a asset
+ */
+function isa_toolbox_alias_from_oss_or_asset($node)
+{
+  $path_alias =  drupal_get_path_alias(drupal_lookup_path('source', $node->path));
+  $alias = arg(2,$path_alias);
+  return $alias;
+}
+
+/**
+ *  Implementation of hook_og_access_grants_alter
+ * 
+ * Remove permission to view a group for any user roles when the group isn't private
+ * Workflow module manages this permission
+ * 
+ * @see og_access_node_access_records
+ */
+function isa_toolbox_og_access_grants_alter(&$grants, $node) {
+  if (og_is_group_type($node->type)) {
+    if (!$node->og_private) {
+      foreach ($grants as $id => $value){
+        if ($value['realm'] == 'og_public'){
+          unset ($grants[$id]);
+        }
+      }
+      $grants[] = array (
+              'realm' => 'og_subscriber',
+              'gid' => $node->nid,
+              'grant_view' => 1,
+              'grant_update' => 0,
+              'grant_delete' => 0,
+              'priority' => 0,
+      );
+    }
+  }
+}

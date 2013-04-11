@@ -1,0 +1,7 @@
+name = "ISA Config"
+description = "Create user roles and taxonomies vocabularies & terms"
+core = 6.x
+package = "ISA Toolbox"
+
+version = "6.x-1.0"
+core = "6.x"

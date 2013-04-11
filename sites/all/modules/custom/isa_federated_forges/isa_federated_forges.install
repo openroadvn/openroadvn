@@ -1,0 +1,27 @@
+<?php
+/**
+ * Implementation of hook_install().
+ */
+function isa_federated_forges_install() {
+  require_once './' . drupal_get_path('module', 'content') .  '/modules/content_copy/content_copy.module';
+
+  $federated_forge = file_get_contents(drupal_get_path('module', 'isa_federated_forges') .'/content_types/federated_forge.content');
+  $federated_project = file_get_contents(drupal_get_path('module', 'isa_federated_forges') .'/content_types/federated_project.content');
+  _forges_install_type($federated_forge);
+  _forges_install_type($federated_project);
+
+  content_clear_type_cache();
+}
+
+
+
+/**
+ * Installs a given content type
+ * @param array $content The content type's definition
+ */
+function _forges_install_type($content = NULL) {
+  $form_state['values']['type_name'] = '<create>';
+  $form_state['values']['macro'] = $content;
+  // form provided by content_copy.module
+  drupal_execute('content_copy_import_form', $form_state);
+}

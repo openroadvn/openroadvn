@@ -1,0 +1,67 @@
+<?php
+// $Id $
+
+/**
+ * @file
+ * Index project_issue content using Drupal search index.
+ */
+
+/**
+ * Implementation of hook_search().
+ */
+function project_issue_search_index_search($op = 'search', $keys = NULL) {
+  switch ($op) {
+    case 'name':
+      // We don't want this to show up in menus.
+      return NULL;
+
+    case 'reset':
+      db_query("UPDATE {search_dataset} SET reindex = %d WHERE type = 'project_issue'", time());
+      return;
+
+    case 'status':
+      $total = db_result(db_query("SELECT COUNT(*) FROM {node} WHERE status = 1 AND type = 'project_issue'"));
+      $remaining = db_result(db_query("SELECT COUNT(*) FROM {node} n LEFT JOIN {search_dataset} d ON d.type = 'node' AND d.sid = n.nid WHERE n.status = 1 AND n.type = 'project_issue' AND (d.sid IS NULL OR d.reindex <> 0)"));
+      return array('remaining' => $remaining, 'total' => $total);
+  }
+}
+
+/**
+ * Implementation of hook_update_index().
+ */
+function project_issue_search_index_update_index() {
+  $limit = (int) variable_get('search_cron_limit', 100);
+
+  $result = db_query_range("SELECT n.nid FROM {node} n LEFT JOIN {search_dataset} d ON d.type = 'node' AND d.sid = n.nid WHERE n.type = 'project_issue' AND (d.sid IS NULL OR d.reindex <> 0) ORDER BY d.reindex ASC, n.nid ASC", 0, $limit);
+
+  while ($node = db_fetch_object($result)) {
+    _project_issue_search_index_index_node($node);
+  }
+}
+
+/**
+ * Index a single node.
+ *
+ * @param $node
+ *   The node to index.
+ */
+function _project_issue_search_index_index_node($node) {
+  $node = node_load($node->nid);
+
+  // Build the node body.
+  $node->build_mode = NODE_BUILD_SEARCH_INDEX;
+  $node = node_build_content($node, FALSE, FALSE);
+  $node->body = drupal_render($node->content);
+
+  $text = '<h1>'. check_plain($node->title) .'</h1>'. $node->body;
+
+  // Fetch extra data normally not visible
+  $extra = node_invoke_nodeapi($node, 'update index');
+  foreach ($extra as $t) {
+    $text .= $t;
+  }
+
+  // Update index
+  search_index($node->nid, 'node', $text);
+}
+

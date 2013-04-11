@@ -1,0 +1,116 @@
+/*  $Name: ISA - Integrated Collaborative Platform - CSS Dashboard Style Definition $
+    $File: dashboard.css $
+    $Date: 2011-03-09 $
+    $Modify date: 2011-03-17 $
+    $Version: 003 $
+*/
+
+/*  CSS DEFINITION SYNTAX
+
+    selector { property:value; }
+	tag#identifier, tag.class { layout, dimensions, positioning, border, font, color, background }
+	
+    Container */
+div#homebox:after { clear:both; content:' '; display:block; font-size:0; line-height:0; visibility:hidden; width:0; height:0; }
+div#homebox { display:inline-block; margin:0 0 1.5em 0; padding:0 0 45px 0; background:transparent url(../images/wrapper/bg_content.png) no-repeat center bottom; width: 760px; min-width:760px; }
+/*  Buttons */
+div#homebox div#homebox-buttons { height:25px; padding:0 0 .8em 0; margin:1em 0; border-bottom:1px solid #ddd; }
+div#homebox div#homebox-buttons button { height:25px; margin:0 5px 0 0; padding:0 1em; border:none; font:100% Arial,Sans-serif; color:#cf3b00; background:none; }
+div#homebox div#homebox-buttons button:hover,
+div#homebox div#homebox-buttons button:focus { color:#fff; background:#f90 url(../images/links/bg_links_tabs_hover_active.png) repeat-x 0 0; }
+div#homebox div#homebox-buttons span#homebox-minimize-to-save, div#homebox-buttons span#homebox-changes-made { height:25px; margin:0 5px 0 0; padding:0 1em; }
+/*  Columns */
+div#homebox div.homebox-column { margin:1em 0; padding:0; background:none; }
+div#homebox div#homebox-column-1 { margin-right:10px; }
+div#homebox div#homebox-column-2 { margin-left:10px; }
+/*  Portlets */
+div#homebox div.homebox-portlet { margin:0 0 20px 0; padding:0; border:none; background:none; width:100% }
+div#homebox div.homebox-maximized div.homebox-portlet { padding-top:1em; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner { border-color:#dbe4ea; background:#FFF url(../images/wrapper/bg_boxes.png) repeat-x 0 0; }
+/*  Portlets > Headings */
+div#homebox div.homebox-portlet div.homebox-portlet-inner h3.portlet-header { height:27px; margin:12px; padding:3px 0 0 55px; border:none; font-size:130%; color:#41517a; background:transparent url(../images/headings/h3.png) no-repeat 0 0; }
+/*  Portlets > Headings > Icons */
+div#homebox div.homebox-portlet div.homebox-portlet-inner h3.portlet-header div.portlet-icon { width:15px; margin:4px 0 0 3px; background:transparent url(../images/icons/portlet.png) no-repeat 0 0; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner h3.portlet-header div.portlet-plus { background-position:0 0; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner h3.portlet-header div.portlet-minus { background-position:-15px 0; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner h3.portlet-header div.portlet-maximize { background-position:0 -16px; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner h3.portlet-header div.portlet-minimize { background-position:-15px -16px; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner h3.portlet-header div.portlet-close { background-position:0 -32px; }
+/*  Portlets > Headings > Latest Comments */
+div#homebox div#homebox-block-views-moderation-block_1 div.homebox-portlet-inner h3.portlet-header { background-position:0 -60px; }
+div#homebox div#homebox-block-views-comment_moderation-block_1 div.homebox-portlet-inner h3.portlet-header,
+div#homebox div#homebox-block-views-comment_moderation-block_2 div.homebox-portlet-inner h3.portlet-header { background-position:0 -90px; }
+div#homebox div#homebox-block-views-my_drafts-block_1 div.homebox-portlet-inner h3.portlet-header { background-position:0 -120px; }
+div#homebox div#homebox-block-views-my_proposed-block_1 div.homebox-portlet-inner h3.portlet-header { background-position:0 -150px; }
+/*  Portlets > Content */
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content { padding:0 12px 12px 12px; }
+/*  Portlets > Content > Views */
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content { margin:0; padding:0; background:none; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-empty,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-empty p { padding:0; margin:0; }
+/*  Portlets > Content > Views > Filters */
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-filters { margin:0; padding:1em 0; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-filters form { margin:0; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-filters form div.views-exposed-widgets { margin:0; padding:12px; background-color:#f6f8f9; border:1px solid #dbe4ea; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-filters form div.views-exposed-widgets div.views-exposed-widget { margin:0 5px 0 0; padding:0; height:25px; line-height:25px; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-filters form div.views-exposed-widgets div.views-exposed-widget * { display:inline; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-filters form div.views-exposed-widgets div.views-exposed-widget div.form-item { float:none; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-filters form div.views-exposed-widgets div.views-exposed-widget input.form-submit { margin:0; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-filters form div.views-exposed-widgets div.views-exposed-widget select.form-select * { display:block; }
+/*  Portlets > Content > Views > Tables */
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table { border-spacing:1px; border:1px; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table thead th { border-bottom-color:#ddd; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table thead th a:link,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table thead th a:visited { color:#CF3B00; text-decoration:none; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table thead th a:hover { text-decoration:underline; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table tbody th,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table tbody tr.odd,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table tbody tr.even { background-color:#fff; border:none; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table tbody tr.odd td.active { background-color:#f6f8f9; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table tbody tr.even td.active { background-color:#eff2f4; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table tbody td { vertical-align:top; border-color:#aeaeae; border-style:dashed; border-width:0 0 1px 0; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table tbody div.field-comments-comment { width: 170px; }
+
+/*  Portlets > Content > Views > Tables > Columns */
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field-name,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field-edit-node,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field-delete-node,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field-nid,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field-nid-1,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field-nid-2 { text-align:center; width:68px; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field-timestamp,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field-created div { width:64px; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field-type {  padding: 10px 4px;}
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field-type div {  width:68px;}
+/*  Portlets > Content > Views > Tables > Columns > Fields */
+/*  Portlets > Content > Views > Tables > Columns > Fields */
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-comments-subject,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-title,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-comments-comment,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-comments-timestamp,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-created,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-post-count-new { line-height:150%; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-users-comments-data-photo-photo-fid,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-users-data-photo-photo-fid { margin:7px 10px 0 0; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-comments-name,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-users-name { margin:0 10px 10px 0; font-size:88%; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-post-count-new { font-size:88%; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-comments-subject a,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-title a { text-decoration:none; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-comments-subject a:hover,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-comments-subject a:focus,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-title a:hover,
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-title a:focus { text-decoration:underline; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-type { display:block; float:left; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-type div.node-type { height:18px; width:25px; background:transparent url(../images/wiews/quotes.png) no-repeat; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-type div.node-type.news { background-position:0 0; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-type div.node-type.Cộng_đồng { height:40px; width:40px; background:transparent url(../images/icons/node_type.png) no-repeat 0 -40px; text-indent:-9999px;display:block; }
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field div.field-type div.node-type.Dự_án { height:40px; width:40px; background:transparent url(../images/icons/node_type.png) no-repeat 0 -80px; text-indent:-9999px;display:block; }
+
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.portlet-content div.view div.view-content table.views-table td.views-field a.popups-processed { background:none;padding-right:0px;}
+div#homebox div.homebox-portlet div.homebox-portlet-inner  div.portlet-icon{z-index:auto; }
+
+
+/* buttons delete comment */
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.view div.view-content div#views-bulk-operations-submit {padding:0px;}
+div#homebox div.homebox-portlet div.homebox-portlet-inner div.view div.view-content div#views-bulk-operations-submit .form-submit { margin:0px;}

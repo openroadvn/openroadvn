@@ -1,0 +1,8 @@
+; $Id: pics_ogur_views.info,v 1.0 2010/12/22
+name = "OGUR Views"
+description = "Provides a Views 2 field related to og user roles."
+package = "ISA Toolbox"
+core = 6.x
+version = "6.x-1.0"
+
+dependencies[] = og_user_roles

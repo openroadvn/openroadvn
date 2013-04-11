@@ -1,0 +1,18 @@
+; $Id: contexthelp.info,v 1.2.2.16 2010/01/26 14:32:31 darrenferguson Exp $
+name = Context Help
+description = Provides Context Help for the Drupal platform
+version = "6.x"
+core = 6.x
+dependencies[] = locale
+dependencies[] = translation
+dependencies[] = content
+dependencies[] = content_copy
+dependencies[] = text
+dependencies[] = views
+
+; Information added by drupal.org packaging script on 2010-01-29
+version = "6.x-1.0"
+core = "6.x"
+project = "contexthelp"
+datestamp = "1264795211"
+

@@ -1,0 +1,195 @@
+<?php
+
+/**
+ * @file
+ *
+ * Build custom Solr search facets with the UI using Views.
+ */
+
+ 
+ /**
+ * Implementation of hook_views_api().
+ *
+ * This one is used as the base to reduce errors when updating.
+ */
+function apachesolr_facetbuilder_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'apachesolr_facetbuilder') .'/includes',
+  );
+}
+
+
+/**
+ * Implementation of hook_theme().
+ */
+function apachesolr_facetbuilder_theme() {
+  $out = array();
+  $views = _apachesolr_facetbuilder_get_facet_fields();
+  foreach ($views as $key => $info) {
+    $out['apachesolr_breadcrumb_'. $key] = array('arguments' => array('facet' => NULL), 'function' => 'theme_apachesolr_breadcrumb_facet');
+  }
+  $out['apachesolr_facetbuilder_facet_field_title'] = array('arguments' => array('view' => NULL));
+  return $out;
+}
+
+/**
+ * Implementation of hook_block().
+ */
+function apachesolr_facetbuilder_block($op = 'list', $delta = 0, $edit = array()) {
+  switch ($op) {
+    case 'list':
+      $enabled_facets = apachesolr_get_enabled_facets('apachesolr_facetbuilder');
+      $facets = apachesolr_facetbuilder_apachesolr_facets();
+      // Add the blocks
+      $blocks = array();
+      foreach ($enabled_facets as $delta => $facet_field) {
+        if (isset($facets[$delta])) {
+          $blocks[$delta] = $facets[$delta] + array('cache' => BLOCK_CACHE_PER_PAGE,);
+        }
+      }
+      return $blocks;
+
+    case 'view':
+      if (apachesolr_has_searched()) {
+        $facets = _apachesolr_facetbuilder_get_facet_fields();
+
+        if (!isset($facets[$delta])) {
+          return;
+        }
+
+        $response = apachesolr_static_response_cache();
+        if (empty($response)) {
+          return;
+        }
+        $query = apachesolr_current_query();
+
+        $title = $facets[$delta]['facet_field_title'] === t('Filter by') ? $delta : $facets[$delta]['facet_field_title'];
+        return apachesolr_facet_block($response, $query, 'apachesolr_facetbuilder', $delta, $delta, $title, 'apachesolr_facetbuilder_facet_name');
+      }
+      break;
+
+    case 'configure':
+      return apachesolr_facetcount_form('apachesolr_facetbuilder', $delta);
+    case 'save':
+      apachesolr_facetcount_save($edit);
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_apachesolr_update_index().
+ */
+function apachesolr_facetbuilder_apachesolr_update_index(&$document, $node) {
+  $facets = _apachesolr_facetbuilder_get_all_facets();
+  foreach ($facets as $facet) {
+    // Clone the view to remove the cache from the last run.
+    $view = $facet['view']->clone_view();
+    $view->facetbuilder_node = $node;
+    $view->execute($facet['display_id']);
+
+    // If this node appears in this display of this view, mark it with this facet.
+    if (count($view->result)) {
+      $document->setMultiValue($facet['facet_field'], $facet['facet_value']);
+    }
+    $view->destroy();
+    unset($view);
+  }
+}
+
+/**
+ * Implementation of hook_apachesolr_facets().
+ */
+function apachesolr_facetbuilder_apachesolr_facets() {
+  $out = array();
+  $facets = _apachesolr_facetbuilder_get_facet_fields();
+  foreach ($facets as $facet_field => $info) {
+    $out[$facet_field] = array(
+      'info' => t('Apache Solr Facet Builder: '. $info['facet_field_title'] . ' ('.$info['view']->name.')'),
+      'facet_field' => $facet_field,
+    );
+  }
+  return $out;
+}
+
+
+/**
+ * Get a list of views that can be used as facetbuilder facets.
+ */
+function _apachesolr_facetbuilder_get_facet_fields() {
+  $out = array();
+  $facets = _apachesolr_facetbuilder_get_all_facets();
+  foreach ($facets as $facet) {
+    if (!isset($out[$facet['facet_field']])) {
+      $out[$facet['facet_field']] = $facet;
+    }
+  }
+  return $out;
+}
+
+/**
+ * Get a list of views that can be used as facetbuilder facets.
+ */
+function _apachesolr_facetbuilder_get_all_facets() {
+  static $out = array();
+  if (!$out) {
+    $views = views_get_all_views();
+    foreach ($views as $view_id => $view) {
+      foreach ($view->display as $key => $value) {
+        if ($value->display_plugin == 'facet') {
+          $facet_key = $view_id .':'. $key;
+          $out[$facet_key] = array(
+            'title'             => empty($value->display_options['title']) ? $value->display_title : $value->display_options['title'],
+            'view'              => $view,
+            'display_id'        => $key,
+            'facet_field_title'  => theme('apachesolr_facetbuilder_facet_field_title', $view),
+            'facet_field'       => _apachesolr_facetbuilder_get_view_key($view),
+            'facet_value'       => $facet_key,
+          );
+        }
+      }
+    }
+  }
+  return $out;
+}
+
+/**
+ * Apachesolr index name for Organic group id
+ */
+function _apachesolr_facetbuilder_get_view_key($view) {
+  $view_id = array(
+    'name'       => 'facetbuilder_'. $view->name,
+    'multiple'   => TRUE,
+    'index_type' => 'string',
+  );
+  return apachesolr_index_key($view_id);
+}
+
+
+/**
+ * Callback function for the 'Filter by group' facet block.
+ */
+function apachesolr_facetbuilder_facet_name($facet, &$options = NULL) {
+  $facets = _apachesolr_facetbuilder_get_all_facets();
+  $key = is_array($facet) ? $facet['#value'] : $facet;
+  return !empty($facets[$key]['title']) ? $facets[$key]['title'] : '';
+}
+
+
+/**
+ * Theme the breadcrumb.
+ */
+function theme_apachesolr_breadcrumb_facet($facet) {
+  return apachesolr_facetbuilder_facet_name($facet);
+}
+
+/**
+ * Theme the name of a facet field.
+ */
+function theme_apachesolr_facetbuilder_facet_field_title($view) {
+  $value = $view->display['default'];
+  $title = empty($value->display_options['title']) ? $value->display_title : $value->display_options['title'];
+  $title = !empty($title) ? $title : t('Default');
+  $title = $title !== t('Default') ? t('Filter by @title', array('@title' => $title)) : t('Filter by');
+  return $title;
+}

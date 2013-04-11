@@ -1,0 +1,452 @@
+<?php
+
+/**
+ * @file
+ * Advanced CSS/JS aggregation js compression module.
+ *
+ */
+
+/**
+ * Default value to see if the callback is working.
+ */
+define('ADVAGG_JS_COMPRESS_CALLBACK', FALSE);
+
+/**
+ * Default value to see packer is enabled.
+ */
+define('ADVAGG_JS_COMPRESS_PACKER_ENABLE', FALSE);
+
+/**
+ * Default value to see what compressor to use. 0 is JSMin+.
+ */
+define('ADVAGG_JS_COMPRESSOR', 0);
+
+/**
+ * Default value for the compression ratio test.
+ */
+define('ADVAGG_JS_COMPRESS_RATIO', 0.1);
+
+/**
+ * Default value for the compression ratio test.
+ */
+define('ADVAGG_JS_MAX_COMPRESS_RATIO', 0.98);
+
+/**
+ * Default value to see if this will compress aggregated files.
+ */
+define('ADVAGG_JS_COMPRESS_AGG_FILES', TRUE);
+
+/**
+ * Default value to see if this will compress inline js.
+ */
+define('ADVAGG_JS_COMPRESS_INLINE', TRUE);
+
+/**
+ * Implementation of hook_menu
+ */
+function advagg_js_compress_menu() {
+  $items = array();
+  $file_path = drupal_get_path('module', 'advagg_js_compress');
+
+  $items['advagg/js_compress_test_file'] = array(
+    'page callback' => 'advagg_js_compress_test_file',
+    'type' => MENU_CALLBACK,
+    'access callback' => TRUE,
+  );
+  $items['admin/settings/advagg/js-compress'] = array(
+    'title' => 'JS Compression',
+    'description' => 'Adjust JS Compression settings.',
+    'page callback' => 'advagg_js_compress_admin_page',
+    'type' => MENU_LOCAL_TASK,
+    'access arguments' => array('administer site configuration'),
+    'file path' => $file_path,
+    'file' => 'advagg_js_compress.admin.inc',
+    'weight' => 10,
+  );
+
+  return $items;
+}
+
+/**
+ * Implement hook_init.
+ */
+function advagg_js_compress_init() {
+  global $conf;
+  // Do not use the minified jquery if we are going to compress.
+  $conf['jquery_update_compression_type'] = 'none';
+
+  if (variable_get('advagg_js_compress_packer_enable', ADVAGG_JS_COMPRESS_PACKER_ENABLE)) {
+    $conf['advagg_file_save_function'] = 'advagg_js_compress_file_saver';
+  }
+}
+
+/**
+ * Implement hook_advagg_files_table.
+ */
+function advagg_js_compress_advagg_files_table($row, $checksum) {
+  // IF the file has changed, test it's compressibility.
+  if ($row['filetype'] = 'js' && $checksum != $row['checksum']) {
+    $files_to_test[] = array(
+      'md5' => $row['filename_md5'],
+      'filename' => $row['filename'],
+    );
+    advagg_js_compress_test_compression($files_to_test);
+  }
+}
+
+/**
+ * Implement hook_advagg_js_pre_alter.
+ */
+function advagg_js_compress_advagg_js_pre_alter(&$javascript, $preprocess_js, $public_downloads, $scope) {
+  if (module_exists('jquery_update')) {
+    return;
+  }
+
+  foreach ($javascript as $type => $data) {
+    if (!$data) {
+      continue;
+    }
+    if ($type == 'setting' || $type == 'inline') {
+      continue;
+    }
+    foreach ($data as $path => $info) {
+      if ($path == 'misc/jquery.form.js') {
+        $new_path = drupal_get_path('module', 'advagg_js_compress') . '/jquery.form.js';
+        $javascript[$type][$new_path] = $info;
+        unset($javascript[$type][$path]);
+      }
+    }
+  }
+}
+
+/**
+ * Implement hook_advagg_js_alter.
+ */
+function advagg_js_compress_advagg_js_alter(&$contents, $files, $bundle_md5) {
+  if (!variable_get('advagg_js_compress_agg_files', ADVAGG_JS_COMPRESS_AGG_FILES)) {
+    return;
+  }
+
+  $compressor = variable_get('advagg_js_compressor', ADVAGG_JS_COMPRESSOR);
+  if ($compressor == 0) {
+    advagg_js_compress_prep_jsminplus($contents, $files, $bundle_md5);
+  }
+  if ($compressor == 1) {
+    $contents = jsmin($contents);
+  }
+}
+
+/**
+ * Implement hook_advagg_js_inline_alter.
+ */
+function advagg_js_compress_advagg_js_inline_alter(&$contents) {
+  if (!variable_get('advagg_js_compress_inline', ADVAGG_JS_COMPRESS_INLINE)) {
+    return;
+  }
+
+  $compressor = variable_get('advagg_js_compressor', ADVAGG_JS_COMPRESSOR);
+  if ($compressor == 0) {
+    advagg_js_compress_jsminplus($contents);
+  }
+  if ($compressor == 1) {
+    $contents = jsmin($contents);
+  }
+}
+
+/**
+ * Compress a JS string using jsmin+
+ *
+ * @param $contents
+ *   Javascript string.
+ */
+function advagg_js_compress_prep_jsminplus(&$contents, $files, $bundle_md5) {
+  // Make sure every file in this aggregate is compressible.
+  $files_to_test = array();
+  $list_bad = array();
+  foreach ($files as $filename) {
+    $filename_md5 = md5($filename);
+    $data = advagg_get_file_data($filename_md5);
+
+    // File needs to be tested.
+    if (empty($data['advagg_js_compress']['tested'])) {
+      $files_to_test[] = array(
+        'md5' => $filename_md5,
+        'filename' => $filename,
+      );
+    }
+    elseif ($data['advagg_js_compress']['tested']['jsminplus'] != 1) {
+      $list_bad[$filename] = $filename;
+    }
+  }
+
+  $advagg_js_compress_callback = variable_get('advagg_js_compress_callback', ADVAGG_JS_COMPRESS_CALLBACK);
+  if ($advagg_js_compress_callback) {
+    // Send test files to worker.
+    if (!empty($files_to_test)) {
+      $compressible = advagg_js_compress_test_compression($files_to_test);
+      // If an array then it is a list of files that can not be compressed.
+      if (is_array($compressible)) {
+        // Place filename in an array key.
+        foreach ($compressible as $filedata) {
+          $filename = $filedata['filename'];
+          $list_bad[$filename] = $filename;
+        }
+      }
+    }
+  }
+
+  $contents = '';
+  // Do not compress the file that it bombs on.
+  // Compress each file individually.
+  foreach ($files as $file) {
+    if (!empty($list_bad[$file])) {
+      $contents .= advagg_build_js_bundle(array($file));
+    }
+    else {
+      $data = advagg_build_js_bundle(array($file));
+      list($before, $after) = advagg_js_compress_jsminplus($data);
+      $ratio = ($before - $after)/$before;
+      // Make sure the returned string is not empty or has a VERY high
+      // compression ratio.
+      if (empty($data) || $ratio > variable_get('advagg_js_max_compress_ratio', ADVAGG_JS_MAX_COMPRESS_RATIO)) {
+        $data = advagg_build_js_bundle(array($file));
+      }
+      $contents .= $data . ";\n";
+    }
+  }
+}
+
+/**
+ * Compress a JS string using jsmin+
+ *
+ * @param $contents
+ *   Javascript string.
+ * @return
+ *   array with the size before and after.
+ */
+function advagg_js_compress_jsminplus(&$contents) {
+  // Try to allocate enough time to run JSMin+.
+  if (function_exists('set_time_limit')) {
+    @set_time_limit(240);
+  }
+
+  // JSMin+ the contents of the aggregated file.
+  require_once(drupal_get_path('module', 'advagg_js_compress') .'/jsminplus.inc');
+  // Strip Byte Order Marks (BOM's) from the file, JSMin+ cannot parse these.
+  $before = strlen($contents);
+  $contents = str_replace(pack("CCC", 0xef, 0xbb, 0xbf), "", $contents);
+  $contents = JSMinPlus::minify($contents);
+  $after = strlen($contents);
+  return array($before, $after);
+}
+
+/**
+ * Run various theme functions so the cache is primed.
+ *
+ * @param $files_to_test
+ *   array with md5 and filename.
+ * @return
+ *   TRUE if all files are compressible. List of files that failed otherwise.
+ */
+function advagg_js_compress_test_compression($files_to_test) {
+  global $base_path;
+  $bad_files = array();
+  foreach ($files_to_test as $info) {
+    $key = variable_get('advagg_js_compress_url_key', FALSE);
+    if (empty($key)) {
+      $key = mt_rand();
+      variable_set('advagg_js_compress_url_key', $key);
+    }
+
+    // Setup request URL and headers.
+    $query['values'] = $info;
+    $query['key'] = $key;
+    $query_string = http_build_query($query, '', '&');
+    $ip = variable_get('advagg_server_addr', FALSE);
+    if ($ip == -1) {
+      $ip = $_SERVER['HTTP_HOST'];
+    }
+    elseif (empty($ip)) {
+      $ip = empty($_SERVER['SERVER_ADDR']) ? '127.0.0.1' : $_SERVER['SERVER_ADDR'];
+    }
+    $url = 'http://' . $ip . $base_path . 'advagg/js_compress_test_file';
+    $headers = array(
+      'Host' => $_SERVER['HTTP_HOST'],
+      'Content-Type' => 'application/x-www-form-urlencoded',
+    );
+
+    $results = drupal_http_request($url, $headers, 'POST', $query_string);
+
+    // Get file data.
+    $filename_md5 = md5($info['filename']);
+    $data = advagg_get_file_data($filename_md5);
+
+    // Mark as a bad file.
+    if ($data['advagg_js_compress']['tested']['jsminplus'] != 1) {
+      $bad_files[] = $info;
+    }
+  }
+  if (empty($bad_files)) {
+    return TRUE;
+  }
+  return $bad_files;
+}
+
+/**
+ * Run various theme functions so the cache is primed.
+ *
+ * @param $values
+ *   object File info
+ */
+function advagg_js_compress_test_file($values = NULL) {
+//   watchdog('debug', str_replace('    ', '&nbsp;&nbsp;&nbsp;&nbsp;', nl2br(htmlentities(print_r($values, TRUE) . print_r($_REQUEST, TRUE)))));
+
+  // Exit if key does not match & called with $file not set.
+  if (is_null($values)) {
+    if (empty($_POST['key']) || empty($_POST['values'])) {
+      return;
+    }
+    $key = variable_get('advagg_js_compress_url_key', FALSE);
+    if ($key != $_POST['key']) {
+      return;
+    }
+    $values = array();
+    $values['values'] = $_POST['values'];
+  }
+  $filename = $values['values']['filename'];
+  $md5 = $values['values']['md5'];
+
+  // Compression test file if it exists.
+  if (file_exists($filename)) {
+    $contents = file_get_contents($filename);
+    $filesize = filesize($filename);
+
+    // set to -1 so if php bombs out, the file is now marked as bad.
+    $data['advagg_js_compress']['tested']['jsminplus'] = -1;
+    advagg_set_file_data($md5, $data);
+
+    list($before, $after) = advagg_js_compress_jsminplus($contents);
+
+    // Mark as "-2" if compression ratio sucks.
+    $ratio = ($before - $after)/$before;
+    if ($ratio < variable_get('advagg_js_compress_ratio', ADVAGG_JS_COMPRESS_RATIO)) {
+      $data['advagg_js_compress']['tested']['jsminplus'] = -2;
+      advagg_set_file_data($md5, $data);
+      echo $md5;
+      exit;
+    }
+    if ($ratio > variable_get('advagg_js_max_compress_ratio', ADVAGG_JS_MAX_COMPRESS_RATIO)) {
+      $data['advagg_js_compress']['tested']['jsminplus'] = -3;
+      advagg_set_file_data($md5, $data);
+      echo $md5;
+      exit;
+    }
+
+
+    $data['advagg_js_compress']['tested']['jsminplus'] = 1;
+    advagg_set_file_data($md5, $data);
+  }
+
+  echo $md5;
+  exit;
+}
+
+/**
+ * Save a string to the specified destination. Verify that file size is not zero.
+ *
+ * @param $data
+ *   A string containing the contents of the file.
+ * @param $dest
+ *   A string containing the destination location.
+ * @return
+ *   Boolean indicating if the file save was successful.
+ */
+function advagg_js_compress_file_saver($data, $dest, $force, $type) {
+  if ($type == 'css') {
+    return advagg_file_saver($data, $dest, $force, $type);
+  }
+  if (!variable_get('advagg_gzip_compression', ADVAGG_GZIP_COMPRESSION) || !extension_loaded('zlib')) {
+    return advagg_file_saver($data, $dest, $force, $type);
+  }
+
+  // Get file save function
+  $file_save_data = 'file_save_data';
+  $custom_path = variable_get('advagg_custom_files_dir', ADVAGG_CUSTOM_FILES_DIR);
+  if (!empty($custom_path)) {
+    $file_save_data = 'advagg_file_save_data';
+  }
+
+  // Gzip first.
+  $gzip_dest = $dest . '.gz';
+  if (!file_exists($gzip_dest) || $force) {
+    $gzip_data = gzencode($data, 9, FORCE_GZIP);
+    if (!$file_save_data($gzip_data, $gzip_dest, FILE_EXISTS_REPLACE)) {
+      return FALSE;
+    }
+
+    // Make sure filesize is not zero.
+    clearstatcache();
+    if (@filesize($gzip_dest) == 0 && !empty($gzip_data)) {
+      if (!$file_save_data($gzip_data, $gzip_dest, FILE_EXISTS_REPLACE)) {
+        return FALSE;
+      }
+      clearstatcache();
+      if (@filesize($gzip_dest) == 0 && !empty($gzip_data)) {
+        // Filename is bad, create a new one next time.
+        file_delete($gzip_dest);
+        return FALSE;
+      }
+    }
+  }
+
+  // Use packer on JS data.
+  advagg_js_compress_jspacker($data);
+
+  // Write File.
+  if (!$file_save_data($data, $dest, FILE_EXISTS_REPLACE)) {
+    return FALSE;
+  }
+
+  // Make sure filesize is not zero.
+  clearstatcache();
+  if (@filesize($dest) == 0 && !empty($data)) {
+    if (!$file_save_data($data, $dest, FILE_EXISTS_REPLACE)) {
+      return FALSE;
+    }
+    clearstatcache();
+    if (@filesize($dest) == 0 && !empty($data)) {
+      // Filename is bad, create a new one next time.
+      file_delete($dest);
+      return FALSE;
+    }
+  }
+
+  // Make sure .htaccess file exists.
+  advagg_htaccess_check_generate($dest);
+
+  cache_set($dest, time(), 'cache_advagg', CACHE_PERMANENT);
+  return TRUE;
+}
+
+/**
+ * Compress a JS string using packer.
+ *
+ * @param $contents
+ *   Javascript string.
+ */
+function advagg_js_compress_jspacker(&$contents) {
+  // Use Packer on the contents of the aggregated file.
+  require_once(drupal_get_path('module', 'advagg_js_compress') .'/jspacker.inc');
+
+  // Add semicolons to the end of lines if missing.
+  $contents = str_replace("}\n", "};\n", $contents);
+  $contents = str_replace("\nfunction", ";\nfunction", $contents);
+
+  // Remove char returns, looking at you lightbox2.
+  $contents = str_replace("\n\r", "", $contents);
+  $contents = str_replace("\r", "", $contents);
+  $contents = str_replace("\n", "", $contents);
+
+  $packer = new JavaScriptPacker($contents, 62, TRUE, FALSE);
+  $contents = $packer->pack();
+}

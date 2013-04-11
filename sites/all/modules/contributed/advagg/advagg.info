@@ -1,0 +1,11 @@
+name = Advanced CSS/JS Aggregation
+description = Aggregates multiple CSS/JS files, serves them with gzip encoding and smart client-side cache headers.
+package = Advanced CSS/JS Aggregation
+core = 6.x
+
+; Information added by drupal.org packaging script on 2011-05-24
+version = "6.x-1.0-rc5"
+core = "6.x"
+project = "advagg"
+datestamp = "1306202815"
+

@@ -1,0 +1,48 @@
+#!/usr/bin/php
+<?php
+// Note: you may have to modify the above shebang for this script to work in
+// any environment
+
+chdir(dirname(__FILE__) . '/..');
+require 'conf/isasvn-conf.inc.php';
+require 'lib/svn-commit.inc.php';
+require 'lib/task-management.inc.php';
+
+$mysql_connection = mysql_connect(ISA_SERVER, ISA_DB_USERNAME, ISA_DB_PASSWORD);
+if (!$mysql_connection) {
+	die(sprintf('Unable to connect to MySQL server %s as %s'."\n", ISA_SERVER, ISA_DB_USERNAME));
+}
+$db_selection = mysql_select_db(ISA_DB_NAME);
+if (!$db_selection) {
+	die(sprintf('Unable to access database %s as %s'."\n", ISA_DB_NAME, ISA_DB_USERNAME));
+}
+
+$username   = $argv[1];
+$repos_path = $argv[2];
+$message    = $argv[3];
+$revision   = $argv[4];
+$date       = $argv[5];
+$shortname  = pathToShortname($repos_path);
+
+// insert the commit into the frontend database
+insertCommit($username, $shortname, $message, $revision, $date);
+
+// send a mail if needed
+$commit_address = commitMailAddress($shortname);
+if (strlen($commit_address)) {
+	// gather the tokens available to compute the mail command
+	$mail_command_tokens = array(
+		'username' => $username,
+		'repos_path' => $repos_path,
+		'repos_shortname' => $shortname,
+		'message' => $message,
+		'revision' => $revision,
+		'date' => $date,
+		'commit_address' => $commit_address,
+	);
+	$mail_command = MAIL_COMMAND;
+	foreach ($mail_command_tokens as $token_name => $token_value) {
+		$mail_command = str_replace('@' . $token_name, escapeshellarg($token_value), $mail_command);
+	}
+	execute_command($mail_command);
+}

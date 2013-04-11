@@ -1,0 +1,13 @@
+; $Id: project.info,v 1.3 2009/01/12 20:07:19 dww Exp $
+name = Project
+description = Provides a project node type and browsing of projects.
+package = Project
+dependencies[] = views
+core = 6.x
+
+; Information added by drupal.org packaging script on 2010-01-30
+version = "6.x-1.0-alpha4"
+core = "6.x"
+project = "project"
+datestamp = "1264881619"
+

@@ -1,0 +1,37 @@
+To use listhandler you should first install mailhandler. Installing
+mailalias is considered a good idea.
+
+1.)  Copy listhandler.module to the module directory of your drupal
+     installation.
+
+2.)  Enable the module in Site Configuration -> modules.
+
+3.)  Create a forum that you wish to be the container for your list's
+     messages (see docs for forum).
+
+4.)  Configure a mailbox per mailing list in admin > mailhandler > add mailbox
+     - specify the mailing lists sending address as the e-mail address, eg drupal-support-bounces@drupal.org.
+     - specify the mailing lists address as second address, eg. drupal-support@drupal.org
+     - configure your POP, IMAP mailbox or an mbox INBOX.
+     - disable "security"
+     - disable "send error replies"
+     - From header: A header by that mails from that list can be uniquely determined.
+       Sender is usually a good choice. This depends on the mailing list software.
+     - Then give as a mailhandler default command:
+
+     tid: 123
+
+     where 123 would be the numeric taxonomy id of the forum you created above.
+
+5.)  Create a dummy user which has the mailing list's sending address as
+     his address. This user needs to have a role that has the "post content"
+     and the "post comments" permission set.
+
+6.)  listhandler creates accounts for posters to your lists that do not have
+     an account on your site. In admin > listhandler > settings you can choose
+     if those accounts are open or blocked my default.
+
+7.)  While there you should enter an email address that can be used as a From 
+     address for comments by anonymous users that get sent to your list.
+
+8.) Subscribe the mailbox that you just configured to the mailing list in question. You do this outside of Drupal.

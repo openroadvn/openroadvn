@@ -1,0 +1,16 @@
+; $Id: project_release.info,v 1.5 2009/01/12 22:24:03 dww Exp $
+name = Project releases
+description = Provides a release node type to represent releases of projects.
+package = Project
+dependencies[] = project
+dependencies[] = taxonomy
+dependencies[] = upload
+dependencies[] = views
+core = 6.x
+
+; Information added by drupal.org packaging script on 2010-01-30
+version = "6.x-1.0-alpha4"
+core = "6.x"
+project = "project"
+datestamp = "1264881619"
+

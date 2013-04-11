@@ -1,0 +1,47 @@
+<?php
+// $Id: subscriptions_taxonomy.install,v 1.3 2009/07/20 22:37:57 salvis Exp $
+
+/**
+ * @file
+ * Subscriptions Taxonomy module installation.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function subscriptions_taxonomy_install() {
+}
+
+/**
+ * Database update function 2 (replaces update function 1!).
+ * 
+ * Remove taxonomy subscriptions left over from deleted terms.
+ */
+function subscriptions_taxonomy_update_2() {
+  $result = db_query("SELECT s.value AS tid FROM {subscriptions_queue} s LEFT JOIN {term_data} t ON s.value = ". ($GLOBALS['db_type'] == 'pgsql' ? 'CAST(' : '')
+                                                                                                            ."t.tid". ($GLOBALS['db_type'] == 'pgsql' ? ' AS VARCHAR)' : '')
+                                                                                                                 ." WHERE s.module = 'node' AND s.field = 'tid' AND t.tid IS NULL");
+  while ($orphan = db_fetch_array($result)) {
+    $orphans[] = $orphan['tid'];
+  }
+  if (isset($orphans)) {
+    db_query("DELETE FROM {subscriptions_queue} WHERE module = 'node' AND field = 'tid' AND value IN (". db_placeholders($orphans, 'varchar') .")", $orphans);
+    $orphans = NULL;
+  }
+  $result = db_query("SELECT s.value AS tid FROM {subscriptions} s LEFT JOIN {term_data} t ON s.value = ". ($GLOBALS['db_type'] == 'pgsql' ? 'CAST(' : '')
+                                                                                                      ."t.tid". ($GLOBALS['db_type'] == 'pgsql' ? ' AS VARCHAR)' : '')
+                                                                                                           ." WHERE s.module = 'node' AND s.field = 'tid' AND t.tid IS NULL");
+  while ($orphan = db_fetch_array($result)) {
+    $orphans[] = $orphan['tid'];
+  }
+  if (isset($orphans)) {
+    db_query("DELETE FROM {subscriptions} WHERE module = 'node' AND field = 'tid' AND value IN (". db_placeholders($orphans, 'varchar') .")", $orphans);
+  }
+  return array();
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function subscriptions_taxonomy_uninstall() {
+}

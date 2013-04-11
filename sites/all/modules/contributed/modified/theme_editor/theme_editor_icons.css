@@ -1,0 +1,75 @@
+
+.unwriteable .file_ne{
+font-size:8px;
+color:#FF0000;
+vertical-align:super;
+}
+.txt_img {
+display:block;
+padding:0  0 0 20px;
+background:transparent url(images/txt.png) no-repeat scroll 1px 0.2em;
+}
+.php_img {
+display:block;
+padding:0  0 0 20px;
+background:transparent url(images/php.png) no-repeat scroll 1px 0.2em;
+}
+.img_img {
+display:block;
+padding:0  0 0 20px;
+background:transparent url(images/img.png) no-repeat scroll 1px 0.2em;
+}
+.htm_img {
+display:block;
+padding:0  0 0 20px;
+background:transparent url(images/html.png) no-repeat scroll 1px 0.2em;
+}
+.js_img {
+display:block;
+padding:0  0 0 20px;
+background:transparent url(images/js.png) no-repeat scroll 1px 0.2em;
+}
+.css_img {
+display:block;
+padding:0  0 0 20px;
+background:transparent url(images/css.png) no-repeat scroll 1px 0.2em;
+}
+li.theme_editor_filename:hover {
+background:#EDFFD4 url(images/arrow.png) no-repeat scroll 0 -50px;
+}
+li.active_file, li.active_file:hover{
+background:#FFECBE url(images/arrow.png) no-repeat scroll 0 0.15em;
+}
+li.unwriteable, li.unwritable:hover {
+background:#FFE0E1 url(images/warn.png) no-repeat scroll 0 0.15em;
+}
+li.new_file{
+background:#E0EFFF url(images/new.png) no-repeat scroll 0 0.15em;
+}
+input.theme_editor_button{
+display:block;
+padding:3px 3px 3px 20px;
+cursor:pointer;
+border:#929292 2px outset;
+font-weight: bold;
+
+}
+input.add_file_button {
+background:#EBEBEB url(images/add.png) no-repeat scroll 0 0.15em;
+}
+input.delete_file_button {
+background:#EBEBEB url(images/delete.png) no-repeat scroll 0 0.15em;
+}
+input.theme_editor_save_button {
+background:#EBEBEB url(images/save.png) no-repeat scroll 0 0.15em;
+}
+input.theme_editor_create_backup_button {
+background:#EBEBEB url(images/create.png) no-repeat scroll 0 0.15em;
+}
+input.theme_editor_restore_backup_button {
+background:#EBEBEB url(images/undo.png) no-repeat scroll 0 0.15em;
+}
+input.theme_editor_button:hover{
+background-color: #d6e9f4;
+border:#929292 2px inset;
+}

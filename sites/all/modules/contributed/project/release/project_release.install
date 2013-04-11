@@ -1,0 +1,690 @@
+<?php
+// $Id: project_release.install,v 1.30 2010/01/30 02:33:40 dww Exp $
+
+function project_release_install() {
+  // Create the database tables.
+  drupal_install_schema('project_release');
+
+  // Make this module heavier than the default module weight.
+  db_query("UPDATE {system} SET weight = %d WHERE name = 'project_release'", 2);
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function project_release_uninstall() {
+  // Drop database tables.
+  drupal_uninstall_schema('project_release');
+
+  $variables = array(
+    'project_release_active_compatibility_tids',
+    'project_release_api_vocabulary',
+    'project_release_browse_versions',
+    'project_release_default_version_format',
+    'project_release_directory',
+    'project_release_download_base',
+    'project_release_overview',
+    'project_release_unmoderate',
+    'project_release_file_extensions',
+    'project_release_version_extra_weights',
+  );
+  foreach ($variables as $variable) {
+    variable_del($variable);
+  }
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function project_release_schema() {
+  $schema['project_release_nodes'] = array(
+    'description' => 'The base table for project_project nodes.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'Primary Key: The {node}.nid of the project_release node.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'pid' => array(
+        'description' => 'The {project_projects}.nid of the project_project node with which the project_release node is associated.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'version' => array(
+        'description' => 'A string containing the full version of a release. The format of this string for a given project is dictated by {project_release_projects}.version_format.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'tag' => array(
+        'description' => 'The name of a CVS branch or tag on which a release is based.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'rebuild' => array(
+        'description' => 'A flag indicating whether or not the file associated with a release should be rebuilt periodically. For official releases this should be 0, for development snapshots it should be 1.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => FALSE,
+        'not null' => FALSE,
+        'default' => 0,
+      ),
+      'version_major' => array(
+        'description' => 'The major version number of a release.',
+        'type' => 'int',
+        'unsigned' => FALSE,
+        'not null' => FALSE,
+        'default' => NULL,
+      ),
+      'version_minor' => array(
+        'description' => 'The minor version number of a release.',
+        'type' => 'int',
+        'unsigned' => FALSE,
+        'not null' => FALSE,
+        'default' => NULL,
+      ),
+      'version_patch' => array(
+        'description' => 'The patch level version number of a release.',
+        'type' => 'int',
+        'unsigned' => FALSE,
+        'not null' => FALSE,
+        'default' => NULL,
+      ),
+      'version_extra' => array(
+        'description' => 'A text string that can be used to provide additional information about a release.  Ex: BETA',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'default' => NULL,
+      ),
+      'version_extra_weight' => array(
+        'description' => 'Numeric code for ordering releases that define "version_extra".',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'version_extra_delta' => array(
+        'description' => 'The first span of digits found in version_extra. This is needed because we cannot natural sort natively without a stored procedure.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'version_api_tid' => array(
+        'description' => 'The denormalized {term_node}.tid of the API compatibility term for this release, or 0 if the release has no such term.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => NULL,
+      ),
+      'security_update' => array(
+        'description' => 'Denormalized flag to record if this release has the "project_release_security_update_tid" taxonomy term set or not',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'update_status' => array(
+        'description' => 'Denormalized flag to record the update status for this release. Allowed values: PROJECT_RELEASE_UPDATE_STATUS_CURRENT (0), PROJECT_RELEASE_UPDATE_STATUS_NOT_CURRENT (1), PROJECT_RELEASE_UPDATE_STATUS_NOT_SECURE (2)',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('nid'),
+    'indexes' => array(
+      'project_releases_pid' => array('pid')
+    ),
+  );
+
+  $schema['project_release_file'] = array(
+    'description' => 'Stores information about files attached to release nodes.',
+    'fields' => array(
+      'fid' => array(
+        'description' => 'Foreign Key: {files}.fid.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'nid' => array(
+        'description' => 'Foreign Key: {project_release_nodes}.nid.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'filehash' => array(
+        'description' => 'An MD5 hash of the file.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+    ),
+    'primary key' => array('fid'),
+    'indexes' => array('nid' => array('nid')),
+  );
+
+  $schema['project_release_projects'] = array(
+    'description' => 'Table used to store release specific information about projects.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'Primary Key: The {project_projects}.nid of the project_project node.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'releases' => array(
+        'description' => 'A flag indicating whether or not releases are enabled for a project.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => FALSE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'version_format' => array(
+        'description' => 'A string used to designate the format of the {project_release_nodes}.version field for releases of a project.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+    ),
+    'primary key' => array('nid'),
+    'indexes' => array(
+      'project_release_projects_releases' => array('releases')
+    ),
+  );
+
+  $schema['project_release_supported_versions'] = array(
+    'description' => 'Table used to store information about which major versions of a project are supported and/or recommended.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'Primary Key: The {project_projects}.nid of the project_project node.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'tid' => array(
+        'description' => 'Primary Key: The {term_data}.tid of the API compatability version associated with a major version of a project.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'major' => array(
+        'description' => 'Primary Key: The {project_release_nodes}.version_major of a release node.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'supported' => array(
+        'description' => 'A flag to indicate whether or not a given major version of a project is supported.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'recommended' => array(
+        'description' => 'A flag to indicate whether or not a given major version of a project is recommended.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'snapshot' => array(
+        'description' => 'A flag to indicate whether or not snapshot releases of a major version of a project should be shown in the release download table.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'recommended_release' => array(
+        'description' => 'The {project_release_nodes}.nid of the recommended release node for this API tid and major version (the latest release without any "extra" version info such as "alpha1").',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'latest_release' => array(
+        'description' => 'The {project_release_nodes}.nid of the latest release node for this API tid and major version (even if it has "extra" version info such as "alpha1").',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'latest_security_release' => array(
+        'description' => 'The {project_release_nodes}.nid of the latest release node marked as a "security update" for this API tid and major version.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('nid', 'tid', 'major'),
+  );
+
+  $schema['project_release_package_errors'] = array(
+    'description' => 'Table used to store error messages generated by the scripts that package project_release nodes into tarballs.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'Primary Key: The {node}.nid of the project_release node.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'messages' => array(
+        'description' => 'The text of any error messages created by the packaging scripts.',
+        'type' => 'text',
+        'not null' => FALSE,
+      )
+    ),
+    'primary key' => array('nid'),
+  );
+
+  $schema['cache_project_release'] = array(
+    'description' => 'Cache table used to store the project release download tables.',
+    'fields' => array(
+      'cid' => array(
+        'description' => 'Primary Key: Unique cache ID.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'data' => array(
+        'description' => 'A collection of data to cache.',
+        'type' => 'blob',
+        'not null' => FALSE,
+        'size' => 'big',
+      ),
+      'expire' => array(
+        'description' => 'A Unix timestamp indicating when the cache entry should expire, or 0 for never.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'created' => array(
+        'description' => 'A Unix timestamp indicating when the cache entry was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'headers' => array(
+        'description' => 'Any custom HTTP headers to be added to cached data.',
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'serialized' => array(
+        'description' => 'A flag to indicate whether content is serialized (1) or not (0).',
+        'type' => 'int',
+        'size' => 'small',
+        'not null' => TRUE,
+        'default' => 0
+      ),
+    ),
+    'primary key' => array('cid'),
+    'indexes' => array(
+      'expire' => array('expire')
+    ),
+  );
+  return $schema;
+}
+
+/**
+ * Populate the {project_release_nodes}.security_update field.
+ *
+ * @param $ret
+ *   Reference to an array for hook_update_N() return values.
+ */
+function _project_release_check_security_updates(&$ret) {
+  $security_update_tid = variable_get('project_release_security_update_tid', 0);
+  if (!empty($security_update_tid)) {
+    $ret[] = update_sql("UPDATE {project_release_nodes} SET security_update = (SELECT tn.tid IS NOT NULL FROM node n LEFT JOIN term_node tn ON n.vid = tn.vid AND tn.tid = $security_update_tid WHERE n.nid = {project_release_nodes}.nid)");
+  }
+}
+
+/**
+ * Populate the {project_release_nodes}.version_extra_weight field.
+ *
+ * @param $ret
+ *   Reference to an array for hook_update_N() return values.
+ */
+function _project_release_update_version_extra_weights(&$ret) {
+  $weights = project_release_get_version_extra_weight_map();
+  foreach ($weights as $prefix => $weight) {
+    if ($prefix == 'NULL') {
+      $ret[] = update_sql("UPDATE {project_release_nodes} SET version_extra_weight = $weight WHERE version_extra IS NULL");
+    }
+    else {
+      $ret[] = update_sql("UPDATE {project_release_nodes} SET version_extra_weight = $weight WHERE LOWER(version_extra) LIKE '" . $prefix . "%'");
+    }
+  }
+}
+
+/**
+ * Add the 'serialized' field to the {cache_project_release} table.
+ */
+function project_release_update_6000() {
+  $ret = array();
+  $spec = array(
+    'type' => 'int',
+    'size' => 'small',
+    'default' => 0,
+    'not null' => TRUE,
+  );
+  db_add_field($ret, 'cache_project_release', 'serialized', $spec);
+  return $ret;
+}
+
+/**
+ * Add {project_release_file}.
+ */
+function project_release_update_6001() {
+  $ret = array();
+  $schema = project_release_schema();
+  db_create_table($ret, 'project_release_file', $schema['project_release_file']);
+  return $ret;
+}
+
+/**
+ * Convert release file attachments to use core's file API.
+ */
+function project_release_update_6002() {
+  // This determines how many issue nodes will be processed in each
+  // batch run. A reasonable default has been chosen, but you may
+  // want to tweak depending on your setup.
+  $limit = 100;
+
+  // Multi-part update
+  if (!isset($_SESSION['project_release_update_6002'])) {
+    $_SESSION['project_release_update_6002'] = 0;
+    $_SESSION['project_release_update_6002_max'] = db_result(db_query("SELECT COUNT(prn.nid) FROM {project_release_nodes} prn INNER JOIN {node} n ON prn.nid = n.nid WHERE prn.file_path <> ''"));
+  }
+
+  // Pull the next batch of files.
+  $files = db_query_range("SELECT prn.*, n.uid FROM {project_release_nodes} prn INNER JOIN {node} n ON prn.nid = n.nid WHERE prn.file_path <> '' ORDER BY prn.nid", $_SESSION['project_release_update_6002'], $limit);
+
+  // Loop through each file.
+  while ($file = db_fetch_object($files)) {
+    // Make sure file is still there.
+    if (file_exists($file->file_path)) {
+      $filename = basename($file->file_path);
+      $filesize = filesize(file_create_path($file->file_path));
+      $filemime = file_get_mimetype($filename);
+      db_query("INSERT INTO {files} (uid, filename, filepath, filemime, filesize, status, timestamp) VALUES (%d, '%s', '%s', '%s', '%s', %d, %d)", $file->uid, $filename, $file->file_path, $filemime, $filesize, FILE_STATUS_PERMANENT, $file->file_date);
+      $fid = db_last_insert_id('files', 'fid');
+      db_query("INSERT INTO {project_release_file} (fid, nid, filehash) VALUES (%d, %d,'%s')", $fid, $file->nid, $file->file_hash);
+    }
+    $_SESSION['project_release_update_6002']++;
+  }
+
+  if ($_SESSION['project_release_update_6002'] >= $_SESSION['project_release_update_6002_max']) {
+    $count = $_SESSION['project_release_update_6002_max'];
+    unset($_SESSION['project_release_update_6002']);
+    unset($_SESSION['project_release_update_6002_max']);
+    return array(array('success' => TRUE, 'query' => t('Converted release file attachments for @count releases', array('@count' => $count))));
+  }
+  return array('#finished' => $_SESSION['project_release_update_6002'] / $_SESSION['project_release_update_6002_max']);
+
+}
+
+/**
+ * Drop unused fields from {project_release_nodes}.
+ */
+function project_release_update_6003() {
+  $ret = array();
+  db_drop_field($ret, 'project_release_nodes', 'file_path');
+  db_drop_field($ret, 'project_release_nodes', 'file_date');
+  db_drop_field($ret, 'project_release_nodes', 'file_hash');
+  return $ret;
+}
+
+/**
+ * Add new columns to {project_release_supported_versions}.
+ */
+function project_release_update_6004() {
+  $ret = array('#finished' => 0);
+  if (!isset($_SESSION['project_release_update_6004'])) {
+    $spec = array('type' => 'int', 'unsigned' => TRUE, 'default' => NULL, 'not null' => FALSE);
+    db_add_field($ret, 'project_release_supported_versions', 'recommended_release', $spec);
+    db_add_field($ret, 'project_release_supported_versions', 'latest_release', $spec);
+    $_SESSION['project_release_update_6004'] = 0;
+    $_SESSION['project_release_update_6004_max'] = db_result(db_query("SELECT COUNT(*) FROM {project_release_supported_versions}"));
+  }
+
+  // Number of rows to convert per batch.
+  $limit = 20;
+  while ($limit-- && $item = db_fetch_array(db_query_range("SELECT * FROM {project_release_supported_versions} WHERE latest_release IS NULL", 0, 1))) {
+    // We have a branch we haven't processed yet (latest_release is still
+    // NULL), so we invoke project_release_check_supported_versions() to
+    // run some queries to determine the recommended and latest releases on
+    // that branch. Normally, it updates {project_release_supported_versions}
+    // with this data in which case it returns TRUE. However, if it returns
+    // FALSE, it means we didn't find any releases on that branch, and it
+    // didn't touch the table. In that case, we need to update the table
+    // ourselves for this branch to mark the new fields as 0 (not NULL) so
+    // that we don't check this branch again.
+    if (!project_release_check_supported_versions($item['nid'], $item['tid'], $item['major'], FALSE)) {
+      db_query("UPDATE {project_release_supported_versions} SET recommended_release = %d, latest_release = %d WHERE nid = %d AND tid = %d AND major = %d", 0, 0, $item['nid'], $item['tid'], $item['major']);
+    }
+    $_SESSION['project_release_update_6004']++;
+  }
+
+  if ($_SESSION['project_release_update_6004'] >= $_SESSION['project_release_update_6004_max']) {
+    // We're done.  Set our new columns to default to 0 from here on out.
+    $ret[] = update_sql("ALTER TABLE {project_release_supported_versions} ALTER COLUMN recommended_release SET DEFAULT 0");
+    $ret[] = update_sql("ALTER TABLE {project_release_supported_versions} ALTER COLUMN latest_release SET DEFAULT 0");
+    unset($_SESSION['project_release_update_6004']);
+    unset($_SESSION['project_release_update_6004_max']);
+    $ret['#finished'] = 1;
+  }
+  else {
+    $ret['#finished'] = $_SESSION['project_release_update_6004'] / $_SESSION['project_release_update_6004_max'];
+  }
+  return $ret;
+}
+
+/**
+ * Add the 'version_api_tid' column to {project_release_nodes}.
+ */
+function project_release_update_6005() {
+  $ret = array();
+
+  $spec = array(
+    'description' => 'The denormalized {term_node}.tid of the API compatibility term for this release, or 0 if the release has no such term.',
+    'type' => 'int',
+    'unsigned' => TRUE,
+    'not null' => FALSE,
+    'default' => NULL,
+  );
+  db_add_field($ret, 'project_release_nodes', 'version_api_tid', $spec);
+
+  // Populate the new column from {term_node}.
+  $api_vid = _project_release_get_api_vid();
+  $ret[] = update_sql("UPDATE {project_release_nodes} SET version_api_tid = (SELECT tn.tid FROM {node} n INNER JOIN {term_node} tn ON n.vid = tn.vid INNER JOIN {term_data} td ON tn.tid = td.tid WHERE n.nid = {project_release_nodes}.nid AND td.vid = $api_vid)");
+
+  return $ret;
+}
+
+/**
+ * Add security_update and update_status columns to {project_release_nodes}.
+ */
+function project_release_update_6006() {
+  $ret = array();
+
+  $spec = array(
+    'description' => 'Denormalized flag to record if this release has the "project_release_security_update_tid" taxonomy term set or not',
+    'type' => 'int',
+    'size' => 'tiny',
+    'unsigned' => TRUE,
+    'not null' => TRUE,
+    'default' => 0,
+  );
+  db_add_field($ret, 'project_release_nodes', 'security_update', $spec);
+
+  if (module_exists('taxonomy')) {
+    // Populate the new column from {term_node}.
+    _project_release_check_security_updates($ret);
+  }
+
+  $spec = array(
+    'description' => 'Denormalized flag to record the update status for this release. Allowed values: PROJECT_RELEASE_UPDATE_STATUS_CURRENT (0), PROJECT_RELEASE_UPDATE_STATUS_NOT_CURRENT (1), PROJECT_RELEASE_UPDATE_STATUS_NOT_SECURE (2)',
+    'type' => 'int',
+    'size' => 'tiny',
+    'not null' => TRUE,
+    'default' => 0,
+  );
+  db_add_field($ret, 'project_release_nodes', 'update_status', $spec);
+  // This will be initialized by project_release_check_supported_versions()
+  // in project_release_update_6008(), so we don't need to do that here.
+
+  return $ret;
+}
+
+/**
+ * Add the 'version_extra_weight' column to {project_release_nodes}.
+ */
+function project_release_update_6007() {
+  $ret = array();
+
+  $spec = array(
+    'type' => 'int',
+    'not null' => TRUE,
+    'default' => 0,
+  );
+  db_add_field($ret, 'project_release_nodes', 'version_extra_weight', $spec);
+
+  // Initialize the values in the DB based on the existing weights.
+  _project_release_update_version_extra_weights($ret);
+
+  return $ret;
+}
+
+/**
+ * Add the {project_release_supported_versions}.latest_security_release field.
+ */
+function project_release_update_6008() {
+  $ret = array('#finished' => 0);
+  if (!isset($_SESSION['project_release_update_6008'])) {
+    $spec = array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'default' => NULL,
+      'not null' => FALSE,
+    );
+    db_add_field($ret, 'project_release_supported_versions', 'latest_security_release', $spec);
+    $_SESSION['project_release_update_6008'] = 0;
+    $_SESSION['project_release_update_6008_max'] = db_result(db_query("SELECT COUNT(*) FROM {project_release_supported_versions}"));
+  }
+
+  // Number of rows to convert per batch.
+  $limit = 20;
+  while ($limit-- && $item = db_fetch_array(db_query_range("SELECT * FROM {project_release_supported_versions} WHERE latest_security_release IS NULL", 0, 1))) {
+    // We have a branch we haven't processed yet (latest_security_release is
+    // still NULL), so we invoke project_release_check_supported_versions() to
+    // run some queries to determine the recommended, latest, and latest
+    // security releases on that branch. Normally, it updates
+    // {project_release_supported_versions} with this data in which case it
+    // returns TRUE. However, if it returns FALSE, it means we didn't find any
+    // releases on that branch, and it didn't touch the table. In that case,
+    // we need to update the table ourselves for this branch to mark
+    // latest_security_release as 0 (not NULL) so that we don't check this
+    // branch again.
+    if (!project_release_check_supported_versions($item['nid'], $item['tid'], $item['major'], FALSE)) {
+      db_query("UPDATE {project_release_supported_versions} SET latest_security_release = %d WHERE nid = %d AND tid = %d AND major = %d", 0, $item['nid'], $item['tid'], $item['major']);
+      // If project_release_check_supported_versions() returned FALSE, there
+      // are no releases on this branch, so there's nothing to initialize
+      // {project_release_nodes}.update_status for.
+    }
+    $_SESSION['project_release_update_6008']++;
+  }
+
+  if ($_SESSION['project_release_update_6008'] >= $_SESSION['project_release_update_6008_max']) {
+    // We're done.  Set our new columns to default to 0 from here on out.
+    $ret[] = update_sql("ALTER TABLE {project_release_supported_versions} ALTER COLUMN latest_security_release SET DEFAULT 0");
+    unset($_SESSION['project_release_update_6008']);
+    unset($_SESSION['project_release_update_6008_max']);
+    $ret['#finished'] = 1;
+  }
+  else {
+    $ret['#finished'] = $_SESSION['project_release_update_6008'] / $_SESSION['project_release_update_6008_max'];
+  }
+  return $ret;
+}
+
+/**
+ * Add the {project_release_nodes}.version_extra_delta field.
+ *
+ * Also recompute the latest and recommended releases on each branch, and
+ * therefore the update_status field, since version_extra_delta is needed
+ * to properly order alpha10 vs. alpha9, etc.
+ */
+function project_release_update_6009() {
+  $ret = array('#finished' => 0);
+  if (!isset($_SESSION['project_release_update_6009'])) {
+    $spec = array(
+      'type' => 'int',
+      'not null' => TRUE,
+      'default' => 0,
+      'description' => 'The first span of digits found in version_extra. This is needed because we cannot natural sort natively without a stored procedure.',
+    );
+
+    db_add_field($ret, 'project_release_nodes', 'version_extra_delta', $spec);
+
+    // Initialize version_extra_delta to -1 to identify the rows to process.
+    db_query('UPDATE {project_release_nodes} SET version_extra_delta = -1 WHERE version_extra IS NOT NULL');
+
+    $_SESSION['project_release_update_6009'] = 0;
+    $_SESSION['project_release_update_6009_max'] = db_result(db_query("SELECT COUNT(*) FROM {project_release_nodes} WHERE version_extra IS NOT NULL"));
+  }
+
+  // Number of rows to convert per batch.
+  $limit = 20;
+  while ($limit-- && $item = db_fetch_array(db_query_range("SELECT nid, pid, version_major, version_api_tid, version_extra FROM {project_release_nodes} WHERE version_extra_delta = -1", 0, 1))) {
+    // Due to the new sorting method, the "recommended" and "latest" releases
+    // will change on any releases affected by http://drupal.org/node/649254.
+
+    // Determine the correct version_extra_delta and update it.
+    $match = array();
+    $nmatch = preg_match('/(\d+)/', $item['version_extra'], $match);
+    db_query('UPDATE {project_release_nodes} SET version_extra_delta = %d WHERE nid = %d', ($nmatch) ? $match[1] : 0, $item['nid']);
+
+    // Finally, recheck the branch.
+    // Note: this is ineffecient: we only really need to call this
+    // once per unique branch we're touching, not for every single
+    // release, but optimizing this isn't worth the effort, and would
+    // potentially require an enormous array in $_SESSION that could
+    // cause its own problems.
+    project_release_check_supported_versions($item['pid'], $item['version_api_tid'], $item['version_major'], FALSE);
+
+    $_SESSION['project_release_update_6009']++;
+  }
+
+  if ($_SESSION['project_release_update_6009'] >= $_SESSION['project_release_update_6009_max']) {
+    // Done. Clean up.
+    unset($_SESSION['project_release_update_6009']);
+    unset($_SESSION['project_release_update_6009_max']);
+    $ret['#finished'] = 1;
+  }
+  else {
+    $ret['#finished'] = $_SESSION['project_release_update_6009'] / $_SESSION['project_release_update_6009_max'];
+  }
+  return $ret;
+}

@@ -1,0 +1,178 @@
+/* $id */
+
+html.modal, .modal html,   body.modal, .modal body {
+  overflow: hidden; }
+
+#contextual-help-toggle {
+  font-size: 12px;
+  border-radius: 3px;
+  -moz-border-radius: 3px;
+  -webkit-border-radius: 3px;
+/*  position: absolute; */
+  right: 20px;
+  top: 17px;
+  padding: 2px 5px;
+  text-decoration: none;
+  font-weight: bold;
+  background: #C2CEE0;
+  z-index: 90; }
+
+.gecko #contextual-help-toggle {
+  padding-bottom: 1px; }
+
+#contextual-help-dialog {
+  border-radius: 5px;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  display: none;
+  position: fixed;
+  top: 5%;
+  left: 50%;
+  margin-left: -430px;
+  width: 800px;
+  height: 80%;
+  background-color: #fff;
+  color: #333;
+  border: 10px solid #ccc;
+  padding: 50px 10px 10px 10px; }
+  .ie6 #contextual-help-dialog {
+    position: absolute;
+    top: expression((document.documentElement.scrollTop || document.body.scrollTop) + Math.round(5 * (document.documentElement.offsetHeight || document.body.clientHeight) / 100) + 'px'); }
+  #contextual-help-dialog a#contextual-help-close {
+    font-size: 12px;
+    border-radius: 3px;
+    -moz-border-radius: 3px;
+    -webkit-border-radius: 3px;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3002;
+    height: 16px;
+    width: 18px;
+    padding: 2px;
+    text-align: center;
+    text-decoration: none;
+    color: #fff;
+    background: #888; }
+    #contextual-help-dialog a#contextual-help-close:hover {
+      background: #666; }
+    .gecko #contextual-help-dialog a#contextual-help-close {
+      padding-top: 3px; }
+  #contextual-help-dialog ul#contextual-help-tabs {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    position: absolute;
+    z-index: 3001;
+    width: 100%;
+    left: 0;
+    top: 10px;
+    padding-left: 10px;
+    border-bottom: 1px solid #ccc; }
+    #contextual-help-dialog ul#contextual-help-tabs:after {
+      content: ".";
+      display: block;
+      height: 0;
+      clear: both;
+      visibility: hidden; }
+    .ie #contextual-help-dialog ul#contextual-help-tabs {
+      zoom: 1; }
+    #contextual-help-dialog ul#contextual-help-tabs li {
+      float: left; }
+    #contextual-help-dialog ul#contextual-help-tabs li {
+      position: relative;
+      bottom: -1px;
+      margin-right: 2px;
+      padding: 3px 10px;
+      background: #eee;
+      border: 1px solid #ccc; }
+      .gecko #contextual-help-dialog ul#contextual-help-tabs li {
+        padding-top: 4px; }
+      #contextual-help-dialog ul#contextual-help-tabs li.active {
+        background: #fff;
+        border-bottom-color: #fff; }
+        #contextual-help-dialog ul#contextual-help-tabs li.active a {
+          font-weight: bold;
+          text-decoration: none;
+          color: #000; }
+  #contextual-help-dialog #contextual-help-content {
+    height: 100%;
+    overflow: auto;
+    position: relative; }
+    #contextual-help-dialog #contextual-help-content .views-field-title {
+      margin-bottom: 10px;
+      background: none; }
+      #contextual-help-dialog #contextual-help-content .views-field-title span.field-content {
+        font-size: 13px; }
+    #contextual-help-dialog #contextual-help-content .views-field-body {
+      background: none; }
+      #contextual-help-dialog #contextual-help-content .views-field-body div.field-content ul {
+        padding-left: 0; }
+        #contextual-help-dialog #contextual-help-content .views-field-body div.field-content ul li {
+          list-style-type:disc;
+          list-style-position:inside;
+          list-style-image:none; }
+      #contextual-help-dialog #contextual-help-content .views-field-body div.field-content ol {
+        padding-left: 0; }
+        #contextual-help-dialog #contextual-help-content .views-field-body div.field-content ol li {
+          list-style-type:decimal;
+          list-style-position:inside;
+          list-style-image:none; }
+    #contextual-help-dialog #contextual-help-content .item-list ul {
+      padding-left: 0; }
+    #contextual-help-dialog #contextual-help-content .item-list ul.ui-accordion li {
+      padding: 0;
+      margin: 0;
+      list-style-image:none;
+      list-style-position:outside;
+      list-style-type:none; }
+      #contextual-help-dialog #contextual-help-content .item-list ul.ui-accordion li .views-field-title {
+        cursor: default;
+        margin: 0;
+        padding: 5px 10px;
+        border-top: 1px solid #fff;
+        border-bottom: 1px solid #C2CEE0;
+        background: #E9F1FB url(../images/block-plusminus.png) no-repeat 99% 7px; }
+        #contextual-help-dialog #contextual-help-content .item-list ul.ui-accordion li .views-field-title span.field-content {
+          font-size: 13px; }
+        #contextual-help-dialog #contextual-help-content .item-list ul.ui-accordion li .views-field-title a {
+          text-decoration: none;
+          color: #000; }
+        #contextual-help-dialog #contextual-help-content .item-list ul.ui-accordion li .views-field-title.selected {
+          border-top-color: #E2EEF0;
+          background-color: #C2CEE0;
+          background-position: 99% -43px; }
+        .ie6 #contextual-help-dialog #contextual-help-content .item-list ul.ui-accordion li .views-field-title {
+          zoom: 1;
+          background-image: url(../images/ie6/block-plusminus.png); }
+      #contextual-help-dialog #contextual-help-content .item-list ul.ui-accordion li .views-field-body {
+        display: block;
+        padding: 10px;
+        border: 1px solid #C2CEE0;
+        border-top: none;
+        background: none; }
+        .ie6 #contextual-help-dialog #contextual-help-content .item-list ul.ui-accordion li .views-field-body {
+          zoom: 1; }
+  #contextual-help-dialog .block {
+    display: none; }
+
+/* Context Help Field Title */
+.views-field-title {
+  background: #edf3fe; }
+  .views-field-title label {
+    display: none; }
+  .views-field-title span.field-content {
+    color: #000;
+    display: block;
+    font-weight: bold;
+    font-size: 12px; }
+
+/* Context Help Field Body */
+.views-field-body {
+  background: #f2f2f2; }
+  .views-field-body label {
+    display: none; }
+  .views-field-body span.field-content {
+    font-size: 12px;
+    display: block; }
+

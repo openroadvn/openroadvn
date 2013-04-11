@@ -1,0 +1,6 @@
+; $Id
+core            = "6.x"
+dependencies[]  = isa_toolbox
+description     = "Module invite users on site or group"
+name            = "ISA Invite People"
+package         = "ISA Toolbox"

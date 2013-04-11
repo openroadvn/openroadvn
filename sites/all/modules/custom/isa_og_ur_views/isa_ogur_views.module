@@ -1,0 +1,19 @@
+<?php
+/**
+ * @file
+ * Warning: while this Views field is enough for the PICS project views, it may
+ * not be robust enough for another real-world usage.
+ * @todo improve the includes/og_user_roles_handler_field_has_role.inc content
+ * You may prefer using og_user_roles_views: http://drupal.org/node/729256#comment-3288136
+ */
+
+/**
+ * Implementation of hook_views_api().
+ */
+function isa_ogur_views_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'isa_ogur_views'),
+  );
+}
+

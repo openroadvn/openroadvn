@@ -1,0 +1,6 @@
+; $Id
+core            = "6.x"
+dependencies[]  = taxonomy
+description     = "Module for alter nodes form. This module must have a weight greater than the modulus Fieldgroup of CCK"
+name            = "Node Form"
+package         = "ISA Toolbox"

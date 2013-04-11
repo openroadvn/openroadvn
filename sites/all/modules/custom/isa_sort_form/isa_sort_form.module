@@ -1,0 +1,421 @@
+<?php
+//include_once('sites/all/modules/contributed/devel/krumo/class.krumo.php');
+
+function isa_sort_form_block($op = 'list', $delta = 0, $edit = array()) {
+  switch ( $op ) {
+    case 'list':
+      $blocks[0]['info'] = t('Community Sort Form');
+      $blocks[0]['cache'] = BLOCK_NO_CACHE;
+      $blocks[1]['info'] = t('News Sort Form');
+      $blocks[1]['cache'] = BLOCK_NO_CACHE;
+      $blocks[2]['info'] = t('Wikis Sort Form');
+      $blocks[2]['cache'] = BLOCK_NO_CACHE;
+      $blocks[3]['info'] = t('Blogs Sort Form');
+      $blocks[3]['cache'] = BLOCK_NO_CACHE;
+      $blocks[4]['info'] = t('Softwares Sort Form');
+      $blocks[5]['info'] = t('Softwares Menu Related Project');
+      $blocks[6]['info'] = t('E-library Sort Form');
+      $blocks[6]['cache'] = BLOCK_NO_CACHE;
+      $blocks[7]['info'] = t('People Sort Form');
+      $blocks[7]['cache'] = BLOCK_NO_CACHE;
+      $blocks[8]['info'] = t('People Latest Blog Sort Form');
+      $blocks[8]['cache'] = BLOCK_NO_CACHE;
+      $blocks[9]['info'] = t('Assets Sort Form');
+      $blocks[10]['info'] = t('Events Sort Form');
+      return $blocks;
+      break;
+
+    case 'view' :
+      switch ($delta) {
+        //Block Sort Form for communities list
+        case 0:
+          $block['content'] = drupal_get_form('isa_sort_form_get_views_sort_form',"community");
+          break;
+        //Block Sort Form for news and blog list
+        case 1:
+          $block['content'] = drupal_get_form('isa_sort_form_get_views_sort_form',"news");
+          break;
+        //Block Sort Form for wikis list
+        case 2:
+          $block['content'] = drupal_get_form('isa_sort_form_get_views_sort_form',"wikis");
+          break;
+        //Block Sort Form for blogs list
+        case 3:
+          $block['content'] = drupal_get_form('isa_sort_form_get_views_sort_form',"blogs");
+          break;
+        case 4:
+          $block['content'] = drupal_get_form('isa_sort_form_get_views_sort_form',"softwares");
+          break;
+        case 5:
+          $block['content'] = drupal_get_form('isa_sort_form_menu_related_projects');
+          break;
+        //Block Sort Form for E-library list
+        case 6:
+          $block['content'] = drupal_get_form('isa_sort_form_get_views_sort_form',"e-library");
+          break;
+           //Block Sort Form for People list
+        case 7:
+          $block['content'] = drupal_get_form('isa_sort_form_get_views_sort_form',"people");
+          break;
+        case 8:
+          $block['content'] = drupal_get_form('isa_sort_form_get_views_sort_form',"people_blog");
+          break;
+        case 9:
+          $block['content'] = drupal_get_form('isa_sort_form_get_views_sort_form',"assets");
+          break;
+        case 10:
+          $block['content'] = drupal_get_form('isa_sort_form_get_views_sort_form',"events");
+          break;
+      }
+      $block['subject'] = 'Sort Form';
+      return $block;
+      break;
+  }
+}
+
+/* using for isa_sort_form_views_query_alter
+ * Definition the sql options for the view query*/
+function isa_sort_form_get_sql_options ($view_type) {
+  switch ($view_type) {
+    // Used for JoinUp
+    case 'news':
+      $options = array(
+        'date'    => array('node_created DESC'),
+        'title'   => array('node_title ASC','node_created DESC'),
+        'name'    => array('field_lastname_value ASC','field_firstname_value ASC','node_created DESC'),
+        'rating'  => array('votingapi_cache_node_percent_vote_average_value DESC','node_created DESC'),
+      );
+      break;
+    case 'people':
+      $options = array(
+        'date-desc' => array('users_created DESC'),
+        'name'      => array('node_users_node_data_field_lastname_field_lastname_value ASC', 'node_users_node_data_field_lastname_field_firstname_value ASC','users_created DESC'),
+        'organization'   => array ('node_data_field_company_name_field_company_name_value ASC'),
+        'location'  => array('term_data.name ASC', 'node_users_node_data_field_lastname_field_lastname_value ASC', 'node_users_node_data_field_lastname_field_firstname_value ASC'),
+        'most'      => array('userpoints_points DESC'),
+      );
+     break;
+      case 'people_blog':
+      $options = array(
+        'date-desc'   => array('node_created DESC'),
+        'date-asc'    => array('node_created ASC'),
+        'title-desc'  => array ('node_title DESC','node_created DESC'),
+        'title-asc'   => array ('node_title ASC','node_created DESC'),
+        'rating-desc' => array ('votingapi_cache_node_percent_vote_average_value DESC','node_created DESC'),
+        'rating-asc'  => array ('votingapi_cache_node_percent_vote_average_value ASC','node_created DESC'),
+      );
+      break;
+    case 'events':
+      $options = array(
+        'date'     => array('node_data_field_event_dates_field_event_dates_value DESC'),
+        'name'     => array('users_name ASC','node_data_field_event_dates_field_event_dates_value DESC'),
+        'title'    => array('node_title ASC','node_data_field_event_dates_field_event_dates_value DESC'),
+        'location' => array('node_data_field_event_dates_field_event_city_value ASC'),
+        'rating'   => array('votingapi_cache_node_percent_vote_average_value DESC','node_data_field_event_dates_field_event_dates_value DESC'),
+      );
+      break;
+    case 'softwares_required':
+      $options = array(
+        'recent'    => array('node_created DESC'),
+        //'top-down'  => array ();
+        'most'      => array('post_count DESC'),
+      );
+      break;
+    case 'softwares_depends':
+      $options = array(
+        'recent'    => array('node_node_data_field_project_common_using.created DESC'),
+        //'top-down'  => array ();
+        'most'      => array('post_count DESC'),
+      );
+      break;
+       case 'softwares':
+       case 'assets':
+      $options = array(
+        'date'     => array('node_created DESC'),
+        'title'    => array('node_title ASC'),
+        'activity' => array('post_count DESC'),
+        'download' => array('isa_download_statistics_project_downloads_count DESC'),
+      );
+      break;
+    case 'community':
+      $options = array(
+        'date-desc'     => array('node_created DESC'),
+        'members-des'   => array('member_count DESC','node_created DESC'),
+        'title-asc'     => array('node_title ASC','node_created DESC'),
+        'activity-desc' => array('post_count DESC','node_created DESC'),
+      );
+      break;
+    case 'elibrary':
+      $options = array(
+        'date'    => array('node_created DESC'),
+        'title'   => array('node_title ASC','node_created DESC'),
+        'name'    => array('users_name ASC','node_created DESC'),
+        'rating'  => array('votingapi_cache_node_percent_vote_average_value DESC','node_created DESC'),
+      );
+      break;
+
+    // No longer used for JoinUp (old - ISA)
+    case 'e-library':
+      $options = array(
+        'date-desc'   => array('node_created DESC'),
+        'date-asc'    => array('node_created ASC'),
+        'title-desc'  => array('node_title DESC','node_created DESC'),
+        'title-asc'   => array('node_title ASC','node_created DESC'),
+      );
+      break;
+  }
+  return $options;
+}
+
+/*
+ *  Definition of the sort list default value */
+function isa_sort_form_get_form_default_value ($view_type) {
+  switch ($view_type) {
+    case 'people':
+      return 'name';
+      break;
+    case 'softwares':
+    case 'assets':
+      return 'date';
+      break;
+  }
+}
+
+/*
+ *  Definition of the sort list options */
+function isa_sort_form_get_form_options ($view_type) {
+  $form_options['sort_title'] = t('Sort:');
+  switch ($view_type) {
+    // Used for JoinUp
+    case 'news':
+      $form_options['options'] = array(
+          'date'   => t('Date'),
+          'name'   => t('Name'),
+          'title'  => t('Title'),
+          'rating' => t('Rating'),
+      );
+      break;
+    case 'people':
+      $form_options['options'] = array(
+          'date-desc' => t('Date'),
+          'name'      => t('Name'),
+          'organization'  =>  t('Organization'),
+          'location'  => t('Location'),
+          'most'      => t('Most active'),
+      );
+      break;
+    case 'community':
+      $form_options['options'] = array(
+        'date-desc'     => t('Date'),
+        'members-des'   => t('Members'),
+        'title-asc'     => t('Title'),
+        'activity-desc' => t('Activity'),
+      );
+      break;
+    case 'softwares':
+    case 'assets':
+      $form_options['options'] = array(
+        'date'     => t('Date'),
+        'title'    => t('Title'),
+        'activity' => t('Activity'),
+        'download' => t('Download'),
+      );
+      break;
+    case 'people_blog':  
+      $form_options['options'] = array(
+          'date-desc'   => t('Date: Descending'),
+          'date-asc'    => t('Date: Ascending'),
+          'name-desc'   => t('Name: Descending'),
+          'name-asc'    => t('Name: Ascending'),
+          'title-desc'  => t('Title: Descending'),
+          'title-asc'   => t('Title: Ascending'),
+          'rating-desc' => t('Rating: Descending'),
+          'rating-asc'  => t('Rating: Ascending'),
+      );
+      break;
+    case 'events':
+      $form_options['options'] = array(
+          'date'      => t('Date'),
+          'name'      => t('Name'),
+          'title'     => t('Title'),
+          'location'  => t('Location'),
+          'rating'    => t('Rating'),
+      );
+      break;
+
+    // No longer used for JoinUp (old - ISA)
+    case 'e-library':
+      $form_options['options'] = array(
+          'date-desc'   => t('Date: Descending'),
+          'date-asc'    => t('Date: Ascending'),
+          'title-desc'  => t('Title: Descending'),
+          'title-asc'   => t('Title: Ascending'),
+      );
+      break;
+    case 'wikis':
+    case 'blogs':
+      $form_options['options'] = array(
+        'date-desc' => t('Date: Descending'),
+        'date-asc' => t('Date: Ascending'),
+        'title-desc' => t('Title: Descending'),
+        'title-asc' => t('Title: Ascending'),
+      );
+      break;
+  }
+  return $form_options;
+}
+
+
+/**
+ * Implementation of hook_views_query_alter
+ */
+function isa_sort_form_views_query_alter(&$view, &$query) {
+//  print($view->name . '<br />');
+  if (isset($_GET['sorted'])) {
+    $options = NULL;
+    switch ($view->name) {
+      case 'Communities_list':
+        if ($view->current_display != 'block_2') {
+          $options = isa_sort_form_get_sql_options('community');
+        }
+        break;
+      case 'event_browser':
+        if ($view->current_display != 'block_3' && $view->current_display != 'block_2') {
+          $options = isa_sort_form_get_sql_options('events');
+        }
+        break;
+      case 'highlights':
+        if (in_array($view->current_display,
+            array(
+                'page_2', // in a community
+                'page_11', // in an asset
+                'page_12', // in a software
+            ))) {
+          $options = isa_sort_form_get_sql_options('events');
+        }
+        if (in_array($view->current_display,
+            array(
+                'page_1', 'page_3', 'page_4', // in a community
+                'page_9', 'page_6', 'page_8', // in an asset
+                'page_10', 'page_5', 'page_7', // in a software
+            ))) {
+          $options = isa_sort_form_get_sql_options('community');
+        }
+        break;
+      case  'software_related_projects' :
+        if ($view->current_display == 'page_1'){
+            $options = isa_sort_form_get_sql_options('softwares_depends');
+        }
+        if ($view->current_display == 'page_2'){
+          $options = isa_sort_form_get_sql_options('softwares_required');
+        }
+        break;
+      case 'Softwares_list':
+        if ($view->current_display == 'page_2' ||
+            $view->current_display == 'page_3' ||
+            $view->current_display == 'page_4' ||
+            $view->current_display == 'page_5' ||
+            $view->current_display == 'page_6'){
+          $options = isa_sort_form_get_sql_options('softwares');
+        }
+        break;
+      case 'Assets_list':
+        if ($view->current_display == 'page_1' ||
+            $view->current_display == 'page_2' ||
+            $view->current_display == 'page_3' ||
+            $view->current_display == 'page_4' ||
+            $view->current_display == 'page_5' ||
+            $view->current_display == 'page_6'){
+              $options = isa_sort_form_get_sql_options('assets');
+        }
+        break;
+      case 'videos':
+      case 'elibrary_view':
+        if ($view->current_display != 'block_1' && $view->current_display != 'block_2') {
+          $options = isa_sort_form_get_sql_options('elibrary');
+        }
+        break;
+      case 'Editor_choice_view':
+      case 'Blog_view':
+      case 'News_view':
+      case 'newsletters_list':
+        $options = isa_sort_form_get_sql_options('news');
+        break;
+      case 'AllNews_view':
+        if (substr($view->current_display, 0, 4) == 'page') {
+          $options = isa_sort_form_get_sql_options('news');
+        }
+        break;
+      case 'Wiki_listall':
+        $options = isa_sort_form_get_sql_options('elibrary');
+        break;
+      case 'People_List':
+        $options = isa_sort_form_get_sql_options('people');
+        break;
+      case 'Blog_view_user':
+        $options = isa_sort_form_get_sql_options('people_blog');
+        break;
+    }
+    if ($options != NULL) {
+      $query->orderby = $options[$_GET['sorted']];
+    }
+  }
+}
+
+// Definition of the sort list
+function isa_sort_form_get_views_sort_form($form_state, $type) {
+  $form_options = isa_sort_form_get_form_options($type);
+  $form['sort_option'] = array(
+      '#type' => 'select',
+      '#title' => $form_options['sort_title'],
+      '#options' => $form_options['options'],
+      '#default_value' => isa_sort_form_get_form_default_value($type),
+  );
+  if (isset($_GET['sorted'])) {
+    $form['sort_option']['#default_value'] = $_GET['sorted'];
+  }
+
+  $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Apply')
+  );
+  return $form;
+}
+
+// Manage submit button for sort list
+function isa_sort_form_get_views_sort_form_submit($form, &$form_state) {
+  $res = $form_state['values']['sort_option'];
+  global $base_url;
+  $url = $base_url . "/" . $_GET['q'] . "?sorted=" . $res;
+  $form_state['redirect'] = $url;
+}
+
+function isa_sort_form_menu_related_projects (){
+   $form['display'] = array(
+      '#type' => 'select',
+      '#title' => t('Display'),
+      '#options' => array ('depend' => t('Depends on'),'required' => t('Required by')),
+  );
+
+   $gid = isa_toolbox_get_community_nid();
+   if (is_numeric($gid)){
+     $path = explode('/', drupal_get_normal_path($_GET['q']));
+     if ($path[count ($path)-2] == 'related_projects' && isset ($path[count ($path)-1])){
+       $form['display']['#default_value'] = $path[count ($path)-1];
+     }
+   }
+     $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Apply')
+  );
+  return $form;
+}
+
+
+function isa_sort_form_menu_related_projects_submit($form, &$form_state) {
+  $display = $form_state['values']['display'];
+  global $base_url;
+  $gid = isa_toolbox_get_community_nid();
+  $url = $base_url."/software/".$gid."/related_projects/".$display;
+  $form_state['redirect'] = $url;
+}

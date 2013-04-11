@@ -1,0 +1,172 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Content Lock V6.x-1.0\n"
+"POT-Creation-Date: 2010-05-08 16:42+0200\n"
+"PO-Revision-Date: \n"
+"Last-Translator: Frank Tartler <frank.tartler@googlemail.com>\n"
+"Language-Team: Frank Tartler <frank.tartler@googlemail.com>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-Language: German\n"
+"X-Poedit-Country: GERMANY\n"
+"X-Poedit-SourceCharset: utf-8\n"
+"Plural-Forms: nplurals=2; plural=(n!=1);\n"
+
+#: content_lock.admin.inc:12
+msgid "Show lock / unlock messages"
+msgstr "Meldungen zum Sperren/Entsperren anzeigen"
+
+#: content_lock.admin.inc:13
+msgid "If you disable this option, no messages about unlock / lock of nodes are shown to the user anymore"
+msgstr "Wenn diese Option deaktiviert wird, werden dem Benutzer keine Meldungen zum Entsperren bzw. Sperren von Beiträgen mehr angezeigt"
+
+#: content_lock.admin.inc:19
+msgid "Add cancel button"
+msgstr "Abbrechen-Schaltfläche hinzufügen"
+
+#: content_lock.admin.inc:20
+msgid "Should a cancel button be added to the node / user / comment form. This way a user can properly cancel the transaction"
+msgstr "Soll dem Beitrags-, Benutzer- und Kommentarformular eine Abbrechen-Schaltfläche hinzugefügt werden? Dies ist eine Möglichkeit, mit der Benutzer die Transaktion einfach abbrechen können."
+
+#: content_lock.module:22
+msgid "Drupal's default content locking strategy is optimistic, that is, two users may start to edit the same content and the one who is hitting the save button first wins the race, while the other is displayed a message stating <em>this content has been modified by another user, changes cannot be saved</em>.  Depending on the number of editors in your organization this might not be an acceptable solution."
+msgstr "Die standardmäßige Strategie von Drupal zum Sperren von Inhalt ist optimistisch, das heißt 2 Benutzer können den selben Inhalt zur selben Zeit bearbeiten, wobei der das Rennen gewinnt, der die Speichern-Schaltfläche zuerst anklickt, während der andere eine Nachricht erhält, dass <em>dieser Inhalt durch einen anderen Benutzer geändert wurde und Änderungen nicht gespeichert werden können</em>. Je nach Anzahl der Bearbeiter ist dies möglicherweise keine akzeptable Situation."
+
+#: content_lock.module:23
+msgid "The Content locking module implements pessimistic locking, which means that content will be exclusively locked whenever a user starts editing it.  The lock will be automatically released when the user submits the form or navigates away from the edit page."
+msgstr "Das Modul ‚Content Locking‘ implementiert pessimistisches Sperren, was bedeutet dass Inhalt exklusiv gesperrt wird, sobald er von einem Benutzer bearbeitet wird. Die Sperre wird automatisch aufgehoben, wenn der Benutzer das Formular abschickt oder die Bearbeiten-Seite verlässt."
+
+#: content_lock.module:24
+msgid "Users may also permanently lock content, to prevent others from editing it.  Content locks that have been \"forgotten\" can be automatically released after a configurable time span."
+msgstr "Benutzer können Inhalt auch dauerhaft sperren, damit ihn andere Benutzer nicht bearbeiten. Inhaltssperren, die „vergessen“ wurden, können nach einer konfigurierbaren Zeitspanne entsperrt werden."
+
+#: content_lock.module:28
+msgid "Below is a list of all locked documents. Click on <em>check in</em> to release a lock."
+msgstr "Nachfolgend werden alle gesperrten Beiträge aufgelistet. Durch Anklicken von <em>entsperren</em> kann eine Sperre aufgehoben werden."
+
+#: content_lock.module:31
+msgid "Below is a list of all documents locked by you. Click on <em>check in</em> to release a lock."
+msgstr "Nachfolgend werden alle von Ihnen gesperrten Beiträge aufgelistet. Durch Anklicken von <em>entsperren</em> kann eine Sperre aufgehoben werden."
+
+#: content_lock.module:113
+msgid "Your lock has been removed!"
+msgstr "Ihr Sperre wurde entfernt!"
+
+#: content_lock.module:113
+msgid "You can still save the content if this user aborts the edit operation without saving changes."
+msgstr "Sie können den Inhalt immer noch speichern, wenn der Benutzer das Bearbeiten ohne das Speichern von Änderungen abbricht."
+
+#: content_lock.module:119
+msgid "Your lock has been removed due to inactivity or by an administrator. Failed to regain the lock since the document has been changed since."
+msgstr "Ihre Sperre wurde aufgrund von Inaktivität oder durch einem Administrator aufgehoben. Die Sperre konnte nicht neu eingerichtet werden, da das Dokument inzwischen geändert wurde."
+
+#: content_lock.module:209;222;232;243
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: content_lock.module:311
+msgid "This document is locked for editing by !name since @date."
+msgstr "Dieser Beitrag ist seit @date von !name zum Bearbeiten gesperrt."
+
+#: content_lock.module:338
+msgid "Click <a href=\"!release-url\">here</a> to check back in now."
+msgstr "Zum sofortigen Entsperren <a href=\"!release-url\">hier</a> klicken."
+
+#: content_lock.module:357
+msgid "This document is now locked against simultaneous editing. It will unlock when you navigate elsewhere."
+msgstr "Dieser Beitrag ist nun gegen gleichzeitiges Bearbeiten gesperrt. Die Sperre wird beim Verlassen der Seite aufgehoben."
+
+#: content_lock.module:389
+msgid "Title"
+msgstr "Titel"
+
+#: content_lock.module:391
+msgid "Username"
+msgstr "Benutzername"
+
+#: content_lock.module:397
+msgid "Locked since"
+msgstr "Gesperrt seit"
+
+#: content_lock.module:398
+msgid "Operations"
+msgstr "Operationen"
+
+#: content_lock.module:412
+msgid "release lock"
+msgstr "Sperre aufheben"
+
+#: content_lock.module:418
+msgid "No locked documents."
+msgstr "Keine gesperrten Dokumente."
+
+#: content_lock.module:440
+msgid "The editing lock has been released."
+msgstr "Die Bearbeitungs-Sperre wurde aufgehoben."
+
+#: content_lock.module:471
+msgid "edit"
+msgstr "bearbeiten"
+
+#: content_lock.module:472
+msgid "here"
+msgstr "hier"
+
+#: content_lock.module:473
+msgid "You are currently blocking the node '!nodetitle' against edits. You might want to do this by clicking !unlocklinkhere, or !edit the node"
+msgstr "Sie sperren zur Zeit den Beitrag ‚!nodetitle‘, so dass er von keinem anderen Benutzer bearbeitet werden kann. Klicken Sie !unlocklinkhere um die sperre aufzuheben oder !edit Sie den Beitrag."
+
+#: content_lock.module:262
+msgid "content_lock"
+msgstr "content_lock"
+
+#: content_lock.module:262
+msgid "Released @count document(s) locked for more than @period."
+msgstr "@count Dokument(e) entsperrt, die länger als @period gesperrt waren."
+
+#: content_lock.module:260
+msgid "Released one document locked for more than @period."
+msgid_plural "Released @count documents locked for more than @period."
+msgstr[0] "1 Dokument entsperrt, das länger als @period gesperrt war."
+msgstr[1] "@count Dokumente entsperrt, die länger als @period gesperrt waren."
+
+#: content_lock.module:13
+msgid "check out documents"
+msgstr "Dokumente sperren"
+
+#: content_lock.module:13
+msgid "keep documents checked out"
+msgstr "Dokumente gesperrt lassen"
+
+#: content_lock.module:13
+msgid "administer checked out documents"
+msgstr "Gesperrte Dokumente verwalten"
+
+#: content_lock.module:40;60
+msgid "Locked documents"
+msgstr "Gesperrte Dokumente"
+
+#: content_lock.module:88
+msgid "Content lock"
+msgstr "Inhalts-Sperre"
+
+#: content_lock.module:89
+msgid "Configuration options for the Content lock module"
+msgstr "Konfigurationsoptionen für das Modul ‚Content Locking‘"
+
+#: content_lock.info:0
+msgid "Content locking (edit lock)"
+msgstr "Inhaltssperrung (Bearbeitungssperre)"
+
+#: content_lock.info:0
+msgid "Prevents users to edit the same node at the same time. The second user can enter the edit-mode and gets notified"
+msgstr "Verhindert dass Benutzer den selben Beitrag zur selben Zeit bearbeiten können. Der zweite Benutzer kann den Bearbeiten-Modus aufrufen, wird aber benachrichtigt"
+
+#: content_lock.info:0
+msgid "Drupal Wiki"
+msgstr "Drupal Wiki"
+
+#: js/content_lock_init.js:0
+msgid "Be aware, if you press \"OK\" now, ALL your changes will be lost!"
+msgstr "Vorsicht, wenn jetzt „OK“ gedrückt wird, gehen ALLE Änderungen verloren!"

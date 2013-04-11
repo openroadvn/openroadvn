@@ -1,0 +1,139 @@
+# $Id: views.pot,v 1.2 2009/07/17 23:04:07 hass Exp $
+#
+# LANGUAGE translation of Drupal (views)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from file: project.views.inc,v 1.5 2009/02/16 22:43:15 dww
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2009-07-18 00:17+0200\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: views/project.views.inc:34
+msgid "Short name"
+msgstr ""
+
+#: views/project.views.inc:35
+msgid "The short name (uri) of a project."
+msgstr ""
+
+#: views/project.views.inc:55
+msgid "The project's homepage."
+msgstr ""
+
+#: views/project.views.inc:75
+msgid "The project's changelog."
+msgstr ""
+
+#: views/project.views.inc:94
+msgid "CVS directory"
+msgstr ""
+
+#: views/project.views.inc:95
+msgid "The project's cvs directory."
+msgstr ""
+
+#: views/project.views.inc:114
+msgid "Demonstration"
+msgstr ""
+
+#: views/project.views.inc:115
+msgid "Link to a demonstration of the project."
+msgstr ""
+
+#: views/project.views.inc:135
+msgid "The project's documentation."
+msgstr ""
+
+#: views/project.views.inc:155
+msgid "The project's screenshots."
+msgstr ""
+
+#: views/project.views.inc:175
+msgid "The license used for the project."
+msgstr ""
+
+#: views/project.views.inc:201
+msgid "Taxonomy"
+msgstr ""
+
+#: views/project.views.inc:202
+msgid "Term ID (summary)"
+msgstr ""
+
+#: views/project.views.inc:203
+msgid "This argument produces a summary with the option to exclude top level terms."
+msgstr ""
+
+#: views/project.views.inc:217
+msgid "Project type depth"
+msgstr ""
+
+#: views/project.views.inc:218
+msgid "Limit the results to project type terms that are either parents or children, or both."
+msgstr ""
+
+#: views/project.views.inc:228;353
+msgid "Project type term"
+msgstr ""
+
+#: views/project.views.inc:231
+msgid "Project type terms"
+msgstr ""
+
+#: views/project.views.inc:232
+msgid "The project type terms associated with a node."
+msgstr ""
+
+#: views/project.views.inc:236
+msgid "Filter by the project type term."
+msgstr ""
+
+#: views/project.views.inc:247
+msgid "Sort method"
+msgstr ""
+
+#: views/project.views.inc:248
+msgid "This is a filter that provides a sort method select box that can be exposed to the user."
+msgstr ""
+
+#: views/project.views.inc:295
+msgid "Project list"
+msgstr ""
+
+#: views/project.views.inc:296
+msgid "Displays a list of project rows with additional project related information."
+msgstr ""
+
+#: views/project.views.inc:309
+msgid "Collapsible"
+msgstr ""
+
+#: views/project.views.inc:310
+msgid "Displays the summary in a collapsible fieldset."
+msgstr ""
+
+#: views/project.views.inc:323
+msgid "Display the project node with download table."
+msgstr ""
+
+#: views/project.views.inc:334
+msgid "Project fields"
+msgstr ""
+
+#: views/project.views.inc:335
+msgid "Displays project fields."
+msgstr ""
+
+#: views/project.views.inc:348
+msgid "Project type: Top level term"
+msgstr ""
+

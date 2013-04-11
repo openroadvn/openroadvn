@@ -1,0 +1,155 @@
+# LANGUAGE translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  comment.inc,v 1.65 2006/04/24 18:34:45 dww
+#  release.inc,v 1.70 2006/04/22 21:09:40 dww
+#  issue.inc,v 1.169 2006/04/28 15:40:26 dww
+#  project.module,v 1.238 2006/04/22 16:44:46 dww
+#  mail.inc,v 1.60 2006/04/22 21:14:57 dww
+#  project.inc,v 1.75 2006/04/22 16:44:46 dww
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: German translation for project module\n"
+"POT-Creation-Date: 2009-07-18 00:17+0200\n"
+"PO-Revision-Date: 2009-07-18 00:58+0100\n"
+"Last-Translator: Alexander Haß\n"
+"Language-Team: Alexander Hass\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n!=1)\n"
+"X-Poedit-Language: German\n"
+"X-Poedit-Country: GERMANY\n"
+"X-Poedit-SourceCharset: utf-8\n"
+
+#: usage/project-usage-process.php:71
+msgid "ERROR: Project usage module does not exist, aborting.\n"
+msgstr ""
+
+#: usage/project-usage-process.php:121;140;158;172;182;184;194;223;226;241;244;257;266;268
+#: usage/project_usage.module:0
+msgid "project_usage"
+msgstr "project_usage"
+
+#: usage/project-usage-process.php:121
+#, fuzzy
+msgid "Starting to process daily usage data for !date."
+msgstr "Die Verarbeitung der täglichen Nutzungsstatistik für !date wurde gestartet."
+
+#: usage/project-usage-process.php:140
+msgid "Assigned API version term IDs for !rows (!delta)."
+msgstr ""
+
+#: usage/project-usage-process.php:158
+#, fuzzy
+msgid "Assigned project and release node IDs to !rows (!delta)."
+msgstr "Projekt und Beitrag-IDs für Veröffentlichungen zugewiesen."
+
+#: usage/project-usage-process.php:172
+msgid "Moved usage from raw to daily: !day_rows added to {project_usage_day}, !raw_rows deleted from {project_usage_raw} (!delta)."
+msgstr ""
+
+#: usage/project-usage-process.php:182;257;266
+msgid "Removed !rows (!delta)."
+msgstr "!rows (!delta) wurden entfernt."
+
+#: usage/project-usage-process.php:184
+msgid "Completed daily usage data processing (total time: !delta)."
+msgstr "Verarbeitung der täglichen Nutzungsstatistik wurde abgeschlossen (Gesamtzeit: !delta)."
+
+#: usage/project-usage-process.php:194
+#, fuzzy
+msgid "Starting to process weekly usage data."
+msgstr "Die Verarbeitung der wöchentlichen Nutzungsstatistik wurde gestartet."
+
+#: usage/project-usage-process.php:223
+msgid "Query failed inserting weekly project tallies for !date, query: %query (!delta)."
+msgstr ""
+
+#: usage/project-usage-process.php:226
+#, fuzzy
+msgid "Computed weekly project tallies for !date for !projects (!delta)."
+msgstr "Der wöchentliche Projektzähler für !date wurde berechnet."
+
+#: usage/project-usage-process.php:241
+msgid "Query failed inserting weekly release tallies for !date, query: %query (!delta)."
+msgstr ""
+
+#: usage/project-usage-process.php:244
+#, fuzzy
+msgid "Computed weekly release tallies for !date for !releases (!delta)."
+msgstr "Der wöchentliche Veröffentlichungszähler für !date wurde berechnet."
+
+#: usage/project-usage-process.php:268
+msgid "Completed weekly usage data processing (total time: !delta)."
+msgstr "Verarbeitung der wöchentlichen Nutzungsstatistik wurde abgeschlossen (Gesamtzeit: !delta)."
+
+#: usage/project-usage-process.php:137;155;168;169
+msgid "1 row"
+msgid_plural "@count rows"
+msgstr[0] "1 Zeile"
+msgstr[1] "@count Zeilen"
+
+#: usage/project-usage-process.php:179
+#, fuzzy
+msgid "1 old daily row"
+msgid_plural "@count old daily rows"
+msgstr[0] "1 veraltete tägliche Zeile"
+msgstr[1] "@count veraltete tägliche Zeilen"
+
+#: usage/project-usage-process.php:219
+msgid "1 project"
+msgid_plural "@count projects"
+msgstr[0] "1 Projekt"
+msgstr[1] "@count Projekte"
+
+#: usage/project-usage-process.php:236
+msgid "1 release"
+msgid_plural "@count releases"
+msgstr[0] "1 Veröffentlichung"
+msgstr[1] "@count Veröffentlichungen"
+
+#: usage/project-usage-process.php:254
+#, fuzzy
+msgid "1 old weekly project row"
+msgid_plural "@count old weekly project rows"
+msgstr[0] "1 veraltete wöchentliche Projektzeile"
+msgstr[1] "@count veraltete wöchentliche Projektzeilen"
+
+#: usage/project-usage-process.php:263
+#, fuzzy
+msgid "1 old weekly release row"
+msgid_plural "@count old weekly release rows"
+msgstr[0] "1 veraltete wöchentliche Veröffentlichungszeile"
+msgstr[1] "@count veraltete wöchentliche Veröffentlichungszeilen"
+
+#: usage/project_usage.module:168
+msgid "View usage statistics"
+msgstr "Nutzungsstatistiken anzeigen"
+
+#: usage/project_usage.module:141
+msgid "view project usage"
+msgstr "Projektnutzung anzeigen"
+
+#: usage/project_usage.module:48
+msgid "Project usage settings"
+msgstr "Einstellungen für Projektnutzung"
+
+#: usage/project_usage.module:52
+msgid "Configure how long usage data is retained."
+msgstr "Die Vorhaltezeit der Nutzungsdaten konfigurieren."
+
+#: usage/project_usage.module:57
+msgid "Project usage overview"
+msgstr "Projektnutzungsübersicht"
+
+#: usage/project_usage.module:63
+#: usage/project_usage.info:0
+msgid "Project usage"
+msgstr "Projektnutzung"
+
+#: usage/project_usage.info:0
+msgid "Provides data about installed usage of projects (requires update_status.module clients connecting to this site -- most sites should NOT enable this module)."
+msgstr "Ermöglicht die Erfassung und Auswertung von Nutzungsstatistiken installierter Projekte (Update_status.module Clients müssen sich dafür mit dieser Website verbinden. Die meisten Websites sollten dieses Modul NICHT aktivieren)."
+

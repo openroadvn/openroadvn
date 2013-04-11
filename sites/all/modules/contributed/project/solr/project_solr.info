@@ -1,0 +1,15 @@
+; $Id: project_solr.info,v 1.1 2009/01/30 15:08:38 dww Exp $
+name = Project Solr
+description = Provides integration with ApacheSolr for facet-based project browsing
+package = Project
+dependencies[] = project
+dependencies[] = taxonomy
+;dependencies[] = apachesolr
+core = 6.x
+
+; Information added by drupal.org packaging script on 2010-01-30
+version = "6.x-1.0-alpha4"
+core = "6.x"
+project = "project"
+datestamp = "1264881619"
+

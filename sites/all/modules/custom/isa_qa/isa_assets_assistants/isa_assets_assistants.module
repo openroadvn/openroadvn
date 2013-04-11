@@ -1,0 +1,973 @@
+<?php
+
+//create the form, from the question in the database
+/**
+ * Implementation of hook_menu().
+ */
+function isa_assets_assistants_menu() {
+  $items = array();
+  $items['asset/%/asset_assistant'] = array(
+    'title' => 'Asset Assistant',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_asset_assistant_edit_form'),
+    'access callback' => 'isa_asset_assistant_access_edit_form',
+    'type' => MENU_CALLBACK,
+    //'page arguments' => array(1),
+  );
+  return $items;
+}
+
+/**
+ * Return true if the user is the owner of the asset or if he'got the permission
+ * global type $user
+ * @param Object $nid Asset Node
+ * @return Boolean 
+ */
+function isa_asset_assistant_access_edit_form ($nid = null){
+  global $user;
+  if ($nid == null) {
+    $nid = variable_get('current_group',isa_toolbox_get_community_nid());
+  }
+  if ($nid) {
+    $group = node_load($nid);
+    if ($group->group_type == ISA_ASSET_TYPE) { //This link is displayed only if we are in an asset
+      return (user_access('assets assistants') || $user->uid == $group->uid);
+    }
+  }
+  return FALSE;
+}
+/*
+ * @parameter $form_name define on what form the answers come from
+ * @return a array of anwered questions (question (all) + answer)
+ */
+function isa_asset_assistant_get_answered_questions($form_name = NULL) {
+  // Query to get questions which have been answered (and answer) 
+  $sql = "SELECT qa_question.qid as 'qqid' , qa_question.form_name, qa_question.weight, qa_question.label
+  FROM {qa_question}
+  LEFT JOIN {qa_answer} ON qa_answer.qid = qa_question.qid";
+  
+  if (NULL!= $form_name)
+  $sql .= " where form_name = '%s'";
+  
+  $sql .= " order by qa_question.weight";
+  
+  $query = db_query($sql, $form_name);
+  while ($result = db_fetch_array($query)) {
+    $answered['qa'][] = $result;
+  }
+  return $answered;
+}
+
+
+function isa_asset_assistant_get_answered($form_name,$nid,$uid=NULL) {
+  // Query to get questions which have been answered (and answer) 
+  $sql = "SELECT qa_question.qid as 'qqid' , qa_question.form_name, qa_question.weight, qa_question.label,
+  qa_answer.aid, qa_answer.uid, qa_answer.nid, 	qa_answer.qid, qa_answer.value, qa_answer.dateanswer
+  FROM {qa_question}
+  LEFT JOIN {qa_answer} ON qa_answer.qid = qa_question.qid where 1 ";
+  
+  if (NULL !=  $form_name) {
+    $sql .= sprintf(" and form_name = '%s'", $form_name);
+  }
+  $sql .= sprintf(" and qa_answer.nid = %d", $nid);
+  if($uid !== NULL) {
+    $sql .= sprintf(" and qa_answer.uid = %d", $uid);
+  }
+  $sql .= " order by qa_question.weight";
+  
+  $query = db_query($sql);
+  while ($result = db_fetch_array($query)) {
+    $answered['qa'][] = $result;
+  }
+  return $answered;
+}
+/**
+ *
+ * @param int $nid
+ * @param int $uid
+ * @return type 
+ */
+function isa_asset_assistant_get_answered_qid_list($nid,$uid=NULL) {
+  $sql = "SELECT  DISTINCT qa_answer.qid
+  FROM {qa_answer} where 1 ";
+  
+  $sql .= " and qa_answer.nid=".$nid;
+  if($uid!==NULL)
+  $sql .= " and qa_answer.uid=".$uid;
+  
+  $query = db_query($sql);
+  while ($result = db_fetch_array($query)) {
+    $answered[] = $result['qid'];
+  }
+  return $answered;
+}
+
+
+
+
+/*
+ * get list of question
+ * @return a list of question depending or not on the form name
+ */
+function isa_asset_assistant_get_questions($form_name=NULL) {
+  // Query to get questions 
+  $questions = array();
+  $sql = "SELECT  qid, form_name, weight, label  	
+   FROM {qa_question}";
+  
+  if (NULL!= $form_name) {
+    $sql .= sprintf(" where form_name = '%s'", $form_name);
+  }
+  
+  $sql .= " order by qa_question.weight";
+  
+  $query = db_query($sql);
+   while ($result = db_fetch_array($query)) {
+    $questions['question'][] = $result;
+  }
+  return $questions;
+}
+
+  
+  /*
+   * @parameter $form_state
+   * @parameter $nid of the asset
+   * Create a form to generate a assistant for a asset
+   */
+  function isa_asset_assistant_edit_form(&$form_state) {
+    $nid = variable_get('current_group',isa_toolbox_get_community_nid());
+    //get all answer and questions
+    $qa = isa_asset_assistant_get_answered_questions("assets_assistants");
+    //create a brand new form
+    $form = isa_asset_assistant_get_intro($form);
+  
+    //The mains titles
+    $titles = isa_asset_assistant_get_titles();
+
+    //redirect to not found if the id is not a integer
+    //redirect to not found if the id is not a integer but a float
+    if(!is_numeric($nid) || strstr($nid, "."))
+      drupal_not_found ();
+    
+    $assetNode = node_load($nid);
+    //redirect to not found if the id is not a asset id
+    if($assetNode===FALSE)
+      drupal_not_found ();
+    $uid = $assetNode->uid; //id of the user of the asset
+    $qa = isa_asset_assistant_get_answered("assets_assistants", $nid, $uid); //questions who have answer
+    if (sizeof($qa)==0)
+      $qa = isa_asset_assistant_get_answered_questions ("assets_assistants");
+    $form = isa_asset_assistant_new_question($form, $qa, $titles,$form_state);
+
+    $form['submit'] = array(
+        '#type' => 'submit',
+        '#value' => t('Save'),
+    );
+    //redirect to issues
+    $form['#redirect'] = array("asset/{$assetNode->project['uri']}/issue/all"/*, 'destination=node'*/);
+    return $form;
+  }
+  /*
+   * @parameter $form : a form
+   * @parameter $qa : a array with questions and answers (some are already answered)
+   * add to the form list of question with checkboxes (disabled or not)
+   * 
+   */
+  function isa_asset_assistant_new_question(&$form,$qa, $titles,&$form_state)
+  { 
+    $to_purpose = isa_asset_assistant_generate_question_to_purpose(); 
+    foreach ($titles as $t)
+    {
+      $form['asset_assistant']['maintitle'][] = array(
+        '#type'     => 'item',
+        '#title'    => $t[0],
+        '#size'     => 60,
+      );
+      foreach ($t[1] as $qid)
+      {
+        $value = isa_asset_assistant_get_answered_questions_by_qid($to_purpose, $qid);
+        isa_asset_assistant_new_checkbox_item($form, $value);
+      }
+    }
+    return $form;
+  }
+  /*
+   * return a array which contains answerd question
+   */
+  function isa_asset_assistant_get_answered_questions_by_qid($qa,$qid)
+  {   
+    $array = array();
+      foreach ($qa as $q1) {        
+        if($q1['qid']==$qid){
+          $array += $q1;
+          return $array;
+        }        
+      }
+  }
+  /*
+   * Create a check box element and make disable the check box if the qusetion has been aswered
+   * @parameter $question a array reprensenting a question
+   * @identification (the id of a the qusetion)
+   * @return $form a form
+   */  
+  function isa_asset_assistant_new_checkbox_item(&$form, $question)  {
+    $ansyes = 0;
+    if(NULL===$question['value'])
+      $ansyes = 1;
+    $form['asset_assistant']['maintitle']['answer'.$question['qid']] =
+      array(
+        '#type' => 'checkbox',
+        '#title' => $question['label'],
+        '#default_value'   => variable_get('answer'.$question['qid'], $ansyes),
+        '#disabled' => (NULL===$question['value']) ? TRUE : FALSE,
+      );
+  }
+  
+  
+  /*
+   * return the question for the top level ie title
+   * @return $titles : a array who represents the titles for the questions
+   */
+  function isa_asset_assistant_get_titles()
+  {
+    //Create A array who contains the main titles
+    $titles = array();
+
+    $question = array(1,2);
+    $title = array("1. Requirements Analysis",$question);
+    $titles [] = $title;
+
+    $question = array(3,4);
+    $title = array("2. Concept & Specification",$question);
+    $titles [] = $title;
+
+    $question = array(5);
+    $title = array("3. Reusing existing assets",$question);
+    $titles [] = $title;
+    
+    $question = array(6,7,8,9,10);
+    $title = array("4. Development of a new asset",$question);
+    $titles [] = $title;
+    
+    $question = array(11);
+    $title = array("5. Avoiding Semantic Conflicts",$question);
+    $titles [] = $title;
+    
+    $question = array(12,13);
+    $title = array("6. Prototype",$question);
+    $titles [] = $title;
+
+    return $titles;
+  }
+  
+  
+  /*
+   * implementation of submit form
+   */
+  function isa_asset_assistant_edit_form_submit(&$form, $form_state) {
+   $nid = variable_get('current_group',isa_toolbox_get_community_nid());
+   $list_id_answered = array() ;
+   $list_id_answered = isa_asset_assistant_get_answered_qid_list( $nid, NULL);
+   //get the questions
+   $questions = isa_asset_assistant_get_questions("assets_assistants");
+   $answer = array();
+   
+   foreach ($questions as  $value) {
+     foreach ($value as $v) {
+       if(!in_array($v['qid'], $list_id_answered))
+         $answer[$v['qid']] = $form_state['values']['answer'.$v['qid']];
+     }
+   }
+   isa_asset_assistant_insert_answer($answer);
+   isa_asset_assistant_insert_issue($answer); 
+   
+   drupal_set_message("Your issues have been created");
+  }
+  
+  /*
+   * Insert a answer in the table qa_answer
+   * @return a answer
+   */
+  function isa_asset_assistant_insert_answer($answer) {
+    global $user;    
+    $uid = $user->uid;
+    $nid = variable_get('current_group',isa_toolbox_get_community_nid());
+    $to_insert = array('uid'=>NULL
+      ,'nid'        =>NULL
+      ,'aid'        =>NULL
+      ,'qid'        =>NULL
+      ,'value'      =>NULL
+      ,'dateanswer' =>NULL);
+    
+    $to_insert['uid'] = $uid;
+    $to_insert['nid'] = $nid;
+    $to_insert['dateanswer'] = strtotime("now");;
+    foreach ($answer as $key=>$a)
+    {
+      $to_insert['value'] = $a;
+      $to_insert['qid'] = $key;
+      if($to_insert['value']!=-1) //alrealdy answered
+      {
+        if($to_insert['value']!=0)
+          drupal_write_record("qa_answer", $to_insert);
+      }
+    }
+  }  
+  
+  /*
+   * Insert a new issue corresponding to the answer
+   * @parameter answer
+   */
+  function isa_asset_assistant_insert_issue($answer) {
+    global $user;    
+    $uid = $user->uid;
+    $nid = variable_get('current_group',isa_toolbox_get_community_nid());
+    
+    $node = node_load($nid);
+    $descriptions = isa_assets_assistant_get_full_description();
+    $category = "Asset Development Assistant";    
+      foreach ($answer as $key=>$value) {
+        if(array_key_exists($key, $descriptions) && $value==1 )
+        {
+          // add node properties
+          foreach ($descriptions[$key] as $value) {
+            $issue = new stdClass();
+            $issue->pid = $nid;
+            $issue->type = 'project_issue';
+            $issue->language = 'en';
+            $issue->uid = $uid;
+            $issue->category = $category;            
+            $issue->comment = 2;   //read and write comment       
+            $issue->title = $value['label'];
+            $issue->body =  $value['description'];            
+            node_save($issue);
+          }
+        }        
+      }
+  }
+  
+  
+  
+  /*
+   * Generate qusetion to purpose (depending on answer and question)
+   * 
+   */
+  function isa_asset_assistant_generate_question_to_purpose() {
+    //get all question
+    $question = isa_asset_assistant_get_questions("assets_assistants");
+    //get answered
+    $nid = variable_get('current_group',isa_toolbox_get_community_nid());
+    global $user;
+    $uid = $user->uid;
+    $answer = isa_asset_assistant_get_answered("assets_assistants", $nid, NULL);    
+    $purpose = array();    
+    foreach ($question as $value) {
+      foreach ($value as $v) {
+        $p['qid'] = $v['qid'];
+        $p['label'] = $v['label'];
+        $p['weight'] = $v['weight'];
+        $p['value'] = 0;
+        $purpose[] = $p;
+      }
+    }  
+    foreach ($purpose as $key=>$value) {
+      foreach ($answer as $a) {
+        foreach ($a as $val) {
+          if($val['qqid']==$value['qid'])
+          $purpose[$key]['value'] = NULL;
+          }
+       }       
+    }
+    return $purpose;
+  }
+  
+  
+  
+
+
+ /*
+ * Implementation of hook_perm().
+ */
+function isa_assets_assistants_perm() {
+  return array('assets assistants');
+}
+
+/*
+ * generate a array containing all descriptions (label/description)
+ * corresponding to the question
+ * @return array $description a array of descriptions
+ */
+function isa_assets_assistant_get_full_description() {
+  
+  $descriptions = array();
+  
+  $description[1][0] = array('label'=>'1.1.1 Identify typical requirements',
+                          'description'=> 'Consider the following typical requirements and specify them should they be relevant to your data:
+* Specific technical standards must be supported. Which ones?
+* You are bound to certain legal frameworks and conditions. Which ones?
+* The data shall be compatible to an existing data schema or certain data exchange standards. Which ones?
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');  
+    
+  $description[1][1] = array('label'=>'1.1.2 Consider non-functional requirements',
+                          'description'=> 'Your proposed data structures may vary according to non-functional requirements like:
+
+* data quality
+* frequency and volume of data exchange
+* security constraints
+* given infrastructure
+
+If applicable, specify these standards and parameters of the intended data exchange as additional requirements on your list.
+
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information
+');
+  
+  
+  
+  $description[1][2] = array('label'=>'1.1.3 List requirements from partners',
+                          'description'=> 'If you are working in a collaborative project, take requirements from your partners into consideration and list them as well.
+
+This should go as far as anticipating requirements from potential future partners to make your solution future proof. The granularity of data models is a critical factor here (see the section on semantic conflicts below).
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+
+');
+  
+  $description[1][3] = array('label'=>'1.1.4 List technological requirements',
+                          'description'=> 'Collect standards, frameworks, and technical environments in your project\'s domain and environment at an early stage. They may be considered for additional requirements.
+
+  This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+  $description[1][4] = array('label'=>'1.1.5 Consider additional requirements',
+                          'description'=> 'Cross-border perspectives:
+Even if, in the scope of your project, cross-border data exchange is not considered or very limited, it can still pay off to anticipate future scenarios of cross-border data exchange. Small investments in your project may substantially decrease costs in the future and ensure the future of your solution.
+
+Multilingual perspectives:
+Even if your project is monolingual in nature, you might consider to anticipate future pan-European use and thus prepare your solution for multi-lingual use. It is recommended to use a pivot language (e.g. English) that can be used to bridge the gaps between multiple languages. For further reference, see the SEMIC Study on Multilingualism.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+//  $description[2][0] = array('label'=>'1.2 Prepare a list of objects/attributes to be exchanged',
+//                          'description'=> 'What is the exact set of data that must be transferred?');
+  
+  $description[2][0] = array('label'=>'1.2.1 Set up a list of objects/attributes to be exchanged',
+                          'description'=> 'Be sure to limit the number of objects/attributes to a minimum. This will minimize possible semantic conflicts.
+
+Use the question box for advice on the identification of required data.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+  $description[3][0] = array('label'=>'2.1.1 Decide on type of artefacts to fit all requirements',
+                          'description'=> 'When designing the artefacts (e.g. UML-class, XML Schema file) pay attention to semantic conflicts: solve all conflicts as agreed and be sure not to raise new ones.
+
+For information on risks and conditions, see the chapter on "Development of an asset".
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+  $description[3][1] = array('label'=>'2.1.2 Decide on optimum granularity of artefacts',
+                          'description'=> 'An artefact should contain all information on the entity it models. It should not contain information that could be modelled as an entity which could exist independently.
+E.g. the model of a person should not include the model of an address since the concept of an address is independent of a person.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+  
+  $description[4][0] = array('label'=>'2.2.1 Involve SEMIC',
+                          'description'=>'Registering your project with SEMIC will attract the attention of similar projects with which you can realise synergies.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+  
+  $description[4][1] = array('label'=>'2.2.2 Register your asset with SEMIC',
+                          'description'=>'Registering your asset with SEMIC even at an early phase can also generate interest by similar projects and organisations. From your perspective, this is a means of getting ideas and early quality assurance from other users.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+  
+  $description[4][2] = array('label'=>'2.2.3 Initiate communication with SEMIC community',
+                      'description'=>'You may use the SEMIC platform to initiate communication with national experts, domain experts, and related projects. For matters that need discussion, the forum section should be used.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+
+  $description[5][0] = array('label'=>'3.1.1 Search for assets to be reused',
+                      'description'=>'Keywords, domains and free text search of the SEMIC repository are ways to check whether there are assets developed by others which you can base your solution on.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+
+  $description[5][1] = array('label'=>'3.1.2 Check reusable assets against requirements',
+                      'description'=>'* Define K.O. criteria for your decision, e.g.: You cannot understand the original language of the asset in question.
+* List parameters for your decision: What does the asset have to deliver to be eligible as a model for your case?
+');
+  
+    $description[5][2] = array('label'=>'3.1.3 Modify a reusable asset',
+                      'description'=>'* Delete unnecessary objects and attributes
+* Add required objects and attributes
+* Stick to semantic/syntactic rules (see below sections)
+* Document any changes made
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    
+ 
+    
+    $description[6][0] = array('label'=>'4.1.1 Completeness of data types',
+                      'description'=>'All objects must be defined with data types whose implementation in XML Schema is clearly specified. If there are restrictions in length for certain values, they must become part of the data model.
+
+Risks:
+* If seemingly self-evident information on data types is not incorporated in the model, e.g., that the title of a person is of the type "string", this can lead to a conflict.
+* If the data type is already part of the names of an object, omitting the explicit definition of the data type could lead to a conflict, e.g., if "StreetNumber" is not in fact a number but a string.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    
+    $description[6][1] = array('label'=>'4.1.2 Disjointedness of values',
+                      'description'=>'The potential values of a code list must be disjointed if only one value is allowed for the transfer.
+
+Values which are not disjointed can generate different data sets despite identical information.
+
+Example: The values "deleted" and "deleted by virtue of a warrant" are not disjointed, and a deletion based on a warrant can also generate the value "deleted". This arbitrariness leads to bad data quality because it is not certain whether the data sets "deleted by virtue of a warrant" are complete.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    
+    $description[6][2] = array('label'=>'4.1.3 Versioning',
+                      'description'=>'Whenever dynamic code lists (i.e. code lists to which values can be added) are deleted or changed, they must be versioned. Any data set using the code list must also reference the version used. Any productive version of a code list ever released must be kept available in order to preserve the readability of old data sets.
+
+Risk: A code list is changed and simply replaced.
+
+Examples
+* The value in an old data set cannot be interpreted any more.
+* The value in an old data set has a new  “ incorrect” meaning
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    
+    $description[6][3] = array('label'=>'4.1.4 Centralised maintenance of code lists',
+                      'description'=>'For the maintenance of a code list, a responsible authority must be assigned, irrespective of how many communication partners use the code list.
+
+This is to avoid double attribution of keys in case of decentralised maintenance.
+
+Another risk is that of overlapping extensions:
+
+Partner 1, for example, adds "vessel" to a list of vehicles. Partner 2 extends the same list by adding the values "rowing boat", "sailing boat" and "power boat". This is also a problem in case of different keys since no unique association is possible.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    
+    $description[6][4] = array('label'=>'4.1.5 Define a rollout scenario for new versions',
+                      'description'=>'There must be a pre-defined process among all communication partners for the transition to new versions of code lists.
+
+It must be avoided that the sender uses the keys of a new version of a code list, which is not yet known to the receiver.
+');
+    
+    $description[6][5] = array('label'=>'4.1.6 Handling of missing values',
+                      'description'=>'Risks:
+* Missing information in data exchange if there is no field for missing values.
+* Abuse of existing fields that have different semantic attributes in cases where no additional field for missing fields exists.
+* Problems of interoperability if data sets which have been transferred with new values (instead of codes) are not adapted to the new code list.
+* Use of more than one value for a single context in case the extension of the code list takes too long.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    
+    $description[7][0] = array('label'=>'4.2.1 Completeness of data types',
+                      'description'=>'All objects must be defined with data types whose implementation in XML Schema is clearly specified. If there are restrictions in length for certain values, they must become part of the data model.
+
+Risks:
+* If seemingly self-evident information on data types is not incorporated in the model, e.g., that the title of a person is of the type "string", this can lead to a conflict.
+* If the data type is already part of the names of an object, omitting the explicit definition of the data type could lead to a conflict, e.g., if "StreetNumber" is not in fact a number but a string.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    
+    $description[7][1] = array('label'=>'4.2.2 Completeness of multiplicities',
+                      'description'=>'Relations between objects must be defined with all multiplicities.
+
+In UML, it is impossible to leave the multiplicity undefined. Where nothing else is specified the multiplicity is interpreted as 1.
+
+Omitting the multiplicity in the data model can cause severe problems in the eventual data exchange. Example: Requirements call for a multiplicity of 0..1 (the attribute may be missing) but the model does not spell out what exactly is interpreted as 1 (mandatory attribute). Accurate implementations of the model produce an error whenever data sets are delivered which lack the attribute.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    
+    $description[7][2] = array('label'=>'4.2.3 Meaningful identifiers',
+                      'description'=>'The names attributed to UML elements must be as meaningful as possible to make the meaning or purpose of the object quickly discernable, e.g. "nameIndividualPerson". To avoid extensive identifiers, agreed abbreviations can be used.
+
+Cryptic or overly simple identifiers (e.g. "name") for UML elements compromise the readability of the data model for humans.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    
+    $description[7][3] = array('label'=>'4.2.4 Misspellings',
+                      'description'=>'Only thorough and targeted quality assurance can rule out (or minimise) wrong spellings in UML models.
+
+Misspellings, such as scrambled letters, bear a hazard that developers "correct" these errors at implementation leading to incompatibility with unaltered implementations of the (erroneously named) element.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    
+    $description[7][4] = array('label'=>'4.2.5 Use of Core Components',
+                      'description'=>'Search for suitable core components for objects of your own model.
+
+New communication partners who join after the model has been developed and implemented, bear the risk that bijective mapping in a common model is not possible. Example: Street number and street number affix are once modelled jointly and once separately. If both are based on the same core component, the mapping will work even if the attributes are named differently and there are additional attributes which are semantically disjointed from the attributes of the core component and which are only used by one partner.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    
+    $description[8][0] = array('label'=>'4.3.1 Naming and Design Rules',
+                      'description'=>'Naming and Design Rules (NDR) facilitate technical interoperability between the different systems. But even for single systems, the implementation is made easier if all data models are subject to the same NDR.
+
+* Semantic interoperability of data models alone does not safeguard technical interoperability. A single UML model can be mapped to different XML schemas. These schemas are not technically interoperable (for software).
+* If systems that were developed simultaneously are to be connected for which no NDR were defined, the implementation of a mapping becomes more complicated and the performance of the mapping is slowed down.
+* If no Naming and Design Rules are defined, very different approaches to XSD design can be chosen in the development and maintenance of XML schemas. That complicates the implementation and compromises the performance of the running system.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[8][1] = array('label'=>'4.3.2 Uniform naming of data types',
+                      'description'=>'Examples:
+* a complex data type with several attributes for one address can be named "addressComplexType"
+* a simple data type with only one value for post code can be named "postcodeSimpleType"
+* a data type for a state the values of which are defined by a code list, can be called "countryCodeType"
+* a data type for a status the values of which are defined by enumeration can be named "statusEnumerationType".
+
+If the names of XML elements do not contain information about the respective data type, errors of software implementation in the programme code and in the created XML instances are hard to detect. Handling XSD becomes considerably more difficult for humans without the support of names indicating the data type.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[8][2] = array('label'=>'4.3.3 Meaningful identifiers',
+                      'description'=>'The names attributed to XML elements, attributes and types must be as meaningful as possible to make the meaning or purpose of the object quickly discernable, e.g. "nameIndividualPerson". To avoid extensive identifiers, agreed abbreviations can be used.
+
+Cryptic or overly simple identifiers (e.g. "name") for XML elements, attributes and types compromise the readability of data model for humans.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[8][3] = array('label'=>'4.3.4 Misspellings',
+                      'description'=>'Only thorough and targeted quality assurance can rule out (or minimise) erroneous spellings in XML schemas.
+
+Misspellings, such as scrambled letters, bear a hazard that developers "correct" these errors at implementation leading to incompatibility with unaltered implementations of the (erroneously named) XML schema.
+
+The use of UML tools which generate XML schemas lowers the probability of typing errors because due to the object-orientation of UML tools a name is defined only once and is then reused everywhere by referencing. At the same time, a misspelling in a UML tool is copied to all the referenced points in a XML schema.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[9][0] = array('label'=>'4.4.1 Completeness of data types',
+                      'description'=>'All objects must be defined with data types whose implementation in XML Schema is clearly specified. If there are restrictions in length for certain values, they must become part of the data model.
+
+Risks:
+* If seemingly self-evident information on data types is not incorporated in the model, e.g., that the title of a person is of the type "string", this can lead to a conflict.
+* If the data type is already part of the names of an object, omitting the explicit definition of the data type could lead to a conflict, e.g., if "StreetNumber" is not in fact a number but a string.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[9][1] = array('label'=>'4.4.2 Determining code lists',
+                      'description'=>'For all attributes of the type "code", you should determine or, at least, recommend concrete code lists.
+
+Risk
+* A lack of interoperability if the data model is equivalent but the used code lists are not. This means that mapping between values is not always possible.
+
+Examples:
+* Marital status: {married, divorced, widowed, unmarried} vs. {married, divorced before 1990, divorced after 1990, partner deceased, partner pronounced dead, unmarried}
+* Gender: {male, female, unknown} vs. {male, male/formerly female, female, female/formerly male, undefined}
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[9][2] = array('label'=>'4.4.3 Completeness of multiplicities',
+                      'description'=>'Relations between objects must be defined with all multiplicities.
+
+Omitting the multiplicity in the data model causes severe problems in the eventual data exchange. Example: Requirements call for a multiplicity of 0..1 (the attribute may be missing) but the model does not spell out what exactly is interpreted as 1 (mandatory attribute). Accurate implementations of the model produce an error whenever data sets are delivered which lack the attribute.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[10][0] = array('label'=>'4.5.1 Rounding differences caused by different data models',
+                      'description'=>'If calculations are required to add missing data, the formulas must be standardised. In addition, the data type of the calculated value of one model must match the data type of the not calculated value in the other.
+
+Example:
+One model saves net and gross price, another saves the sales tax rate and only the net price. This is semantically unambiguous and can be mapped reciprocally. In practice, however, there are difficulties since it is not defined onto which decimal place the gross price has to be rounded, esp. when sums are calculated. In this case, different implementations generate different gross prices despite semantic unambiguity.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+//    $description[11][0] = array('label'=>'05. Avoiding Semantic Conflicts',
+//                      'description'=>'Semantic Conflicts are the most severe problems a project can face in the field of semantic interoperability.
+//
+//Wherever natural language is used, semantic ambiguity is present. It must be contemplated in each case of data exchange whether these ambiguities are acceptable or whether they will eventually cause risks to the project.
+//
+//In data processing, semantic ambiguities must be contained and ruled out wherever possible. Compared to humans, digital systems are far less capable of deciphering the intended meanings of signals (spoken or written language).
+//
+//If your project requires data integration from different sources or an exchange of data between different systems, questions about the exact meaning, i.e. the semantics, of the data will arise inevitably.
+//
+//This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+//');
+    
+    $description[11][0] = array('label'=>'5.1.1 Describe completely',
+                      'description'=>'Data models must be described completely
+* Even if the name of an element is sufficient for the modellers to understand, it might still be misinterpreted by communication partners. Semantic conflicts between models can be detected early-on when documentation is exhaustive
+* In addition to the semantic specification, the data models of elements must be described completely.
+* Multiplicities of elements must be indicated in their entirety
+
+Conflict:
+* Elements of two data models have the same name but are used with different meanings.
+
+Examples:
+* The element "price" can use the same name for prices inclusive or exclusive of sales tax.
+* An element "title" can contain values like "Mister", "Mistress" and "Professor", but in another model, the title can refer to a headline or name of a publication ("Tales of Mystery and Imagination").
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][1] = array('label'=>'5.1.2 Name accurately',
+                      'description'=>'The names of elements may never be misleading, even where the documentation is extensive.
+
+Example:
+* In a model, there is a "city" of the type "code" and also a "city abroad" of the type "text". The model is built on the assumption that the code list used for it only covers domestic locations and uses the field "city abroad" for any city which is not part of the code list. However, in case of reorganisations of local governments, there might also be (newly established) domestic cities not covered by the code list. Therefore, the field should not be named "city abroad" but, more accurately, "city uncoded".
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][2] = array('label'=>'5.1.3 Provide for semantic inambiguity',
+                      'description'=>'The model must not be semantically ambiguous: To any field, exactly one unit of information should be attributed. A field should never be used for more than one semantic piece of content (e.g. street name or identification number), and multiple fields should never be used for the same semantic content.
+
+Risk:
+* In case of ambiguity, exchanging data with partners who possess an unambiguous model becomes impossible.
+
+Examples:
+* In a field "street", names of streets are stored along with street identification numbers, depending on what is available. Data exchange based on a model that captures this information separately will most probably not be possible.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][3] = array('label'=>'5.1.4 Consider requirements of future communication partners',
+                      'description'=>'You should examine early-on which level of granularity current and future communication partners require.
+
+Risk:
+* If data are migrated because of different levels of granularity of the communication partners\' data models, there is a risk that a future communication partner requires the model that the data was migrated from.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][4] = array('label'=>'5.1.5 Double-check the necessity of diverse levels of granularity',
+                      'description'=>'The necessity to preserve the portioning of data with different levels of accuracy in participating systems should be thoroughly considered.
+
+Example of a conflict:
+* There are two models containing the text element "family name". In one model, name prefixes like titles of nobility are considered as a part of the family name, in another model they are treated separately.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][5] = array('label'=>'5.1.6 Primary keys: Determine and mark data fields',
+                      'description'=>'Task:
+* Determining the specific information which identifies data sets unambiguously if this requirement exists. These data fields will then have to be marked as primary keys.
+
+Risk:
+* If data fields that are supposed to serve the unambiguous identification of data sets are not marked as primary keys, duplicate entries may emerge. Example: When an insurance number can by definition be used as an identifier of data sets, this distinctive feature must also be regarded technically since otherwise more than one data set can be created with the same insurance number (i.e. duplicate entries).
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][6] = array('label'=>'5.1.7 Identifiers: Define persistent unique IDs',
+                      'description'=>'Conflicting identifiers appear wherever attributes or entities are semantically equivalent but are differently named. E.g. "identifier" and "id" both are used to uniquely identify an object. Another possibility for conflicting identifiers is the use of the same identifier for attributes with different semantics.
+In pan-European context this type of conflict will appear almost always if native language identifiers are used. Fortunately this type of conflict is easy to solve by renaming these identifiers. You have to ensure that attributes or entities in question are really and completely equivalent in their semantics.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][7] = array('label'=>'5.1.8 Identifiers: Generate database-independent IDs',
+                      'description'=>'For data exchange between systems internal (data base specific) identifiers should not be used. Instead, additional identifiers must be generated which are independent from the used data base and which are also suitable for identification in other data bases, e.g. additional numbers counted up for every new data set.
+
+Conflict: If the natural and unalterable features of an object (e.g. birth name, birthday) are not sufficient for unequivocal identification, IDs are assigned to the objects. Data bases attribute a single internal ID to every data set. If these IDs are also used by the business application for identification, a change of the data base can cause all identifiers to change. For an exchange of data with other data bases, therefore these internal IDs are not qualified.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][8] = array('label'=>'5.1.9 Identifiers: Assign sole responsibility for the generation of IDs',
+                      'description'=>'When identifiers are generated, it must be specified which of the two systems involved in the data exchange is responsible for the attribution of identifiers.
+
+If two systems attribute IDs independently, it can not be warranted in the data exchange that same objects also have same IDs. It can only be ensured within a closed system that two objects do never get the same identifier and an object receives precisely one identifier.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][9] = array('label'=>'5.1.10 Character sets: Determination',
+                      'description'=>'A character set (coding and the subset of allowed characters) must be determined for an asset.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][10] = array('label'=>'5.1.11 Character sets: Harmonise the representation of symbols',
+                      'description'=>'When systems are interconnected, it must be determined whether the same character set (coding and the subset of allowed characters) is used. Even if the same character set is used, it must be double-checked whether both systems process displayable characters coherently.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][11] = array('label'=>'5.1.12 Character sets: Workaround for different character sets',
+                      'description'=>'If the lot of allowed characters in data exchange varies between communication partners or if the depiction of non-representable characters is dealt with differently and ambiguously, it must at the least be determined how this challenge is tackled in practice. In many cases, only a rough approximation to the ideal solution is possible.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][12] = array('label'=>'5.1.13 Character sets: Ensure that restrictions can be validated',
+                      'description'=>'If it is impossible to determine a full character set like Unicode for a data exchange standard, you should select a subset which can easily be defined in XML Schema. This will facilitate automatic checking of the restriction, e.g. ISO-Latin-1 (it can be sensible, however, not to resort to ISO-Latin-1 directly if this spares code changes because internally - outside the data exchange format - a larger set of characters can be used).
+
+Risk:
+* If not all characters from a character set like UTF-8 can be applied, restrictions are needed. In XML Schema, a detailed listing of allowed characters can hamper the performance in validating data sets (i.e. the automated checking of compliance with restrictions).
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][13] = array('label'=>'5.1.14 Unique transliterations between languages',
+                      'description'=>'For acquiring and searching of data, rules for transliteration must be defined. Transliteration is the transposition of characters of the original script to the characters of the script supported by the IT system. Where e.g. only Latin characters are supported, any text in Greek, Bulgarian, etc. must be transliterated. If not all diacritic letters of Latin script are supported, transliterations must also be defined for other European languages (Ã¤ -> ae, Ã© -> e). In the data exchange the possible transliterations are determined by the characters supported by all systems.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][14] = array('label'=>'5.1.15 Bijective transliterations between languages',
+                      'description'=>'If data sets must be attributable to their original spelling after a transliteration, the rules for transliterations must be bijective, i.e. uniquely transvertible in both directions. In most cases, this requires support by diacritic characters by all participating systems.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][15] = array('label'=>'5.1.16 Data types: Define conversion function',
+                      'description'=>'Conflicting data types frequently appear in data exchange scenarios. One example are numbers that can also be stored as character strings. Sometimes this is even necessary, e.g. when storing Latin figures.
+
+Find a function that allows transferring from one data type to the other. If you succeed, this is a rather easy and swift solution to this type of conflict. These functions can however entail a loss of precision, e.g. by converting from double to integer. It is important to clear the semantics and document any potential loss of data or precision.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][16] = array('label'=>'5.1.17 Default values: Identify conflicts',
+                      'description'=>'Default values are often used in data sources, e.g. to signify unknown data elements. Using a date like 01/01/1970 is an example. If these default values are not adequately documented and/or different this can lead to misinterpreted data. It is therefore important to identify any default values used and agree on the meaning of any default values used.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][17] = array('label'=>'5.1.18 Integrity constraints: Find common semantics',
+                      'description'=>'This type of conflict is closely related to data base design. It occurs when data from two different sources is to be integrated but is subject to different integrity constraints. Using different values as identifier keys is one example.
+Such conflicts usually point to a problem with semantic equivalence as well.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][18] = array('label'=>'5.1.19 Scaling and units: Identify and harmonise',
+                      'description'=>'Whenever an amount is stored, it is important to be aware of the unit and scale this value is used with. E.g. German brokers give the values of their stocks in Euro with two decimal places. British brokers give values in Pence with no decimals.
+
+Even if two numbers share the same semantics, they do not always add up. Since everybody has his own background we tend to naturally assume numbers to have specific values and scales.
+
+When a bridge over the river Rhine was built, starting simultaneously from the German and Swiss side, both sides of the bridge met with a different height. It was previously agreed to measure all heights as meters above sea level. But the interpretation of “sea level” differs by 25 cm as Germany uses the mean sea level at Amsterdam while Switzerland uses the sea level at Marseille.
+
+These conflicts are easy to spot but equally easy to miss, as practice shows.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][19] = array('label'=>'5.1.20 Scaling and units: Double-check correct use',
+                      'description'=>'The gravity of errors based on incorrect units and disparate scales makes testing indispensable. Prepare a set of test data and check for the accuracy of the exchanged data.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    
+    $description[11][20] = array('label'=>'5.1.21 Scaling and units: Use appropriate conversion functions',
+                      'description'=>'If it is indispensable to maintain different units or scales of values, you must make sure that conversion is provided for accurately.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    
+    $description[11][21] = array('label'=>'5.1.22 Data representations: Find agreements or conversion functions',
+                      'description'=>'A very common occurrence of this type of conflict is in date representation. A date given as 08/09/07 could be interpreted as 9 August 2007, 8 September 2007, or even 7 September 2008.
+
+Wherever the representation of data is not given by using a certain data type, you should look out for this type of conflict, decide on conventions for the representation of data and document all these decisions.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][22] = array('label'=>'5.1.23 Aggregation: Find a common level',
+                      'description'=>'Data models are often radically different. This is partly due to differing requirements but to a large extent also due to personal preferences of the person modelling the data concepts. Especially the amount of detail a single concept contains varies greatly. This leads to different levels of aggregation and the conflicts arising from it.
+
+When trying to reconcile such conflicts you have to keep in mind, that it is fairly easy to transform data from a very detailed model to a higher aggregation. Breaking up integrated data for use in more detailed models is usually very hard.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][23] = array('label'=>'5.1.24 Semantic concepts: Negotiate and define a common basis',
+                      'description'=>'If semantic concepts are really incompatible it is virtually impossible to reconcile such a conflict. Unfortunately, due to different legal, cultural, political, and social backgrounds, incompatible semantic concepts must be expected to appear in pan-European contexts.
+
+In case of such a conflict it will be necessary to formulate new common concepts. This will typically require face-to-face negotiation between all parties concerned.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][24] = array('label'=>'5.1.25 Missing data: Define a scenario',
+                      'description'=>'Whenever exchanging data between different partners it should be clear beforehand what will happen in case some data expected by one party cannot be provided by the other party. In pan-European context this type of conflict will frequently arise, since data is collected subject to different legal regulations and different data protection laws.
+
+You should ensure that all partners in a data exchange know how to handle missing data.
+
+All participating parties must agree on means to handle missing data on the application layer.
+
+If default values are used to handle missing data the interpretation of such values must be unambiguous. It is usually not advisable to use default values that could also appear as regular data, e.g. using 1 January 1970 as a default date.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][25] = array('label'=>'5.1.26 Redundant data: Identify and define a scenario',
+                      'description'=>'In data base design and even in everyday life, we encounter redundant data. E.g. the town given in a postal address is often redundant with the postal code as is the area prefix of the phone number. It is advisable to document any redundant encoding of semantic concepts.
+
+Another conflict can arise when integrating data from multiple sources. In these cases the same data may exists in multiple objects. These "doubles" do not always have to be apparent. Your solution should be able to handle such uncertainties.
+
+* Try to avoid redundant data
+* If impossible to avoid, agree on means to handle on application layer
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[11][26] = array('label'=>'5.1.27 Semantic Statements: Documenting the solution of Semantic Conflicts',
+                      'description'=>'It is highly recommended for all encountered conflicts to document the problem, the solution and its reasoning thoroughly. This will not only highlight potential future conflicts (if the scope and quality of the data change) but will also help others to avoid similar conflicts (especially in cases of reuse of existing interoperability assets).
+
+Method:
+Your asset should contain "semantic statements" that state the exact agreed semantics of each attribute and object
+
+Add a "semantic statement" to each attribute and object. The statement must contain the exact agreed semantics. In most cases it will use natural language to describe the exact meaning of every attribute and object.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[12][0] = array('label'=>'6.1.1 Prepare test data',
+                      'description'=>'The use and reuse of any data exchange model is greatly eased by providing adequate test data. This test data should also be made a part of the final asset uploaded to SEMIC. Thus users of your asset will be better able to understand your asset and implement it correctly.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[12][1] = array('label'=>'6.1.2 Set quality criteria',
+                      'description'=>'As the owner and developer of the asset, you should define criteria against which your solution can be proofed (using the test data).
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[13][0] = array('label'=>'6.2.1 Document your implementation',
+                      'description'=>'For an asset to enter the clearing process on SEMIC, a comprehensive documentation is required. As described above, this will make your solution easier to maintain and extend.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[13][1] = array('label'=>'6.2.2 Pack and upload your asset to SEMIC',
+                      'description'=>'Pack a zip file containing:
+* all artefacts relevant to your asset (e.g. XML schema, UML-models, etc.)
+* documentation, preferably in English
+* test cases and test data (if available)
+* the licence file
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+    $description[13][2] = array('label'=>'6.2.3 Leave your feedback for the SEMIC community',
+                      'description'=>'Especially if you have reused an asset from SEMIC your feedback will be useful for any future user of this asset. So please leave your feedback detailing how you were able to use the asset, what challenges you met and what problems had to be solved. You are also welcome to suggest improvements to the asset you reused.
+
+This is an auto-generated Asset Development Assistant. Please refer to the library item '.l("Asset Development Assistant","asset_assistant",array('attributes'=>array('class' => 'popups'))).' for further information.
+');
+  
+  return $description;
+}
+/*
+ * try to find the qid of the question concerned by the description
+ * @return int qid of the question or False if not found
+ */
+function isa_asset_assistant_get_qid_by_description($description)
+{
+  $descriptions = isa_assets_assistant_get_full_description();
+  foreach ($descriptions as $key=>$value) {
+    foreach ($value as  $desc) {
+      if ($desc['label'] == $description)
+        return  $key;
+    }
+    return FALSE;
+  }
+}
+
+/*
+ * Return the intro of the form asset assistant
+ * @return Array : $form the form with the item element containing intro text
+ */
+function isa_asset_assistant_get_intro(&$form)
+{
+  $intro = 'The '.l("Asset Development Assistant","asset/page/asset_assistant",array('attributes'=>array('class' => 'popups'))).' supports you in developing your own semantic interoperability assets - Code Lists, UML models, XML Schema files, Core Components, Mappings etc. It suggests important issues to consider.
+
+Auto-generate the issues suggested by the  '.l("Asset Development Assistant","asset/page/asset_assistant",array('attributes'=>array('class' => 'popups'))).'  related to the following steps in the asset development lifecycle:';
+
+  $form['asset_assistant']['maintitle']['intro'] = array(
+        '#type'     => 'item',
+        '#title'    => $intro,
+        '#size'     => 60,
+    );
+    return $form;
+}

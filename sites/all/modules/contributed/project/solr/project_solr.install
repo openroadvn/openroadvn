@@ -1,0 +1,8 @@
+<?php
+// $Id: project_solr.install,v 1.2 2009/01/31 03:57:09 dww Exp $
+
+function project_solr_install() {
+  // Reindex all project nodes.
+  db_query("UPDATE {apachesolr_search_node} SET changed = %d WHERE nid IN (SELECT nid FROM {node} WHERE type = 'project_project')", time());
+}
+

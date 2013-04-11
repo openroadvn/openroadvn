@@ -1,0 +1,123 @@
+<?php
+// $Id: mailman_manager.install,v 1.12.2.1 2008/12/27 17:45:57 samuelet Exp $
+
+/**
+ * @file
+ * Mailman Manager install/schema hooks.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function mailman_manager_install() {
+  // Create tables.
+  drupal_install_schema('mailman_manager');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function mailman_manager_uninstall() {
+  // Remove tables.
+  drupal_uninstall_schema('mailman_manager');
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function mailman_manager_schema() {
+  $schema['mailman_lists'] = array(
+    'description' => t('Stores specific information for mailiman lists.'),
+    'fields' => array(
+      'lid' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('The list id.'),
+      ),
+      'name' => array(
+        'type' => 'varchar',
+        'length' => 48,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => t('Mailing List name'),
+      ),
+      'command' => array(
+        'type' => 'varchar',
+        'length' => 72,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => t("Mailing List 'request' address"),
+      ),
+      'admin' => array(
+        'type' => 'varchar',
+        'length' => 48,
+        'default' => '',
+        'description' => t("Mailing List 'admin' address"),
+      ),
+      'web' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'default' => '',
+        'description' => t('Mailing list web address for users.'),
+      ),
+      'webarch' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'default' => '',
+        'description' => t('Mailing list web archive address for users'),
+      ),
+    ),
+    'primary key' => array('lid'),
+  );
+
+  $schema['mailman_users'] = array(
+    'description' => t('Stores subscription information for users.'),
+    'fields' => array(
+      'uid' => array(
+        'type' => 'int',
+        'disp-width' => 10,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => t('User id.'),
+      ),
+      'lid' => array(
+        'type' => 'int',
+        'disp-width' => 10,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => t('The list id.'),
+      ),
+      'lstatus' => array(
+        'type' => 'int',
+        'disp-width' => 10,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => t('Subscription status.'),
+      ),
+      'lmail' => array(
+        'type' => 'varchar',
+        'length' => 36,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => t('Current user subscribed email.'),
+      ),
+      'lpass' => array(
+        'type' => 'varchar',
+        'length' => 36,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => t('Current user list password.'),
+      ),
+    ),
+    'primary key' => array('uid', 'lid'),
+  );
+
+  return $schema;
+}
+
+function mailman_manager_update_6001() {
+  // Rebuild menu cache
+  module_rebuild_cache();
+  return array();
+}

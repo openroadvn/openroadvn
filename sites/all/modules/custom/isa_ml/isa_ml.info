@@ -1,0 +1,7 @@
+; $Id$
+name = ISA mailing lists
+description = Provides an action to create mailing lists for projects and communities.
+package = "ISA Toolbox"
+core = 6.x
+version = "6.x-2.0"
+dependencies[] = rules

@@ -1,0 +1,314 @@
+<?php
+
+/**
+ * Implementation of hook_perm
+ */
+function isa_project_issues_categories_perm() {
+  return (
+    array(
+      'configure issue categories',
+    )
+  );
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function isa_project_issues_categories_menu() {
+  $items = array();
+  $items['asset/%/issue/edit_categories/%'] = array(
+    'title' => t('Edit Issue Categories'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_project_issues_categories_edit_form'),
+    'access callback' => 'isa_project_issues_categories_access',
+    'type' => MENU_CALLBACK,
+  );
+  $items['asset/%/issue/manage_categories'] = array(    
+    'title' => t('Manage Issue Categories'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_project_issues_categories_add_form'),
+    'access callback' => 'isa_project_issues_categories_access',
+    'type' => MENU_CALLBACKMENU_CALLBACK,
+  );
+  $items['asset/%/issue/delete_categories/%'] = array(    
+    'title' => t('Delete an Issue Category'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_project_issues_categories_confirm_delete_form'),
+    'access callback' => 'isa_project_issues_categories_access',
+    'type' => MENU_CALLBACK,
+  );
+  $items['software/%/issue/edit_categories/%'] = array(
+    'title' => t('Edit Issue Categories'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_project_issues_categories_edit_form'),
+    'access callback' => 'isa_project_issues_categories_access',
+    'type' => MENU_CALLBACK,
+  );
+  $items['software/%/issue/manage_categories'] = array(    
+    'title' => t('Manage Issue Categories'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_project_issues_categories_add_form'),
+    'access callback' => 'isa_project_issues_categories_access',
+    'type' => MENU_CALLBACKMENU_CALLBACK,
+  );
+  $items['software/%/issue/delete_categories/%'] = array(    
+    'title' => t('Delete an Issue Category'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_project_issues_categories_confirm_delete_form'),
+    'access callback' => 'isa_project_issues_categories_access',
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+function isa_project_issues_categories_access() {
+  return (isa_toolbox_is_omnipotent() || user_access('configure issue categories'));
+}
+
+/**
+ * Implementation of hook form_alter to add the ability to manage categories
+ * @param type $form
+ * @param type $form_state
+ * @param type $form_id 
+ */
+function isa_project_issues_categories_form_alter(&$form, &$form_state, $form_id) {
+  if($form_id=='project_issue_node_form')
+  {    
+    $pid = $form['project_info']['pid']['#value'];
+    $project = array('nid'=>$pid);
+    $categories = project_issue_categories_get_all($project);
+    foreach ($categories as  $key=>$value) {
+      $form['issue_info']['category']['#options'][$value['title']] = $value['title'];
+    }    
+  }
+}
+/**
+ * render a table to display categories 
+ * @param type $editpath
+ * @param type $add_path
+ * @return type 
+ */
+function isa_project_issues_render_table($editpath,$delete_path,$project)
+{
+  $query = db_query("SELECT  title, nid, uid, icid   FROM {project_issue_categories} where nid = %d",$project->nid);
+  $header = array('title');
+  $data = array();
+  while ($row = db_fetch_array($query)) $data[] = $row;
+  foreach ($data as $key=>$value) {
+   $data[$key]['edit']= l('edit',$editpath.$value['icid']); 
+   $data[$key]['delete']= l('delete',$delete_path.$value['icid']); 
+   unset($data[$key]['nid']);   
+   unset($data[$key]['uid']);
+   unset($data[$key]['icid']);
+  }
+  
+  $output = theme_table($header, $data);  
+  if(sizeof($data)>0)
+  {
+    $form['table'] = array(
+    '#type'=>'item',
+    '#title'=>'Project specific issue categories',
+    '#value'=>$output
+    );
+    return $form;
+  }
+  return array();
+  
+}
+
+/**
+ * Create a form to manage categories of the issues
+ * @param type $form_state
+ * @param object $node node of a project
+ * @return array $form a form
+ */
+function isa_project_issues_categories_add_form(&$form_state) {
+ global $user;
+ $form = isa_project_issues_generate_edit_form(); 
+ $nid = variable_get('current_group',  isa_toolbox_get_community_nid());
+ $project = node_load($nid);
+ $form['submit'] = array('#type' => 'submit', '#value' => t('Add'));
+ $tables = isa_project_issues_render_table("{$project->group_type}/{$project->project['uri']}/issue/edit_categories/", "{$project->group_type}/{$project->project['uri']}/issue/delete_categories/",$project);
+ if(sizeof($tables)>0)
+   $form[] = $tables;
+ return $form;
+}
+
+/**
+ * Create a form to manage categories of the issues
+ * @param type $form_state
+ * @param object $node node of a project
+ * @return array $form a form
+ */
+function isa_project_issues_categories_edit_form(&$form_state) {
+  $icid = arg(4);
+  $categories = isa_project_issues_categories_get_category($icid);  
+  $form = isa_project_issues_generate_edit_form();
+  $form['categorie_title']['#default_value'] = $categories['title'];
+  $form['icid'] = array(
+    '#type' => 'hidden',
+    '#default_value' => $icid,
+  );
+  $form['nid'] = array(
+    '#type' => 'hidden',
+    '#default_value' => $categories['nid'],
+  );
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Save'));
+  $node = node_load($form['nid']['#default_value']);
+  $form['#redirect'] = "{$node->group_type}/{$node->project['uri']}/issue/manage_categories";
+  return $form;
+  
+}
+/**
+ * Display a form to confirm the delete operation
+ * @param type $form_state
+ * @return string 
+ */
+function isa_project_issues_categories_confirm_delete_form(&$form_state) {  
+  $icid = arg(4);  
+  $categories = isa_project_issues_categories_get_category($icid);  
+  $form['table'] = array(
+    '#type'=>'item',
+    //'#title'=>t('Delete confirmation'),
+    '#value'=>t('Are you sure you want to delete this issue category?<p><strong>It can\'t be undone</strong></p>')
+  );
+  $form['icid'] = array(
+  '#type' => 'hidden',
+  '#default_value' => $icid,
+  );
+//  $form['cancel'] = array(
+//    '#type'=>'item',    
+//    '#value'=>'<a href="javascript: history.go(-1)">Cancel</a>'
+//  );
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Delete'));
+  $node = node_load($categories['nid']);
+  $form['#redirect'] = "{$node->group_type}/{$node->project['uri']}/issue/manage_categories";
+  return $form;
+  
+}
+/**
+ * The action when add form is submit (add a new category)
+ * @global type $user
+ * @param type $form_state 
+ */
+function isa_project_issues_categories_add_form_submit(&$form_state) {
+  $nid = variable_get('current_group',  isa_toolbox_get_community_nid());
+  global $user;
+  $categorie = array(
+    'nid'=>$nid,
+    'uid'=>$user->uid,
+    'timestamp'=>  strtotime('now'),
+    'title'=>  filter_xss($form_state['categorie_title']['#value']));
+    isa_project_issues_categories_add ($categorie);
+    drupal_set_message(t('The issue category has been successfully added'));
+}
+
+function isa_project_issues_categories_add ($categorie){
+  drupal_write_record('project_issue_categories',$categorie);
+}
+/**
+ * The action when a category is modified
+ * @global type $user
+ * @param type $form_state 
+ */
+function isa_project_issues_categories_edit_form_submit(&$form_state) {
+  global $user;
+  //check if is add or modify
+  $categorie = array(
+    'nid' =>$form_state['nid']['#value'],
+    'icid' =>$form_state['icid']['#value'],
+    'title'=>filter_xss($form_state['categorie_title']['#value']));
+  drupal_write_record('project_issue_categories',$categorie,'icid');  
+  drupal_set_message(t('The issue category has been successfully modified'));
+}
+/**
+ * delete a category
+ * @param type $form_state 
+ */
+function isa_project_issues_categories_confirm_delete_form_submit(&$form_state) {
+  isa_project_issues_categories_delete_categoy($form_state['icid']['#value']);
+  drupal_set_message(t('The issue category has been successfully deleted'));
+}
+
+/**
+ * Delete a category
+ *
+ * @param $param
+ *   Either the categorie id or an array of conditions to match against in the database query
+ *
+ */
+function isa_project_issues_categories_delete_categoy($param) {
+  if (is_numeric($param)) {
+    $cond = 'project_issue_categories.icid = %d';
+    $arguments[] = $param;
+  } elseif (is_array($param)) {
+    // Turn the conditions into a query.
+    foreach ($param as $key => $value) {
+      $cond[] = 'project_issue_categories.' . db_escape_table($key) . " = '%s'";
+      $arguments[] = $value;
+    }
+    $cond = implode(' AND ', $cond);
+  }
+  $query = db_query("delete from {project_issue_categories} where $cond", $arguments);
+}
+/**
+ * get a category by id
+ * @param type $icid
+ * @return type 
+ */
+function isa_project_issues_categories_get_category($param) {
+   $single = FALSE; 
+   if (is_numeric($param)) {
+    $single = TRUE;
+    $cond = 'pic.icid = %d';
+    $arguments[] = $param;
+  } elseif (is_array($param)) {
+    // Turn the conditions into a query.
+    foreach ($param as $key => $value) {
+      $cond[] = 'pic.' . db_escape_table($key) . " = '%s'";
+      $arguments[] = $value;
+    }
+    $cond = implode(' AND ', $cond);
+  }
+  $result = db_query_slave("SELECT * FROM {project_issue_categories} pic WHERE $cond", $arguments);
+  $categories = array();
+  while ($row = db_fetch_array($result)) {
+    $categories[] = $row;
+  }
+  if ($single){
+  return $categories[0];
+  }else{
+    return $categories;
+  }
+}
+/**
+ * return the list of category for a issue by user and by project
+ * @param array $project A array containing nid and uid ie: array('nid'=>value,'uid'=>value)
+ * @return type 
+ */
+function isa_project_issues_categories_get_all_category($project) {
+  $query = db_query("SELECT title,nid, uid,icid FROM {project_issue_categories} where uid = %d and nid = %d",$project['uid'],$project['nid']);
+  $data = array();
+  while ($row = db_fetch_array($query)) $data[] = $row;
+  return $data;
+}
+
+function isa_project_issues_generate_edit_form()
+{
+  $form['categorie_title'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Category'),
+  '#default_value' => "",
+  '#size' => 60,
+  '#maxlength' => 128,
+  '#required' => TRUE,
+  );
+  return $form;
+}
+
+
+function isa_project_issues_nodeapi (&$node, $op, $teaser = NULL, $page = NULL) {
+  if ($node->type == ISA_PROJECT_TYPE && $op == 'delete'){
+    isa_project_issues_categories_delete_categoy (array ('nid'=> $node->nid));
+  }  
+}

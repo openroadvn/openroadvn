@@ -1,0 +1,722 @@
+<?php
+
+/**
+ * @file
+ * Handles Advanced Aggregation installation and upgrade tasks.
+ */
+
+/**
+ * Implementation of hook_enable().
+ */
+function advagg_enable() {
+  // Create the advagg_css/ path within the files folder.
+  $csspath = file_create_path('advagg_css');
+  file_check_directory($csspath, FILE_CREATE_DIRECTORY);
+  // Create the advagg_js/ path within the files folder.
+  $jspath = file_create_path('advagg_js');
+  file_check_directory($jspath, FILE_CREATE_DIRECTORY);
+
+  // Rescan files
+  register_shutdown_function('advagg_flush_caches');
+
+  // Check for fast404
+  register_shutdown_function('advagg_check_missing_handler');
+
+  if (module_exists('javascript_aggregator')) {
+    variable_set('advagg_closure', FALSE);
+  }
+}
+
+/**
+ * Implementation of hook_disable().
+ */
+function advagg_disable() {
+  // Make sure the advagg_flush_caches function is available.
+  drupal_load('module', 'advagg');
+
+  // Flush advagg caches.
+  $cache_tables = advagg_flush_caches();
+  foreach ($cache_tables as $table) {
+    cache_clear_all('*', $table, TRUE);
+  }
+}
+
+/**
+ * Implementation of hook_install().
+ */
+function advagg_install() {
+  drupal_install_schema('advagg');
+
+  // Make sure we run last.
+  db_query("UPDATE {system} SET weight = 250 WHERE name = 'advagg'");
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function advagg_uninstall() {
+  // Make sure the advagg_get_root_files_dir function is available.
+  drupal_load('module', 'advagg');
+
+  // Remove files.
+  list($css_path, $js_path) = advagg_get_root_files_dir();
+  file_scan_directory($css_path, '.*', array('.', '..', 'CVS'), 'file_delete', TRUE);
+  @unlink($css_path);
+  file_scan_directory($js_path, '.*', array('.', '..', 'CVS'), 'file_delete', TRUE);
+  @unlink($js_path);
+
+  // Remove database tables.
+  cache_clear_all('*', 'cache_advagg', TRUE);
+  cache_clear_all('*', 'cache_advagg_files_data', TRUE);
+  cache_clear_all('*', 'cache_advagg_bundle_reuse', TRUE);
+  drupal_uninstall_schema('advagg');
+
+  // Remove variables.
+  variable_del('advagg_stale_file_last_used_threshold');
+  variable_del('advagg_file_last_used_interval');
+  variable_del('advagg_stale_file_threshold');
+  variable_del('advagg_custom_files_dir');
+  variable_del('advagg_gzip_compression');
+  variable_del('advagg_async_generation');
+  variable_del('advagg_rebuild_on_flush');
+  variable_del('advagg_socket_timeout');
+  variable_del('advagg_checksum_mode');
+  variable_del('advagg_dir_htaccess');
+  variable_del('advagg_server_addr');
+  variable_del('advagg_enabled');
+  variable_del('advagg_closure');
+  variable_del('advagg_debug');
+
+  // Remove cache.inc variables.
+  db_query("DELETE FROM {variable} WHERE name LIKE 'cache_flush_cache_advagg%'");
+}
+
+/**
+ * Implementation of hook_requirements().
+ */
+function advagg_requirements($phase) {
+  global $_advagg;
+  $requirements = array();
+  // Ensure translations don't break at install time
+  $t = get_t();
+
+  // Report Drupal version
+  if ($phase == 'runtime') {
+    list($css_path, $js_path) = advagg_get_root_files_dir();
+    if (!file_check_directory($css_path, FILE_CREATE_DIRECTORY)) {
+      $requirements['advagg_css_path'] = array(
+        'title'       => $t('Adv CSS/JS Agg - CSS Path'),
+        'severity'    => REQUIREMENT_ERROR,
+        'value'       => $t('CSS directory is not created or writable'),
+        'description' => $t('%path is not setup correctly.', array('%path' => $css_path)),
+      );
+    }
+    if (!file_check_directory($js_path, FILE_CREATE_DIRECTORY)) {
+      $requirements['advagg_js_path'] = array(
+        'title'       => $t('Adv CSS/JS Agg - JS Path'),
+        'severity'    => REQUIREMENT_ERROR,
+        'value'       => $t('JS directory is not created or writable'),
+        'description' => $t('%path is not setup correctly.', array('%path' => $js_path)),
+      );
+    }
+    if (variable_get('preprocess_css', FALSE) || variable_get('preprocess_js', FALSE)) {
+      $requirements['advagg_core_off'] = array(
+        'title'       => $t('Adv CSS/JS Agg - Core Variables'),
+        'severity'    => REQUIREMENT_ERROR,
+        'value'       => $t('Cores CSS and/or JS aggregation is enabled'),
+        'description' => $t('"Optimize CSS files" and "Optimize JavaScript files" on the <a href="@performance">performance page</a> should be disabled.', array('@performance' => url('admin/settings/performance/default'))),
+      );
+    }
+    if (variable_get('advagg_enabled', ADVAGG_ENABLED) == FALSE) {
+      $requirements['advagg_not_on'] = array(
+        'title'       => $t('Adv CSS/JS Agg - Enabled'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => $t('Advanced CSS/JS aggregation is not currently enabled.'),
+        'description' => $t('Go to the Advanced CSS/JS aggregation <a href="@settings">settings page</a> and enable it.', array('@settings' => url('admin/settings/advagg'))),
+      );
+    }
+    if (module_exists('css_gzip')) {
+      $requirements['advagg_css_gzip'] = array(
+        'title'       => $t('Adv CSS/JS Agg - CSS Gzip'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => $t('The CSS Gzip module is enabled'),
+        'description' => $t('On the <a href="@modules">modules page</a> you can disable it, as this module is no longer needed.', array('@modules' => url('admin/build/modules'))),
+      );
+    }
+    if (module_exists('csstidy')) {
+      $requirements['advagg_csstidy'] = array(
+        'title'       => $t('Adv CSS/JS Agg - CSS Tidy'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => $t('The CSS Tidy module is enabled'),
+        'description' => $t('On the <a href="@modules">modules page</a> you can disable it, as this module is no longer needed.', array('@modules' => url('admin/build/modules'))),
+      );
+    }
+    if (module_exists('javascript_aggregator')) {
+      $requirements['advagg_javascript_aggregator'] = array(
+        'title'       => $t('Adv CSS/JS Agg - Javascript Aggregator'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => $t('The Javascript Aggregator is enabled'),
+        'description' => $t('On the <a href="@modules">modules page</a> you can disable it, as this module is no longer needed. Once uninstalled be sure to enable the "Use AdvAgg in closure" setting on the <a href="@config">advagg config page</a>', array(
+          '@modules' => url('admin/build/modules'),
+          '@config' => url('admin/settings/advagg/config'),
+        )),
+      );
+    }
+    if (module_exists('unlimited_css')) {
+      $requirements['advagg_unlimited_css'] = array(
+        'title'       => $t('Adv CSS/JS Agg - IE Unlimited CSS Loader'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => $t('The IE Unlimited CSS Loader module is enabled'),
+        'description' => $t('On the <a href="@modules">modules page</a> you can disable it, as this module is no longer needed.', array('@modules' => url('admin/build/modules'))),
+      );
+    }
+    if (module_exists('ie_css_optimizer')) {
+      $requirements['advagg_unlimited_css'] = array(
+        'title'       => $t('Adv CSS/JS Agg - IE CSS Optimizer'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => $t('The IE CSS Optimizer module is enabled'),
+        'description' => $t('On the <a href="@modules">modules page</a> you can disable it, as this module is no longer needed.', array('@modules' => url('admin/build/modules'))),
+      );
+    }
+    if (module_exists('cmscdn')) {
+      $requirements['advagg_cmscdn'] = array(
+        'title'       => $t('Adv CSS/JS Agg - CMS CDN'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => $t('The CMS CDN module is enabled.'),
+        'description' => $t('On the <a href="@modules">modules page</a> you can disable it, as this module is no longer needed.', array('@modules' => url('admin/build/modules'))),
+      );
+    }
+    if (module_exists('bundlecache')) {
+      $requirements['advagg_bundlecache'] = array(
+        'title'       => $t('Adv CSS/JS Agg - BundleCache'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => $t('The BundleCache module is enabled.'),
+        'description' => $t('On the <a href="@modules">modules page</a> you can disable it, as this module is no longer needed.', array('@modules' => url('admin/build/modules'))),
+      );
+    }
+    if (module_exists('css_emimage') && !function_exists('css_emimage_advagg_filenames_alter')) {
+      $requirements['advagg_css_emimage'] = array(
+        'title'       => $t('Adv CSS/JS Agg - CSS Embedded Images'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => $t('CSS Embedded Images module needs a patch.'),
+        'description' => $t('You need to apply the latest patch from this issue <a href="@issue">CSS Embedded Images - Add in support for advaggs hooks</a>; otherwise these 2 modules are not compatible with each other.', array('@issue' => 'http://drupal.org/node/1078060')),
+      );
+    }
+    if (isset($_advagg['closure']) && $_advagg['closure'] == FALSE) {
+      $requirements['advagg_closure'] = array(
+        'title'       => $t('Adv CSS/JS Agg - Closure'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => $t('Your theme implements its own closure function.'),
+        'description' => $t('To solve this problem, you unfortunately have to modify your theme. Copy the phptemplate_closure() function found in <a href="@link">advagg.module source code</a> and integrate it into your theme phptemplate_closure() function or <themename>_closure() function.', array('@link' => 'http://drupalcode.org/project/advagg.git/blob/refs/heads/6.x-1.x:/advagg.module#l201')),
+      );
+    }
+    if (!empty($_advagg['closure']) && variable_get('labjs_closure', FALSE)) {
+      $requirements['advagg_labjs_closure'] = array(
+        'title'       => $t('Adv CSS/JS Agg - LABjs Closure'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => $t('LABjs settings issue.'),
+        'description' => $t('On the <a href="@link">LABjs configuration page</a>, disable the "Rewrite JavaScript blocks in page closure" setting.', array('@link' => url('admin/settings/performance/labjs'))),
+      );
+    }
+    if (module_exists('cdn')) {
+      $file_path_blacklist = variable_get(CDN_EXCEPTION_FILE_PATH_BLACKLIST_VARIABLE, CDN_EXCEPTION_FILE_PATH_BLACKLIST_DEFAULT);
+      $file_path_blacklist = explode("\n", trim($file_path_blacklist));
+      $file_path_blacklist = array_map('trim', $file_path_blacklist);
+      $file_path_blacklist = array_filter($file_path_blacklist);
+      if (array_search('*.js', $file_path_blacklist) !== FALSE) {
+        $requirements['advagg_bundlecache'] = array(
+          'title'       => $t('Adv CSS/JS Agg - CDN Settings'),
+          'severity'    => REQUIREMENT_WARNING,
+          'value'       => $t('The CDN module is set to blacklist all *.js files.'),
+          'description' => $t('Check your <a href="@cdn">CDN settings</a> and adjust the blacklist to not include "*.js". Testing is important in this case. "*tiny_mce.js" is a file/pattern we had to add to the blacklist after removing *.js from it.', array('@cdn' => url('admin/settings/cdn/other'))),
+        );
+      }
+    }
+    init_theme();
+    $hooks = theme_get_registry();
+    // TODO: Make this exception list into a hook.
+    $function = array_pop($hooks['page']['preprocess functions']);
+    if (module_exists('labjs')) {
+      $function = array_pop($hooks['page']['preprocess functions']);
+    }
+    if (module_exists('headjs')) {
+      $function = array_pop($hooks['page']['preprocess functions']);
+    }
+    if (module_exists('designkit')) {
+      $function = array_pop($hooks['page']['preprocess functions']);
+    }
+    if (module_exists('cdn') && function_exists('cdn_theme_registry_alter')) {
+      $function = array_pop($hooks['page']['preprocess functions']);
+    }
+    if (module_exists('conditional_styles')) {
+      $function = array_pop($hooks['page']['preprocess functions']);
+    }
+    if ($function != 'advagg_processor') {
+      $requirements['advagg_theme'] = array(
+        'title'       => $t('Adv CSS/JS Agg - Theme Hook'),
+        'severity'    => REQUIREMENT_ERROR,
+        'value'       => $t('Theme hook is not in the correct place.'),
+        'description' => $t('On the <a href="@performance">performance page</a> clear the cache. If this is still an issue open up a bug on the <a href="http://drupal.org/node/add/project-issue/advagg">advagg issue queue</a> and be sure to include the "Hook Theme Info" output from the Advanced CSS/JS aggregation <a href="@settings">settings page</a>.', array(
+          '@performance'  => url('admin/settings/performance/default'),
+          '@settings'     => url('admin/settings/advagg'),
+        )),
+      );
+    }
+    $requirements += advagg_check_missing_handler();
+  }
+  return $requirements;
+}
+
+/**
+ * Check to see if the CSS/JS generator is working.
+ */
+function advagg_check_missing_handler() {
+  global $base_path;
+  $ret = array();
+  $async = variable_get('advagg_async_generation', -1);
+
+  // Ensure translations don't break at install time
+  $t = get_t();
+
+  // Setup request
+  list($css_path, $js_path) = advagg_get_root_files_dir();
+    $ip = variable_get('advagg_server_addr', FALSE);
+    if ($ip == -1) {
+      $ip = $_SERVER['HTTP_HOST'];
+    }
+    elseif (empty($ip)) {
+      $ip = empty($_SERVER['SERVER_ADDR']) ? '127.0.0.1' : $_SERVER['SERVER_ADDR'];
+    }
+  $filepath = $css_path . '/css_missing' . mt_rand() . time() . '_0.css';
+  $url = 'http://' . $ip . $base_path . $filepath;
+  $headers = array(
+    'Host' => $_SERVER['HTTP_HOST'],
+  );
+
+  // Send request and also time it.
+  timer_start(__FUNCTION__ . 'local');
+  $data_local = drupal_http_request($url, $headers);
+  $time_local = timer_stop(__FUNCTION__ . 'local');
+
+  if (module_exists('cdn')) {
+    $url_cdn = file_create_url($filepath);
+    // Send request and also time it.
+    timer_start(__FUNCTION__ . 'cdn');
+    $data_cdn = drupal_http_request($url_cdn);
+    $time_cdn = timer_stop(__FUNCTION__ . 'cdn');
+    $mode = variable_get(CDN_MODE_VARIABLE, CDN_MODE_BASIC);
+  }
+
+  $readme = drupal_get_path('module', 'advagg') . '/README.txt';
+
+  $extra_404 = module_exists('stage_file_proxy') ? $t('<a href="http://drupal.org/project/stage_file_proxy">Stage File Proxy</a> needs <a href="http://drupal.org/node/1078218">this patch</a> applied to it in order for advagg to work correctly.') : '';
+
+  // Check response and set async variable accordingly.
+  if (isset($data_cdn)) {
+    if ($data_cdn->code != 200 && $mode == CDN_MODE_BASIC && (!empty($data_cdn->headers['X-AdvAgg']) || (!empty($data_cdn->data) && strpos($data_cdn->data, '<!-- advagg_missing_fast404 -->') !== FALSE))) {
+      // Hook menu works through the cdn
+      if ($async == -1) {
+        variable_set('advagg_async_generation', TRUE);
+        $ret['advagg_async_generation'] = array(
+          'title'       => $t('Adv CSS/JS Agg - Asynchronous Mode'),
+          'severity'    => REQUIREMENT_OK,
+          'value'       => $t('Is now set to TRUE'),
+        );
+      }
+      if ($async == 0) {
+        $ret['advagg_async_generation'] = array(
+          'title'       => $t('Adv CSS/JS Agg - Asynchronous Mode'),
+          'severity'    => REQUIREMENT_WARNING,
+          'value'       => $t('Could be changed to TRUE'),
+        );
+      }
+      if ($async == 1) {
+        $ret['advagg_async_generation'] = array(
+          'title'       => $t('Adv CSS/JS Agg - Asynchronous Mode'),
+          'severity'    => REQUIREMENT_OK,
+          'value'       => $t('Already set to TRUE'),
+        );
+      }
+    }
+    elseif ($data_local->code != 200 && (!empty($data_local->headers['X-AdvAgg']) || strpos($data_local->data, '<!-- advagg_missing_fast404 -->') !== FALSE)) {
+      // variable_set('advagg_async_generation', FALSE);
+      $ret['advagg_async_generation'] = array(
+        'title'       => $t('Adv CSS/JS Agg - Asynchronous Mode'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => variable_get('advagg_async_generation', FALSE) ? $t('Set to TRUE.') : $t('Set to FALSE.'),
+        'description' => $t('Check your <a href="@cdn">CDN settings</a>; request is not coming back when routed through the CDN.', array('@cdn' => url('admin/settings/cdn'))),
+      );
+    }
+    else {
+      variable_set('advagg_async_generation', FALSE);
+      $ret['advagg_async_generation'] = array(
+        'title'       => $t('Adv CSS/JS Agg - Asynchronous Mode'),
+        'severity'    => REQUIREMENT_ERROR,
+        'value'       => $t('Set to FALSE.'),
+        'description' => $t('Check to see if you have fast 404s, if so create an exception for this module. The <a href="@readme">readme file</a> explains what needs to be changed. You can try flushing the menu cache as well. ', array('@readme' => url($readme))) . $extra_404,
+      );
+    }
+  }
+  elseif ($data_local->code != 200 && (!empty($data_local->headers['X-AdvAgg']) || strpos($data_local->data, '<!-- advagg_missing_fast404 -->') !== FALSE)) {
+    // Hook menu works.
+    if ($async == -1) {
+      variable_set('advagg_async_generation', TRUE);
+      $ret['advagg_async_generation'] = array(
+        'title'       => $t('Adv CSS/JS Agg - Asynchronous Mode'),
+        'severity'    => REQUIREMENT_OK,
+        'value'       => $t('Is now set to TRUE'),
+      );
+    }
+    if ($async == 0) {
+      $ret['advagg_async_generation'] = array(
+        'title'       => $t('Adv CSS/JS Agg - Asynchronous Mode'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => $t('Could be changed to TRUE'),
+      );
+    }
+    if ($async == 1) {
+      $ret['advagg_async_generation'] = array(
+        'title'       => $t('Adv CSS/JS Agg - Asynchronous Mode'),
+        'severity'    => REQUIREMENT_OK,
+        'value'       => $t('Already set to TRUE'),
+      );
+    }
+  }
+  else {
+    variable_set('advagg_async_generation', FALSE);
+    $ret['advagg_async_generation'] = array(
+      'title'       => $t('Adv CSS/JS Agg - Asynchronous Mode'),
+      'severity'    => REQUIREMENT_ERROR,
+      'value'       => $t('Set to FALSE.'),
+        'description' => $t('Check to see if you have fast 404s, if so create an exception for this module. The <a href="@readme">readme file</a> explains what needs to be changed. You can try flushing the menu cache as well. ', array('@readme' => url($readme))) . $extra_404,
+    );
+  }
+
+  // Set socket timeout.
+  $timeout = variable_get('advagg_socket_timeout', -1);
+  $new_time = ceil(($time_local['time']+51)/1000);
+  if ($async) {
+    if ($timeout == -1 || $timeout != $new_time) {
+      variable_set('advagg_socket_timeout', $new_time);
+      $ret['advagg_socket_timeout'] = array(
+        'title'       => $t('Adv CSS/JS Agg - Socket Timeout'),
+        'severity'    => REQUIREMENT_OK,
+        'value'       => $t('Set to %time seconds. Raw timer: %raw', array('%time' => $new_time, '%raw' => $time_local['time'])),
+      );
+    }
+    else {
+      $ret['advagg_socket_timeout'] = array(
+        'title'       => $t('Adv CSS/JS Agg - Socket Timeout'),
+        'severity'    => REQUIREMENT_OK,
+        'value'       => $t('Already set to %time seconds. Raw timer: %raw', array('%time' => $new_time, '%raw' => $time_local['time'])),
+      );
+    }
+  }
+
+  return $ret;
+}
+
+
+/**
+ * Implementation of hook_schema().
+ */
+function advagg_schema() {
+  // Create cache tables.
+  $schema['cache_advagg'] = drupal_get_schema_unprocessed('system', 'cache');
+  $schema['cache_advagg']['description'] = t('Cache table for Advanced CSS/JS Aggregation. Used to keep timestamps and if the file exists.');
+
+  $schema['cache_advagg_files_data'] = drupal_get_schema_unprocessed('system', 'cache');
+  $schema['cache_advagg_files_data']['description'] = t('Cache table for Advanced CSS/JS Aggregation. Used to keep data about files.');
+
+  $schema['cache_advagg_bundle_reuse'] = drupal_get_schema_unprocessed('system', 'cache');
+  $schema['cache_advagg_bundle_reuse']['description'] = t('Cache table for Advanced CSS/JS Aggregation. Used to keep data about existing bundles that can be reused.');
+
+  // Create database tables.
+  $schema['advagg_files'] = array(
+    'description' => t('Files used in CSS/JS aggregation.'),
+    'fields' => array(
+      'filename' => array(
+        'description' => 'Path of the file relative to Drupal webroot.',
+        'type' => 'text',
+        'size' => 'normal',
+        'not null' => TRUE,
+      ),
+      'filename_md5' => array(
+        'description' => 'MD5 hash of filename',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'checksum' => array(
+        'description' => 'mtime or md5 of the files content.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'filetype' => array(
+        'description' => 'Filetype.',
+        'type' => 'varchar',
+        'length' => 8,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'counter' => array(
+        'description' => 'This is incremented every time a file changes.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array(
+      'checksum' => array('checksum'),
+      'filetype' => array('filetype'),
+    ),
+    'primary key' => array('filename_md5'),
+  );
+
+  $schema['advagg_bundles'] = array(
+    'description' => t('What files are used in what bundles.'),
+    'fields' => array(
+      'bundle_md5' => array(
+        'description' => 'MD5 hash of the bundles list of files',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'filename_md5' => array(
+        'description' => 'MD5 hash of filename source',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'counter' => array(
+        'description' => 'This is incremented every time a file in the bundle changes.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'porder' => array(
+        'description' => 'Processing order.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'root' => array(
+        'description' => 'If 1 then it is a root file. 0 means not root file.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'timestamp' => array(
+        'description' => 'Last used timestamp of the bundle.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array(
+      'root'        => array('root'),
+      'timestamp'   => array('timestamp'),
+      'counter'     => array('counter'),
+    ),
+    'primary key'   => array('bundle_md5', 'filename_md5'),
+
+  );
+
+  return $schema;
+}
+
+/**
+ * Update 6100 - Add new column to table.
+ */
+function advagg_update_6100() {
+  $ret = array();
+
+  // Add in data column
+  db_add_field($ret, 'advagg_files', 'data', array(
+        'description' => 'Extra data about this file. Example would be what compressors work with it.',
+        'type' => 'text',
+        'not null' => TRUE,
+        'size' => 'big',
+      ));
+
+  return $ret;
+}
+
+/**
+ * Update 6101 - Move data column to cache table.
+ */
+function advagg_update_6101() {
+  $ret = array();
+
+  // Create cache table.
+  $schema['cache_advagg_files_data'] = drupal_get_schema_unprocessed('system', 'cache');
+  $schema['cache_advagg_files_data']['description'] = t('Cache table for Advanced CSS/JS Aggregation. Used to keep data about files.');
+  db_create_table($ret, 'cache_advagg_files_data', $schema['cache_advagg_files_data']);
+
+  // Migrate data.
+  $results = db_query("SELECT filename_md5, data FROM {advagg_files}");
+  while ($row = db_fetch_array($results)) {
+    if (empty($row['data'])) {
+      continue;
+    }
+    $data = unserialize($row['data']);
+    advagg_set_file_data($row['filename_md5'], $data);
+  }
+
+  // Drop in data column.
+  db_drop_field($ret, 'advagg_files', 'data');
+
+
+  return $ret;
+}
+
+/**
+ * Update 6102 - Add new field to table.
+ */
+function advagg_update_6102() {
+  $ret = array();
+
+  // Add in root column.
+  db_add_field($ret, 'advagg_bundles', 'root', array(
+        'description' => 'If 1 then it is a root file. 0 means not root file.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ));
+
+  return $ret;
+}
+
+/**
+ * Update 6103 - Create a bundle reuse cache table.
+ */
+function advagg_update_6103() {
+  $ret = array();
+
+  // Create cache table.
+  $schema['cache_advagg_bundle_reuse'] = drupal_get_schema_unprocessed('system', 'cache');
+  $schema['cache_advagg_bundle_reuse']['description'] = t('Cache table for Advanced CSS/JS Aggregation. Used to keep data about existing bundles that can be used.');
+  db_create_table($ret, 'cache_advagg_bundle_reuse', $schema['cache_advagg_bundle_reuse']);
+
+  return $ret;
+}
+
+/**
+ * Update 6104 - Create a file builder cache table.
+ */
+function advagg_update_6104() {
+  $ret = array();
+
+  // Create cache table.
+  $schema['cache_advagg_file_builder'] = drupal_get_schema_unprocessed('system', 'cache');
+  $schema['cache_advagg_file_builder']['description'] = t('Cache table for Advanced CSS/JS Aggregation. Used to cache output from the advagg_css_js_file_builder function.');
+  db_create_table($ret, 'cache_advagg_file_builder', $schema['cache_advagg_file_builder']);
+
+  return $ret;
+}
+
+/**
+ * Update 6105 - Remove strict JS variable and reset 2 advagg caches.
+ */
+function advagg_update_6105() {
+  $ret = array();
+
+  variable_del('advagg_strict_js_bundles');
+  cache_clear_all('*', 'cache_advagg_bundle_reuse', TRUE);
+  cache_clear_all('*', 'cache_advagg_file_builder', TRUE);
+  $ret[] = array('success' => TRUE, 'query' => 'advagg bundle_reuse & file_builder caches flushed.');
+
+  return $ret;
+}
+
+/**
+ * Update 6106 - Clear file cache.
+ */
+function advagg_update_6106() {
+  $ret = array();
+
+  cache_clear_all('*', 'cache_advagg_files_data', TRUE);
+  $ret[] = array('success' => TRUE, 'query' => 'advagg files_data cache flushed.');
+
+  return $ret;
+}
+
+/**
+ * Update 6107 - Remove the cache_advagg_file_builder cache table.
+ */
+function advagg_update_6107() {
+  $ret = array();
+
+  if (db_table_exists('cache_advagg_file_builder')) {
+    cache_clear_all('*', 'cache_advagg_file_builder', TRUE);
+    $ret[] = array('success' => TRUE, 'query' => 'advagg file_builder cache flushed.');
+    db_drop_table($ret, 'cache_advagg_file_builder');
+  }
+
+  return $ret;
+}
+
+/**
+ * Update 6108 - Add new field & add indexes to advagg_bundles table.
+ */
+function advagg_update_6108() {
+  $ret = array();
+
+  // Add in timestamp column.
+  db_add_field($ret, 'advagg_bundles', 'timestamp', array(
+        'description' => 'Last used timestamp of the bundle.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ));
+
+  // Add in indexes.
+  db_add_index($ret, 'advagg_bundles', 'root', array('root'));
+  db_add_index($ret, 'advagg_bundles', 'timestamp', array('timestamp'));
+  db_add_index($ret, 'advagg_bundles', 'counter', array('counter'));
+
+  // Populate timestamps.
+  list($css_path, $js_path) = advagg_get_root_files_dir();
+  $results = db_query("
+    SELECT
+      ab.bundle_md5,
+      ab.counter,
+      af.filetype
+    FROM {advagg_bundles} AS ab
+    INNER JOIN {advagg_files} AS af USING ( filename_md5 )
+    GROUP BY bundle_md5");
+  while ($row = db_fetch_array($results)) {
+    $filename = advagg_build_filename($row['filetype'], $row['bundle_md5'], $row['counter']);
+    if ($row['filetype'] == 'css') {
+      $file_type_path = $css_path;
+    }
+    else {
+      $file_type_path = $js_path;
+    }
+    $filepath = $file_type_path .'/'. $filename;
+
+    $data = cache_get($filepath, 'cache_advagg');
+    if (!empty($data->data)) {
+      // Set timestamp if it exists in the cache.
+      // Not using update_sql() so we can pass in % arguments.
+      db_query("UPDATE {advagg_bundles} SET timestamp = %d WHERE bundle_md5 = '%s'", $data->data, $row['bundle_md5']);
+      $ret[] = array('success' => TRUE, 'query' => 'Timestamp added for: ' . $filename . '.');
+    }
+    else {
+      $ret[] = array('success' => TRUE, 'query' => 'No timestamp found for: ' . $filename . '.');
+    }
+  }
+
+  $cache_tables = advagg_flush_caches();
+  foreach ($cache_tables as $table) {
+    cache_clear_all('*', $table, TRUE);
+  }
+  $ret[] = array('success' => TRUE, 'query' => 'AdvAgg Caches Flushed.');
+
+  return $ret;
+}

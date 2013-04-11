@@ -1,0 +1,303 @@
+# $Id: login_security.pot,v 1.1.2.5 2009/10/03 17:03:48 ilo Exp $
+#
+# LANGUAGE translation of Drupal (general)
+# Copyright 2007 <ilo@reversing.org>
+# Generated from files:
+#  login_security.admin.inc,v 1.1.2.4 2009/09/21 23:38:56 ilo
+#  login_security.module,v 1.12.2.18 2009/10/03 10:16:33 ilo
+#  login_security.install,v 1.6.2.9 2009/10/03 10:16:33 ilo
+#  login_security.info,v 1.2 2008/01/19 23:29:37 ilo
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2009-10-03 19:00+0200\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: login_security.admin.inc:20
+msgid "Track time"
+msgstr ""
+
+#: login_security.admin.inc:25
+msgid "The time window where to check for security violiations: the time in hours the login information is kept to compute the login attempts count. A common example could be 24 hours. After that time, the attempt is deleted from the list, and will never be considered again."
+msgstr ""
+
+#: login_security.admin.inc:26
+msgid "Hours"
+msgstr ""
+
+#: login_security.admin.inc:30
+msgid "Login delay base time"
+msgstr ""
+
+#: login_security.admin.inc:35
+msgid "Delay in seconds for the login process: any invalid login attempt will have a punishment of these seconds, as a protection for password guessing attempts."
+msgstr ""
+
+#: login_security.admin.inc:36
+msgid "Seconds"
+msgstr ""
+
+#: login_security.admin.inc:40
+msgid "Increase delay for each attempt?"
+msgstr ""
+
+#: login_security.admin.inc:43
+msgid "Increase delay in seconds for the next login count. It is computed by host and user, so any attempt to login again with the same user from the same IP address will be punished with a delay computed as (delay base time) x (login attempts for this user from this IP address) in seconds. The number of attempts is counted within the \"Track time\" time value. In the previous example of 24 hours tracking time, after 24h the login attemps will be cleared, and the delay decreased."
+msgstr ""
+
+#: login_security.admin.inc:47
+msgid "Maximum number of login failures before blocking a user"
+msgstr ""
+
+#: login_security.admin.inc:52
+msgid "Enter the number of login failures a user is allowed. After that amount is reached, the user will be blocked, no matter the host attempting to log in. Use this option carefully on public sites, as an attacker may block your site users. The user blocking protection will not dissapear and should be removed manually from the !users interface."
+msgstr ""
+
+#: login_security.admin.inc:52
+msgid "user management"
+msgstr ""
+
+#: login_security.admin.inc:53;63;73;83
+msgid "Failed attempts"
+msgstr ""
+
+#: login_security.admin.inc:57
+msgid "Maximum number of login failures before soft blocking a host"
+msgstr ""
+
+#: login_security.admin.inc:62
+msgid "Enter the number of login failures a host is allowed. After that amount is reached, the host will not be able to submit the log in form again, but can still browse the site contents as an anonymous user. This protection is efective during the time indicated at tracking time opion."
+msgstr ""
+
+#: login_security.admin.inc:67
+msgid "Maximum number of login failures before blocking a host"
+msgstr ""
+
+#: login_security.admin.inc:72
+msgid "Enter the number of login failures a host is allowed. After that number is reached, the host will be blocked, no matter the username attempting to log in. The host blocking protection will not dissapear automatically and should be removed manually from the !access administration interface."
+msgstr ""
+
+#: login_security.admin.inc:72
+msgid "access rules"
+msgstr ""
+
+#: login_security.admin.inc:77
+msgid "Maximum number of login failures before detecting an ongoing attack"
+msgstr ""
+
+#: login_security.admin.inc:82
+msgid "Enter the number of login failures before creating a warning log entry about this suspicious activity. If the number of invalid login events currently being tracked reach this number, and ongoing attack is detected."
+msgstr ""
+
+#: login_security.admin.inc:88
+msgid "Notifications"
+msgstr ""
+
+#: login_security.admin.inc:92
+msgid "Disable login failure error message"
+msgstr ""
+
+#: login_security.admin.inc:93
+msgid "Checking this option login error messages will never be shown to the users. They will not be aware if the account exists, an invalid user name or password has been submitted or if the account is blocked. The core message \"Sorry, unrecognized username or password. Have you forgotten your password?\" is also hidden for the user."
+msgstr ""
+
+#: login_security.admin.inc:98
+msgid "Notify the user about the number of remaining login attempts"
+msgstr ""
+
+#: login_security.admin.inc:100
+msgid "Checking this option, the user is notified about the number of remaining login attempts before the account gets blocked. Security tip: If you enable this option, try to not disclose as much of your login policies as possible in the message shown on any failed login attempt."
+msgstr ""
+
+#: login_security.admin.inc:104
+msgid "Display last login timestamp"
+msgstr ""
+
+#: login_security.admin.inc:105
+msgid "Checking this option, when a user does success in login, a message will remember him when was the last time he logged in the site."
+msgstr ""
+
+#: login_security.admin.inc:110
+msgid "Display last access timestamp"
+msgstr ""
+
+#: login_security.admin.inc:111
+msgid "Checking this option, when a user does success in login, a message will remember him when was the last site access with this account."
+msgstr ""
+
+#: login_security.admin.inc:116
+msgid "Send email message to the admin (uid 1) when a user is blocked by this module."
+msgstr ""
+
+#: login_security.admin.inc:121
+msgid "Send email message to the admin (uid 1) when an ongoing attack is detected."
+msgstr ""
+
+#: login_security.admin.inc:128
+msgid "Edit notification texts"
+msgstr ""
+
+#: login_security.admin.inc:132
+msgid "You may edit the notifications used by the Login Security module. Allowed placeholders for all the notifications include the following: <ul><li>%date                  :  The (formatted) date and time of the event.</li><li>%ip                    :  The IP address tracked for this event.</li><li>%username              :  The username entered in the login form (sanitized).</li><li>%email                 :  If the user exists, this will be the email address.</li><li>%uid                   :  If the user exists, this will be the user uid.</li><li>%site                  :  The name of the site as configured in the administration.</li><li>%uri                   :  The base url of this Drupal site.</li><li>%edit_uri              :  Direct link to the user (based on the name entered) edit page.</li><li>%hard_block_attempts   :  Configured maximum attempts before hard blocking the IP address.</li><li>%soft_block_attempts   :  Configured maximum attempts before soft blocking the IP address.</li><li>%user_block_attempts   :  Configured maximum login attempts before blocking the user.</li><li>%user_ip_current_count :  The total attempts for this user name tracked from this IP address.</li><li>%ip_current_count      :  The total login attempts tracked from from this IP address.</li><li>%user_current_count    :  The total login attempts tracked for this user name .</li><li>%tracking_time         :  The tracking time value: in hours.</li><li>%tracking_current_count:  Total tracked events</li><li>%activity_threshold    :  Value of attempts to detect ongoing attack.</li></ul>"
+msgstr ""
+
+#: login_security.admin.inc:136
+msgid "Message to be shown on each failed login attempt"
+msgstr ""
+
+#: login_security.admin.inc:139
+msgid "Enter the message string to be shown if the login fails after the form is submitted. You can use any of the placeholders here."
+msgstr ""
+
+#: login_security.admin.inc:143
+msgid "Message for banned host (Soft IP ban)"
+msgstr ""
+
+#: login_security.admin.inc:146
+msgid "Enter the soft IP ban message to be shown when a host attempts to log in too many times."
+msgstr ""
+
+#: login_security.admin.inc:151
+msgid "Message for banned host (Hard IP ban)"
+msgstr ""
+
+#: login_security.admin.inc:153
+msgid "Enter the hard IP ban message to be shown when a host attempts to log in too many times."
+msgstr ""
+
+#: login_security.admin.inc:158
+msgid "Message when user is blocked by uid"
+msgstr ""
+
+#: login_security.admin.inc:160
+msgid "Enter the message to be shown when a user gets blocked due to enough failed login attempts."
+msgstr ""
+
+#: login_security.admin.inc:165
+msgid "Email to be sent to the administrator user (uid 1) for blocked accounts."
+msgstr ""
+
+#: login_security.admin.inc:167;185
+msgid "Configure the subject and body of the email message."
+msgstr ""
+
+#: login_security.admin.inc:171;189
+msgid "Email subject"
+msgstr ""
+
+#: login_security.admin.inc:176;194
+msgid "Email body"
+msgstr ""
+
+#: login_security.admin.inc:178
+msgid "Enter the message to be sent to the administrator informing a user has been blocked."
+msgstr ""
+
+#: login_security.admin.inc:183
+msgid "Email to be sent to the administrator user (uid 1) for ongoing attack detections."
+msgstr ""
+
+#: login_security.admin.inc:196
+msgid "Enter the message to be sent to the administrator informing about supicious activity."
+msgstr ""
+
+#: login_security.admin.inc:202
+msgid "Clear event tracking information"
+msgstr ""
+
+#: login_security.admin.inc:215
+msgid "The !field field should be a positive integer value greater than or equal to 0."
+msgstr ""
+
+#: login_security.admin.inc:223
+msgid "Login Security event track list is now empty."
+msgstr ""
+
+#: login_security.module:98
+msgid "Your last login was !stamp"
+msgstr ""
+
+#: login_security.module:101
+msgid "Your last page access (site activity) was !stamp"
+msgstr ""
+
+#: login_security.module:295
+msgid "edit rule"
+msgstr ""
+
+#: login_security.module:322
+msgid "edit user"
+msgstr ""
+
+#: login_security.module:397
+msgid "Make sure you have reviewed the !README file for further information about how all these settings will affect your Drupal login form submissions."
+msgstr ""
+
+#: login_security.module:397
+msgid "README"
+msgstr ""
+
+#: login_security.module:153;167;295;0
+msgid "login_security"
+msgstr ""
+
+#: login_security.module:153
+msgid "Ongoing attack detected: Suspicious activity detected in login form submissions. Too many invalid login attempts threshold reached: currently %tracking_current_count events are tracked, and threshold is configured for %activity_threshold attempts."
+msgstr ""
+
+#: login_security.module:167
+msgid "Suspicious activity in login form submissions is no longer detected: currently %tracking_current_count events are being tracked, and threshold is configured for %activity_threshold maximum allowed attempts)."
+msgstr ""
+
+#: login_security.module:295
+msgid "Banned IP address %ip due to security configuration."
+msgstr ""
+
+#: login_security.module:322
+msgid "user"
+msgstr ""
+
+#: login_security.module:322
+msgid "Blocked user %username due to security configuration."
+msgstr ""
+
+#: login_security.install:14
+msgid "Keeps track of failed login attempts, as a pair of the IP address and user name."
+msgstr ""
+
+#: login_security.install:19
+msgid "ID of each login event."
+msgstr ""
+
+#: login_security.install:26;108
+msgid "The IP address of the request."
+msgstr ""
+
+#: login_security.install:33
+msgid "Clean username, submitted using the login form."
+msgstr ""
+
+#: login_security.install:39;145
+msgid "Timestamp of the event."
+msgstr ""
+
+#: login_security.install:138
+msgid "Clean username, after submitted using the login form."
+msgstr ""
+
+#: login_security.info:0
+msgid "Login Security"
+msgstr ""
+
+#: login_security.info:0
+msgid "Enable security options in the login flow of the site."
+msgstr ""
+

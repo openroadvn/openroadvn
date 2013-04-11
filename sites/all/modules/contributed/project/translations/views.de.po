@@ -1,0 +1,147 @@
+# LANGUAGE translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  comment.inc,v 1.65 2006/04/24 18:34:45 dww
+#  release.inc,v 1.70 2006/04/22 21:09:40 dww
+#  issue.inc,v 1.169 2006/04/28 15:40:26 dww
+#  project.module,v 1.238 2006/04/22 16:44:46 dww
+#  mail.inc,v 1.60 2006/04/22 21:14:57 dww
+#  project.inc,v 1.75 2006/04/22 16:44:46 dww
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: German translation for project module\n"
+"POT-Creation-Date: 2009-07-18 00:17+0200\n"
+"PO-Revision-Date: 2009-07-18 00:34+0100\n"
+"Last-Translator: Alexander Haß\n"
+"Language-Team: Alexander Hass\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n!=1)\n"
+"X-Poedit-Language: German\n"
+"X-Poedit-Country: GERMANY\n"
+"X-Poedit-SourceCharset: utf-8\n"
+
+#: views/project.views.inc:34
+msgid "Short name"
+msgstr "Kurzname"
+
+#: views/project.views.inc:35
+msgid "The short name (uri) of a project."
+msgstr "Der Kurzname (URI) des Projektes."
+
+#: views/project.views.inc:55
+msgid "The project's homepage."
+msgstr "Die Homepage des Projekts."
+
+#: views/project.views.inc:75
+msgid "The project's changelog."
+msgstr "Die Änderungsliste des Projektes."
+
+#: views/project.views.inc:94
+msgid "CVS directory"
+msgstr "CVS-Verzeichnis"
+
+#: views/project.views.inc:95
+msgid "The project's cvs directory."
+msgstr "Das CVS-Verzeichnis des Projektes."
+
+#: views/project.views.inc:114
+msgid "Demonstration"
+msgstr "Demonstration"
+
+#: views/project.views.inc:115
+#, fuzzy
+msgid "Link to a demonstration of the project."
+msgstr "Link zu einer Demonstration des Projektes."
+
+#: views/project.views.inc:135
+msgid "The project's documentation."
+msgstr "Die Dokumentation des Projektes."
+
+#: views/project.views.inc:155
+msgid "The project's screenshots."
+msgstr "Die Screenshots des Projektes."
+
+#: views/project.views.inc:175
+msgid "The license used for the project."
+msgstr "Die für das Projekt verwendete Lizenz."
+
+#: views/project.views.inc:201
+msgid "Taxonomy"
+msgstr "Taxonomie"
+
+#: views/project.views.inc:202
+msgid "Term ID (summary)"
+msgstr "Begriff-ID (Zusammenfassung)"
+
+#: views/project.views.inc:203
+msgid "This argument produces a summary with the option to exclude top level terms."
+msgstr ""
+
+#: views/project.views.inc:217
+msgid "Project type depth"
+msgstr ""
+
+#: views/project.views.inc:218
+msgid "Limit the results to project type terms that are either parents or children, or both."
+msgstr ""
+
+#: views/project.views.inc:228;353
+msgid "Project type term"
+msgstr ""
+
+#: views/project.views.inc:231
+msgid "Project type terms"
+msgstr ""
+
+#: views/project.views.inc:232
+msgid "The project type terms associated with a node."
+msgstr ""
+
+#: views/project.views.inc:236
+msgid "Filter by the project type term."
+msgstr ""
+
+#: views/project.views.inc:247
+msgid "Sort method"
+msgstr "Sortiermethode"
+
+#: views/project.views.inc:248
+msgid "This is a filter that provides a sort method select box that can be exposed to the user."
+msgstr ""
+
+#: views/project.views.inc:295
+msgid "Project list"
+msgstr "Projektliste"
+
+#: views/project.views.inc:296
+msgid "Displays a list of project rows with additional project related information."
+msgstr ""
+
+#: views/project.views.inc:309
+msgid "Collapsible"
+msgstr "Zusammenklappbar"
+
+#: views/project.views.inc:310
+msgid "Displays the summary in a collapsible fieldset."
+msgstr "Zeigt die Zusammenfassung in einer zusammenklappbaren Feldgruppe an."
+
+#: views/project.views.inc:323
+msgid "Display the project node with download table."
+msgstr "Zeigt den Projektbeitrag mit einer Downloadtabelle an."
+
+#: views/project.views.inc:334
+msgid "Project fields"
+msgstr "Projektfelder"
+
+#: views/project.views.inc:335
+#, fuzzy
+msgid "Displays project fields."
+msgstr "Zeigt Projektfelder an."
+
+#: views/project.views.inc:348
+msgid "Project type: Top level term"
+msgstr ""
+

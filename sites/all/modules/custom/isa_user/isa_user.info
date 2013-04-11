@@ -1,0 +1,5 @@
+; $Id
+core            = "6.x"
+description     = "Changes messages about password validation in the user form"
+name            = "ISA User"
+package         = "ISA Toolbox"

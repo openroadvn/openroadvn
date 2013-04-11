@@ -1,0 +1,137 @@
+<?php
+// $Id: project.install,v 1.27 2009/08/10 22:50:39 dww Exp $
+
+function project_install() {
+  // Create the database tables.
+  drupal_install_schema('project');
+
+  // Make this module heavier than the default module weight.
+  db_query("UPDATE {system} SET weight = %d WHERE name = 'project'", 2);
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function project_uninstall() {
+  // Drop database tables.
+  drupal_uninstall_schema('project');
+
+  $variables = array(
+    'project_vocabulary',
+    'project_search_block_help_text',
+    'project_enable_alias',
+  );
+  foreach ($variables as $variable) {
+    variable_del($variable);
+  }
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function project_schema() {
+  $schema['project_projects'] = array(
+    'description' => 'The base table for project_project nodes.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'Primary Key: The {node}.nid of the project_project node.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'uri' => array(
+        'description' => 'The short name of the project.',
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'homepage' => array(
+        'description' => "An external link to the project's homepage.",
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'changelog' => array(
+        'description' => 'An external link to a log of changes for the project.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'cvs' => array(
+        'description' => 'An external link to the CVS repository for the project.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'demo' => array(
+        'description' => 'An external link to a demonstration site for the project.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'documentation' => array(
+        'description' => 'An external link to documentation for the project.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'screenshots' => array(
+        'description' => 'An external link to screenshots of the project.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'license' => array(
+        'description' => 'An external link to the license of the project.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+    ),
+    'primary key' => array('nid'),
+    'indexes' => array(
+      'project_projects_uri' => array(array('uri', 8)),
+    ),
+  );
+  return $schema;
+}
+
+/**
+ * Delete variables that are no longer used in the Drupal 6 version of the module.
+ */
+function project_update_6000() {
+  $variables = array(
+    'project_browse_nodes',
+    'project_sort_method',
+  );
+  foreach ($variables as $variable) {
+    variable_del($variable);
+  }
+
+  $variables = db_query("SELECT name FROM {variable} WHERE name LIKE 'project_sort_method_used_%%'");
+  while ($variable = db_fetch_object($variables)) {
+    variable_del($variable->name);
+  }
+  return array();
+}
+
+/**
+ * Fix deltas for project blocks.
+ */
+function project_update_6001() {
+  $ret = array();
+  $ret[] = update_sql("UPDATE {blocks} SET delta = 'project_navigation_select' WHERE delta = '0' AND module = 'project'");
+  $ret[] = update_sql("UPDATE {blocks} SET delta = 'project_search' WHERE delta = '1' AND module = 'project'");
+  $ret[] = update_sql("UPDATE {blocks} SET delta = 'project_navigation_text' WHERE delta = '2' AND module = 'project'");
+  return $ret;
+}
+

@@ -1,0 +1,13 @@
+name = Apache Solr Facet Builder
+description = Build custom Solr search facets with the UI using Views.
+dependencies[] = apachesolr
+dependencies[] = views
+package = Apache Solr
+core = "6.x"
+
+; Information added by drupal.org packaging script on 2011-02-25
+version = "6.x-1.x-dev"
+core = "6.x"
+project = "apachesolr_facetbuilder"
+datestamp = "1298618838"
+

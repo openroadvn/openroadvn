@@ -1,0 +1,74 @@
+$Id: UPGRADE.txt,v 1.4 2007/11/13 01:28:13 dww Exp $
+
+======================================================================
+This file contains specific instructions for upgrading your site's
+version of project_issue.module to a new release.  You should always
+check this file when you download a new version to see if there are
+any specific things you need to know about a certain upgrade.
+======================================================================
+
+
+--------------------------------------------------
+Upgrading to 4.7.x-2.* (from the 4.7.x-1.* series)
+--------------------------------------------------
+
+  The 4.7.x-2.* versions of project and project_issue must be upgraded
+at the same time.  For example, you cannot run project_issue version
+4.7.x-2.* with project version 4.7.x-1.*.  Therefore, if you are
+considering upgrading a 4.7.x-1.* installation of project_issue to
+4.7.x-2.*, please consult modules/project/UPGRADE.txt.
+
+
+------------------------------------------------------------
+Upgrading to 5.x-2.* (from the 4.7.x-2.* and 5.x-1.* series)
+------------------------------------------------------------
+
+  The 5.x-2.* version of project_issue has three new module depencencies:
+    1. Drupal core's Comment module
+    2. Drupal core's Upload module.
+    3. Comment upload module -- http://drupal.org/project/comment_upload
+
+  These modules must be installed and enabled BEFORE you attempt to
+  upgrade to 5.x-2.*.
+
+  Unfortunately, Drupal core currently has a bug that prevents you from
+  enabling a module when another module adds new module dependencies. So,
+  if any of the three modules above were not already installed and
+  enabled on your site prior to this upgrade, there's a bit of extra work
+  involved:
+
+    1. Go to the module administration page. If Comment module is not
+       enabled, then uncheck the 'Enabled' checkbox for any modules on 
+       which Comment module depends (this is listed in the 'Depends on:'
+       section -- Project issue tracker will be one of these).
+    2. Repeat step #1 for the Upload and Comment upload modules.
+    3. Submit the module administration form.
+    4. Check the 'Enabled' checkbox for all the modules that you disabled,
+       and for the Comment/Upload/Comment upload modules.
+    5. Submit the module administration form.
+
+  If you try to upgrade without the new dependencies enabled, the
+  upgrade will fail gracefully.  If this happens to you:
+
+    1. Follow the instructions above to get the dependencies resolved.
+    2. Go back to http://yoursite.com/update.php
+    3. Click on 'run the database upgrade script'.
+    4. Click on 'Select versions'.
+    5. For the 'project_issue module' select box, select update 5200.
+    6. Click on 'Update'.
+
+  NEW SETUP FOR ISSUE EMAILS
+
+  In the past, the "From" address of all project issue e-mail
+  notifications was the address entered by the project owner in the
+  "Project e-mail" field on the project's settings page. This created
+  a privacy problem, because unbeknownst to them, their e-mail address
+  was being revealed to other users subscribed to their issue queue
+  e-mails.
+
+  To correct this issue, all project issue e-mails now have a global
+  "From" address.  This defaults to the global site e-mail, but can be
+  customized using the "Reply-to address on e-mail notifications"
+  setting on the Project issue settings page
+  (admin/project/project-issue-settings).
+

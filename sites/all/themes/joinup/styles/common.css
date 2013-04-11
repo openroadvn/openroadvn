@@ -1,0 +1,437 @@
+/*  $Name: ISA - Integrated Collaborative Platform - CSS Common Style Definition $
+    $File: common.css $
+    $Date: 2011-02-28 $
+    $Modify date: 2011-08-31 $
+    $Version: 057 $
+*/
+
+/*  COMMON STYLES
+
+    Typography */
+body { background:none repeat scroll 0 0; font:80% Arial,Sans-serif; color:#000; line-height:150%; min-width: 960px; margin: 0 auto; width: 85%; }
+body.cke_show_borders {min-width: 0; width : 100%; word-wrap: break-word; }
+/*  Body > Admin Menu */
+body.admin-menu { margin-top: 0 !important; padding-top: 20px; }
+
+/*  Links  */
+div#highlight-region div#introduction a, a:link, a:active { color:#F5B00F; }
+a, a:link, a:active { text-decoration:underline; color:#CF3B00; }
+a:hover, a:focus { text-decoration:none; }
+/*  Links > Document Icons  */
+a.document { display:block; padding-left:25px; margin-top:10px; line-height:18px; background-color:transparent; background-repeat:no-repeat; background-position:left center; }
+a.document.ppt { background-image:url(../images/icons/document/ppt.png); }
+a.document.pptx { background-image:url(../images/icons/document/pptx.png); }
+a.document.pdf { background-image:url(../images/icons/document/pdf.png); }
+a.document.doc { background-image:url(../images/icons/document/doc.png); }
+a.document.docx { background-image:url(../images/icons/document/docx.png); }
+a.document.zip { background-image:url(../images/icons/document/zip.png); }
+/*  Headings  */
+h2, h3, h4, h5, h6 { padding:10px 0; color:#074A8B; line-height:140%; }
+h2 { font-size:140%; }
+h3 { font-size:130%; }
+h4 { font-size:120%; }
+h5 { font-size:110%; }
+/*  Paragraphs  */
+p { padding:10px 0; }
+code { font-size:12px; }
+/*  Un-Ordered List Items  */
+ol, ul { margin:10px 0; padding:0 0 3px 20px; }
+ol { list-style-type:decimal; }
+ul { list-style-type:disc; }
+ol li, ul li { margin-left:6px; padding:2px 6px 0 0; }
+/*  Messages */
+div.messages { background-color:#FFF; border:1px solid #B8D3E5; }
+div.messages, div.preview { margin:0 0 10px 0; padding:.5em 1em; }
+div.messages p, div.preview p { margin:0; padding:0; }
+/*  Messages > Status */
+div.messages.status { background-color:#CFF border-color:#C7F2C8; color:#33A333; }
+/*  Messages > Warning */
+div.messages.warning { background-color:#FFD; border-color:#F0C020; color:#E09010; }
+/*  Messages > Error */
+div.messages.error { background-color:#FCC; border-color:#D77; color:#E55; white-space:normal; }
+/*  Table  */
+table { border-spacing:1px; border:1px; margin:10px 0; width:100%; }
+table thead th { padding:0 0 0 10px; height:35px; line-height:35px; color:#000; font-weight:bold; border:none; background-color:#F7F7F7; }
+table thead th a,
+table thead th a:link,
+table thead th a:active { text-decoration:none; display:block; }
+table tbody th,
+table tbody tr.odd,
+table tbody tr.even { background-color:#FFF; border:none; }
+table tbody tr.info { background-color:#EEF2F4; }
+table tbody tr.drag { background-color:#FCFCF1; }
+table tbody tr.drag-previous { background-color:#F9F9E1; }
+table tbody tr.odd td.active { background-color:#FAFAFA; }
+table tbody tr.even td.active { background-color:#F7F7F7; }
+table tbody td { vertical-align:top; border-color:#AEAEAE; border-style:dashed; border-width:0 0 1px 0; padding:10px 5px; }
+table tbody td.views-field-field-photo-fid { width: 100px; }
+table tbody td.region, table tbody td.module, table tbody td.container, table tbody td.category { border-top:1.5em solid #FFF; border-bottom:1px solid #B7CCDC; background-color:#D6E0E6; color:#101218; font-weight:bold; }
+
+div.view-content, div.node-content { word-wrap : break-word; }
+div#block-views-News_view-block_1 div.clearfix { word-wrap : break-word; max-width: 340px; }
+
+/*  BLOCKS
+
+    Blocks */
+div#right-sidebar-region div.block { position:relative; float: none; margin-bottom:20px; }
+div.block { position:relative; margin-bottom:20px; }
+/*  Blocks > Headings */
+div.block h3 { padding-left:40px; line-height:23px; background:transparent url(../images/headings/h3.png) no-repeat scroll 0 0; }
+/*  Blocks > Images */
+div.block img { display:block; }
+div.block img#homepage-banner { display:block; overflow: hidden; width: 100%; }
+/*  Blocks > Un-Ordered List of Links > Left Navigation Menu */
+div.block div.left-menu { width:154px; padding:0 5px 0 0; border-width:0 1px 1px 0; border-style:solid; border-color:#DDD; }
+div.block div.left-menu h3 { padding:0 0 0 10px; margin:0; height:35px; line-height:35px; background-image:none; background-color:#F7F7F7; font-size:100%; color:#000; }
+div.block div.left-menu ul.links { padding:0; margin:0; }
+div.block div.left-menu ul.links li { display:block; padding:5px 0; margin:0; border-bottom:1px dashed #8692BC; }
+div.block div.left-menu ul.links li.last { border:none; }
+div.block div.left-menu ul.links li a { display:block; padding:0 0 0 10px; margin:0; line-height:24px; text-decoration:none; }
+div.block div.left-menu ul.links li a:hover, div.block div.left-menu ul.links li a:focus { color:#FFF; background:#ffab04 url(../images/links/bg_links_tabs_hover_active.png) repeat-x right bottom; }
+div.block div.left-menu ul.links li a.active { font-weight:bold; color:#CF3B00; background:transparent url(../images/links/bg_leftmenu_links_active.png) no-repeat right center; cursor:default; padding-right: 10px; }
+/*  Blocks > Un-Ordered List of Links > Shortcut Buttons */
+div.block div.buttons ul.links { margin:0; padding:0; }
+div.block div.buttons ul.links li { display:block; margin:0 0 10px 0; padding:0; }
+div.block div.buttons ul.links li a { display:block; margin:0; padding:0; height:25px; line-height:24px; width:265px; background-color:#CF3B00; color:#FFF; text-decoration:none; font-weight:bold; padding-left:15px; }
+/*  Blocks > Un-Ordered List of Links > Shortcut Buttons > Push (gey/blue by default) */
+div.block div.buttons ul.links li a.push { background:transparent url(../images/links/bg_push_buttons.png) no-repeat 0 0; height:48px; line-height:47px; font-size:130%; }
+div.block div.buttons ul.links li a:hover.push, div.block div.buttons ul.links li a:focus.push { background-position:0 -48px; }
+/*  Blocks > Un-Ordered List of Links > Shortcut Buttons > Push (blue) #####  ##### */
+div.block div.buttons ul.links li a.push.download { background-position:0 -96px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.download, div.block div.buttons ul.links li a:focus.push.download { background-position:0 -144px; }
+div.block div.buttons ul.links li a.push.submit-issue { background-position:0 -192px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.submit-issue, div.block div.buttons ul.links li a:focus.push.submit-issue { background-position:0 -240px; }
+div.block div.buttons ul.links li a.push.submit-task { background-position:0 -288px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.submit-task, div.block div.buttons ul.links li a:focus.push.submit-task { background-position:0 -336px; }
+div.block div.buttons ul.links li a.push.create-news { background-position:0 -384px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.create-news, div.block div.buttons ul.links li a:focus.push.create-news { background-position:0 -432px; }
+div.block div.buttons ul.links li a.push.create-wiki { background-position:0 -480px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.create-wiki, div.block div.buttons ul.links li a:focus.push.create-wiki { background-position:0 -528px; }
+div.block div.buttons ul.links li a.push.create-document { background-position:0 -576px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.create-document, div.block div.buttons ul.links li a:focus.push.create-document { background-position:0 -624px; }
+div.block div.buttons ul.links li a.push.create-blog { background-position:0 -672px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.create-blog, div.block div.buttons ul.links li a:focus.push.create-blog { background-position:0 -720px; }
+div.block div.buttons ul.links li a.push.create-topic { background-position:0 -768px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.create-topic, div.block div.buttons ul.links li a:focus.push.create-topic { background-position:0 -816px; }
+div.block div.buttons ul.links li a.push.create-release { background-position:0 -864px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.create-release, div.block div.buttons ul.links li a:focus.push.create-release { background-position:0 -912px; }
+div.block div.buttons ul.links li a.push.create-federated-forge { background-position:0 -960px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.create-federated-forge, div.block div.buttons ul.links li a:focus.push.create-federated-forge { background-position:0 -1008px; }
+div.block div.buttons ul.links li a.push.create-image { background-position:0 -1056px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.create-image, div.block div.buttons ul.links li a:focus.push.create-image { background-position:0 -1104px; }
+div.block div.buttons ul.links li a.push.create-factsheet { background-position:0 -1152px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.create-factsheet, div.block div.buttons ul.links li a:focus.push.create-factsheet { background-position:0 -1200px; }
+div.block div.buttons ul.links li a.push.create-video { background-position:0 -1248px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.create-video, div.block div.buttons ul.links li a:focus.push.create-video { background-position:0 -1296px; }
+/*  Blocks > Un-Ordered List of Links > Shortcut Buttons > Push (orange) */
+div.block div.buttons ul.links li a.push.orange { background-position:0 -1344px; }
+div.block div.buttons ul.links li a:hover.push.orange, div.block div.buttons ul.links li a:focus.push.orange { background-position:0 -1392px; }
+/*  Blocks > Un-Ordered List of Links > Shortcut Buttons > Push (orange) #####  ##### */
+div.block div.buttons ul.links li a.push.invite-people { background-position:0 -1440px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.invite-people, div.block div.buttons ul.links li a:focus.push.invite-people { background-position:0 -1488px; }
+div.block div.buttons ul.links li a.push.invite-people-project { background-position:0 -2688px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.invite-people-project, div.block div.buttons ul.links li a:focus.push.invite-people-project { background-position:0 -2736px; }
+div.block div.buttons ul.links li a.push.invite-people-community { background-position:0 -2784px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.invite-people-community, div.block div.buttons ul.links li a:focus.push.invite-people-community { background-position:0 -2832px; }
+div.block div.buttons ul.links li a.push.send-message { background-position:0 -1536px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.send-message, div.block div.buttons ul.links li a:focus.push.send-message { background-position:0 -1584px; }
+div.block div.buttons ul.links li a.push.propose-community { background-position:0 -1632px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.propose-community, div.block div.buttons ul.links li a:focus.push.propose-community { background-position:0 -1680px; }
+div.block div.buttons ul.links li a.push.join-community { background-position:0 -1728px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.join-community, div.block div.buttons ul.links li a:focus.push.join-community { background-position:0 -1776px; }
+div.block div.buttons ul.links li a.push.request-community-membership { background-position:0 -1824px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.request-community-membership, div.block div.buttons ul.links li a:focus.push.request-community-membership { background-position:0 -1872px; }
+div.block div.buttons ul.links li a.push.propose-oss { background-position:0 -1920px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.propose-oss, div.block div.buttons ul.links li a:focus.push.propose-oss { background-position:0 -1968px; }
+div.block div.buttons ul.links li a.push.request-software-membership { background-position:0 -2016px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.request-software-membership, div.block div.buttons ul.links li a:focus.push.request-software-membership { background-position:0 -2064px; }
+div.block div.buttons ul.links li a.push.propose-asset { background-position:0 -2112px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.propose-asset, div.block div.buttons ul.links li a:focus.push.propose-asset { background-position:0 -2160px; }
+div.block div.buttons ul.links li a.push.request-asset-membership { background-position:0 -2208px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.request-asset-membership, div.block div.buttons ul.links li a:focus.push.request-asset-membership { background-position:0 -2256px; }
+div.block div.buttons ul.links li a.push.propose-news { background-position:0 -2304px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.propose-news, div.block div.buttons ul.links li a:focus.push.propose-news { background-position:0 -2352px; }
+div.block div.buttons ul.links li a.push.propose-event { background-position:0 -2400px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.propose-event, div.block div.buttons ul.links li a:focus.push.propose-event { background-position:0 -2448px; }
+div.block div.buttons ul.links li a.push.propose-case { background-position:0 -2496px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.propose-case, div.block div.buttons ul.links li a:focus.push.propose-case { background-position:0 -2544px; }
+div.block div.buttons ul.links li a.push.propose-document { background-position:0 -2592px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.push.propose-document, div.block div.buttons ul.links li a:focus.push.propose-document { background-position:0 -2640px; }
+/*  Blocks > Un-Ordered List of Links > Shortcut Buttons > Action (orange) */
+div.block div.buttons ul.links li a.action { background:transparent url(../images/links/bg_action_buttons.png) no-repeat 0 -200px; }
+div.block div.buttons ul.links li a:hover.action, div.block div.buttons ul.links li a:focus.action { background-position:0 -225px; }
+/*  Blocks > Un-Ordered List of Links > Shortcut Buttons > Action (blue) */
+div.block div.buttons ul.links li a.action.blue { background-position:0 0; }
+div.block div.buttons ul.links li a:hover.action.blue, div.block div.buttons ul.links li a:focus.action.blue { background-position:0 -25px; }
+/*  Blocks > Un-Ordered List of Links > Shortcut Buttons > Action (blue) ##### Our Services, Subscribe to RSS, ... ##### */
+div.block div.buttons ul.links li a.action.our-services { background-position:0 -50px; text-indent:-999px; }
+div.block div.buttons ul.links li a:hover.action.our-services, div.block div.buttons ul.links li a:focus.action.our-services { background-position:0 -75px; }
+div.block div.buttons ul.links li a.action.subscribe-rss { background-position:0 -100px; text-indent:-999px; }
+div.block div.buttons ul.links li a:hover.action.subscribe-rss, div.block div.buttons ul.links li a:focus.action.subscribe-rss { background-position:0 -125px; }
+/*  Blocks > Un-Ordered List of Links > Shortcut Buttons > Action (Share this on...) */
+div.block div.buttons div.share-links { display:block; margin:0; padding:0; }
+div.block div.buttons div.share-links div.share_button { font-size:100%; }
+div.block div.buttons div.share-links div.share_button a { display:block; margin:0; padding:0; height:25px; line-height:24px; width:265px; background:#FFF url(../images/links/bg_action_buttons.png) no-repeat 0 -150px; text-indent:-9999px; color:#FFF; text-decoration:none; font-weight:bold; padding-left:15px; }
+div.block div.buttons div.share-links div.share_button a:hover, div.block div.buttons div.share-links div a:focus { background-position:0 -175px; }
+/*  Blocks > Un-Ordered List of Links > Shortcut Buttons > Action (orange) ##### Propose your..., Ask a legal question, Subscribe to Newsletter, Leave ..., I use this ... ##### */
+div.block div.buttons ul.links li a.action.propose-your { background-position:0 -250px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.action.propose-your, div.block div.buttons ul.links li a:focus.action.propose-your { background-position:0 -275px; }
+div.block div.buttons ul.links li a.action.legal-question { background-position:0 -300px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.action.legal-question, div.block div.buttons ul.links li a:focus.action.legal-question { background-position:0 -325px; }
+div.block div.buttons ul.links li a.action.subscribe-newsletter { background-position:0 -350px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.action.subscribe-newsletter, div.block div.buttons ul.links li a:focus.action.subscribe-newsletter { background-position:0 -375px; }
+div.block div.buttons ul.links li a.action.leave-community { background-position:0 -400px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.action.leave-community, div.block div.buttons ul.links li a:focus.action.leave-community { background-position:0 -425px; }
+div.block div.buttons ul.links li a.action.leave-software { background-position:0 -450px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.action.leave-software, div.block div.buttons ul.links li a:focus.action.leave-software { background-position:0 -475px; }
+div.block div.buttons ul.links li a.action.leave-asset { background-position:0 -500px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.action.leave-asset, div.block div.buttons ul.links li a:focus.action.leave-asset { background-position:0 -525px; }
+div.block div.buttons ul.links li a.action.i-use-software { background-position:0 -550px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.action.i-use-software, div.block div.buttons ul.links li a:focus.action.i-use-software { background-position:0 -575px; }
+div.block div.buttons ul.links li a.action.no-i-use-software { background-position:0 -600px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.action.no-i-use-software, div.block div.buttons ul.links li a:focus.action.no-i-use-software { background-position:0 -625px; }
+div.block div.buttons ul.links li a.action.i-use-asset { background-position:0 -650px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.action.i-use-asset, div.block div.buttons ul.links li a:focus.action.i-use-asset { background-position:0 -675px; }
+div.block div.buttons ul.links li a.action.no-i-use-asset { background-position:0 -700px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.action.no-i-use-asset, div.block div.buttons ul.links li a:focus.action.no-i-use-asset { background-position:0 -725px; }
+div.block div.buttons ul.links li a.action.i-use-federated-project { background-position:0 -750px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.action.i-use-federated-project, div.block div.buttons ul.links li a:focus.action.i-use-federated-project { background-position:0 -775px; }
+div.block div.buttons ul.links li a.action.no-i-use-federated-project { background-position:0 -800px; text-indent:-9999px; }
+div.block div.buttons ul.links li a:hover.action.no-i-use-federated-project, div.block div.buttons ul.links li a:focus.action.no-i-use-federated-project { background-position:0 -825px; }
+
+/*  Blocks > Un-Ordered List of Links > Shortcut Buttons > Action > Quick Actions */
+div.block div.buttons ul.links li div.quick-actions { display:block; background:transparent url(../images/wrapper/bg_quick_actions.png) no-repeat left bottom; }
+div.block div.buttons ul.links li div.quick-actions ul.links { display:none; }
+div.block div.buttons ul.links li div.quick-actions ul.links li { margin-bottom:0; border-bottom:1px dashed #8692BC; }
+div.block div.buttons ul.links li div.quick-actions ul.links li a { height:35px; line-height:34px; padding-left:35px; width:245px; background:transparent url(../images/links/bg_quick_actions_links.png) no-repeat 10px center; text-decoration:underline; color:#CF3B00; font-weight:normal; }
+div.block div.buttons ul.links li div.quick-actions ul.links li a:hover,
+div.block div.buttons ul.links li div.quick-actions ul.links li a:focus { text-decoration:none; }
+/*  Blocks > Un-Ordered List of Links > Shortcut Links */
+div.block div.links { padding:5px; margin-top:10px; background:transparent url(../images/wrapper/bg_links.png) repeat 0 0; }
+div.block div.links ul.links { padding:0; margin:0; border:1px solid #FFF; background-color:#FAFAFA; }
+div.block div.links ul.links li { position:relative; display:block; padding:0; margin:0; border-bottom:1px dashed #8692BC; }
+div.block div.links ul.links li.last { border:none; }
+div.block div.links ul.links li label { display:block; font-weight:bold; height:35px; line-height:33px; padding:0 5px 0 10px; }
+div.block div.links ul.links li form.fivestar-widget { position:absolute; display:inline; top:8px; right:15px; clear:none; }
+div.block div.links ul.links li a.links { display:block; padding:0 0 0 30px; margin:0; height:35px; line-height:34px; background:transparent url(../images/links/bg_links_arrow.png) no-repeat 10px center; }
+
+/* Apache Solr Blocks */
+div.block.block_apachesolr_search h3 {background: none; padding-left: 0px;}
+div#block-apachesolr_facetbuilder-sm_facetbuilder_facet_node_type h3 {background: none; padding-left: 0px;}
+/*  VIEWS
+
+    Views */
+div.view { position:relative; }
+/*  Views > Filter Exposed */
+div.view div.view-filters { margin:0; padding:10px 0; }
+div.view div.view-filters form { margin:0; }
+div.members-filters, div.view div.view-filters form div.views-exposed-widgets { position:relative; display:block; margin:0; padding:12px 12px 40px 12px; background-color:#f6f8f9; border:1px solid #dbe4ea; }
+div.members-filters { padding: 0 }
+div.members-filters div.form-item { float:left;  margin:15px; padding:0; }
+div.view div.view-filters form div.views-exposed-widgets div.views-exposed-widget { margin:0 5px 0 0; padding:0; }
+div.view div.view-filters form div.views-exposed-widgets div.views-exposed-widget label { display:block; height:22px; line-height:22px; }
+div.view div.view-filters form div.views-exposed-widgets div.views-exposed-widget div.form-item { float:left; }
+div.view div.view-filters form div.views-exposed-widgets div.views-exposed-widget input#edit-keys { width:220px; }
+div.view div.view-filters form div.views-exposed-widgets div.views-exposed-widget input.form-submit { margin:21px 0 0 5px; }
+div.view div.view-filters form div.views-exposed-widgets div.views-exposed-widget a#adsearch { position:absolute; left:12px; bottom:12px; }
+/*  Views > Header */
+/*div.view div.view-header { position:absolute; top:-33px; right:50px; z-index:5; }*/
+/*  Views > Header > Reduce Link */
+div.view div.view-header p a.reduce { font-size:88%; line-height:14px; padding:2px 6px; margin:0; text-align:center; background:transparent url(../images/links/bg_read_more.png) no-repeat 0 -36px; color:#7F7F7F; font-weight:normal; text-decoration:none; }
+div.view div.view-header p a:hover.reduce, div.view div.view-header a:focus.reduce { color:#FFF; background-position:0 -54px; }
+/*  Views > Header > Alpha Sort */
+div.view div.view-header div.alpha-sort ul.links li { margin-left:2px; padding:0; }
+div.view div.view-header div.alpha-sort { position:absolute; top:25px; left:10px; z-index :5; }
+div#content-region div.view-People-List.view-display-id-page_5 div.view-header div.alpha-sort { position: relative; top: auto; bottom: -60px; }
+/*  Views > More Link */
+/*div.view div.more-link { position:absolute; top:-33px; right:0; }*/
+/*  Views > Content > Rows */
+div.view div.view-content div.odd,
+div.view div.view-content div.even { padding:10px 0; border-bottom:1px dashed #8692BC; background:transparent url(../images/wiews/bg_arrow_comment.png) no-repeat 98px 10px; }
+/*  Views > Content > Rows (without arrow comment background) */
+div.view.before-content-colspans-1-10 div.view-content div.odd, div.view.before-content-colspans-1-10 div.view-content div.even,
+div.view.before-content-colspans-1-7 div.view-content div.odd, div.view.before-content-colspans-1-7 div.view-content div.even,
+div.view.content-colspans-8 div.view-content div.odd, div.view.content-colspans-8 div.view-content div.even,
+div.view.right-sidebar-colspans-5 div.view-content div.odd, div.view.right-sidebar-colspans-5 div.view-content div.even,
+div.view.content-colspans-1-15 div.view-content div.odd, div.view.content-colspans-1-15 div.view-content div.even,
+div.view.content-colspans-1-7 div.view-content div.odd, div.view.content-colspans-1-7 div.view-content div.even,
+div.view.after-content-colspans-1-10 div.view-content div.odd, div.view.after-content-colspans-1-10 div.view-content div.even,
+div.view.after-content-colspans-1-4 div.view-content div.odd, div.view.after-content-colspans-1-4 div.view-content div.even,
+div.view.after-content-colspans-1-5 div.view-content div.odd, div.view.after-content-colspans-1-5 div.view-content div.even,
+div.view.after-content-colspans-1-7 div.view-content div.odd, div.view.after-content-colspans-1-7 div.view-content div.even,
+div.view.right-sidebar-colspans-1-4 div.view-content div.odd, div.view.right-sidebar-colspans-1-4 div.view-content div.even,
+div.view.right-sidebar-colspans-5 div.view-content div.odd, div.view.right-sidebar-colspans-5 div.view-content div.even { background:none; }
+/*  Views > Content > Rows, Last */
+div.view div.view-content div.views-row-last { border:none; }
+/*  Views > Content > Rows, Rows Definition */
+div.view div.view-content div.views-field-body { background:none; }
+/*  Views > Content > Columns, First */
+div.view div.view-content div.fields.first * { margin:0 auto; }
+div.view div.view-content div.fields.first.colspan-2 { margin-top:10px; text-align:center; margin-right: 20px; }
+/*  Views > Content > Columns, Column Definition */
+div.view div.view-content div.fields.views-field-title { background:none; }
+div#right-sidebar-region div.view div.view-content div.fields.views-field-title { display:block; float:none; }
+/*  Views > Content > Columns > Fields */
+div#block-relevant_content-group_node div.colspan-5 span, div.view div.view-content div.fields div.field { font-size:80%; font-weight:bold; color:#7F7F7F; }
+/*  Views > Content > Columns > Fields, Last */
+div.view div.view-content div.fields.last div.field { margin-right:20px; }
+/*  Views > Content > Columns > Fields, Field Definition */
+div.view div.view-content div.fields div.field.field-data-project-common-using-title, div.view div.view-content div.fields div.field.field-title, div.view div.view-content div.fields div.field.field-heartbeat-activity-message, div.view div.view-content div.fields.last div.field.field-users-name { font-size:100%; }
+div.view div.view-content div.fields div.field.field-revisions-teaser, div.view div.view-content div.fields div.field.field-revisions-body { font-size:100%; color:#000; margin-top:10px; font-weight:normal; }
+div.view div.view-content div.fields div.field.field-votingapi-cache-percent-vote-average-value, div.view div.view-content div.fields.views-field-created div.field.field-created,
+div.view div.view-content div.fields.views-field-post-count div.field.field-post-count, div.view div.view-content div.fields.views-field-nid div.field.field-comment-statistics-comment-count,
+div.view div.view-content div.fields.views-field-stamp div.field.group-stat { float:right; margin:0; }
+div.view div.view-content div.fields div.field.field-isa-highlight-removelink { float:right; margin-left:5px; font-size:88%; font-weight:normal; }
+div.view div.view-content div.fields div.field.field-flag-content-1-timestamp,
+div.view div.view-content div.fields div.field.field-flag-content-timestamp,
+div.view div.view-content div.fields div.field.field-isa-highlight-timestamp,
+div.view div.view-content div.fields div.field.field-type div.quote { display:block; float:right; margin:0 0 0 10px; width:22px; height:22px; background:transparent url(../images/wiews/bg_flags.png) no-repeat 0 0; }
+div.view div.view-content div.fields div.field.field-isa-highlight-timestamp { background-position:0 -66px; }
+div.view div.view-content div.fields div.field.field-flag-content-1-timestamp { background-position:0 -110px; }
+div.view div.view-content div.fields div.field.field-type div.quote.blog,
+div.view div.view-content div.fields div.field.field-type div.quote.topic { float:left; margin:10px 5px 0 0; height:19px; background-position:0 -88px; text-indent:-9999px; }
+div.view div.view-content div.fields div.field.field-type div.quote.news { display:none; }
+div.view div.view-content div.fields div.field.field-flag-content-timestamp span, div.view div.view-content div.fields div.field.field-isa-highlight-timestamp span,
+div.view div.view-content div.fields div.field.field-flag-content-1-timestamp span { display:block; text-indent:-9999px; }
+div.view div.view-content div.fields div.field.field-heartbeat-activity-message p { padding:0; font-weight:normal; }
+div.view div.view-content div.fields div.field.field-heartbeat-activity-message p a:first-child { font-weight:bold; }
+div.view div.view-content div.fields.views-field-points div.field.field-userpoints-points { display:block; float:right; margin:0 0 0 10px; min-width:100px; height:25px; line-height:25px; text-align:center; font-size:88%; background:transparent url(../images/wiews/bg_user_points.png) no-repeat left center; }
+div.view div.view-content div.fields.views-field-points div.field.field-userpoints-points span { display:block; padding:0 10px; background:transparent url(../images/wiews/bg_user_points_right.png) no-repeat right center; }
+/*  Views > Content > Columns > Fields > Events Calendar */
+div.view div.view-content div.fields div.field div.calendar { width:40px; height:50px; line-height:140%; padding-top:3px; background:#074A8B url(../images/wrapper/bg_date_calendar.png) no-repeat 0 0; color:#FFF; font-size:150%; font-weight:bold; text-align:center; }
+div.view div.view-content div.fields div.field div.calendar span.day { font-size:150%; }
+/*  Views > Item List > Pager */
+div.view div.item-list ul.pager { position:relative; padding:10px 0; margin:0; height:25px; }
+div.view div.item-list ul.pager li { position:relative; display:inline; margin:0 0 0 3px; padding:0; }
+div.view div.item-list ul.pager li a { position:relative; color:#CF3B00; margin:0; padding:4px 10px 5px 10px; text-decoration:none; }
+div.view div.item-list ul.pager li a:hover,
+div.view div.item-list ul.pager li a:focus,
+div.view div.item-list ul.pager li.pager-current { color:#fff; background:#f93 url(../images/links/bg_links_tabs_hover_active.png) repeat-x 0 0; }
+div.view div.item-list ul.pager li.pager-current { font-weight:bold; padding:4px 10px 5px 10px; }
+/*  Views > Footer > Read More Link */
+div.view div.view-footer p a.read-more { font-size:88%; line-height:14px; padding:2px 6px; text-align:center; background:transparent url(../images/links/bg_read_more.png) no-repeat 0 0; color:#7F7F7F; font-weight:normal; text-decoration:none; }
+div.view div.view-footer p a:hover.read-more, div.view div.view-footer a:focus.read-more { color:#FFF; background-position:0 -18px; }
+
+/*  NODES
+
+    Nodes */
+div.node { position:relative; }
+/*  Nodes > Headings */
+div.node h3 { padding-left:40px; line-height:23px; background:transparent url(../images/headings/h3.png) no-repeat scroll 0 -66px; }
+div.node h3.project-release { background-position:0 -132px; margin-bottom:10px; }
+/*  Nodes > Content > Kudos Profile */
+div.node div.node-content div.kudos-profile { display:block; margin-bottom:10px; padding:10px 0; width:460px; height:48px; font-size:88%; font-weight:bold; color:#666; margin: auto; }
+div.node div.node-content div.kudos-profile dl { position:relative; display:block; height:48px; background:transparent url(../images/nodes/bg_kudos_profile.png) no-repeat 0 0; }
+div.node div.node-content div.kudos-profile dl dd.field.field-kudos-description { position:absolute; top:25px; right:290px; }
+div.node div.node-content div.kudos-profile dl dd.field.field-completed-profile-description { position:absolute; top:25px; left:400px; }
+div.node div.node-content div.kudos-profile dl dd.field.field-completed-profile-progress-bar { position:absolute; top:31px; right:67px; width:141px; }
+div.node div.node-content div.kudos-profile dl dd.field.field-completed-profile-progress-bar span.progress-bar { display:block; background:transparent url(../images/nodes/bg_progress_bar.png) repeat-x 0 0; height:6px; }
+/*  Nodes > Content > Field Definition */
+div.node div.node-content div.field.field-flags-view div { display:block; float:right; margin:0 0 0 10px; width:22px; height:22px; background:transparent url(../images/wiews/bg_flags.png) no-repeat; }
+div.node div.node-content div.field.field-flags-view div.lựa-chọn-của-người-biên-tập { background-position:0 0; text-indent:-9999px; }
+div.node div.node-content div.field.field-flags-view div.highlighted-content { background-position:0 -66px; text-indent:-9999px; }
+div.node div.node-content div.field.field-flags-view div.call-for-comment { background-position:0 -110px; text-indent:-9999px; }
+div.node div.node-content div.field.field-mission-description, div.node div.node-content div.field.field-title { margin-top:10px; }
+div.node div.node-content div.field.field-gallery-image { border:1px solid #DBE4EA; padding:10px; }
+div.node div.node-content div.field.field-documentation ul { list-style-type:none; margin-top:0; padding-left:0; }
+div.node div.node-content div.field.field-documentation ul li span { padding-left:25px; }
+div.node div.node-content div.field.field-top-page { float:right; }
+div.node div.node-content div.field.field-top-page a { display:block; width:14px; height:15px; background:transparent url(../images/icons/forum/top.png) no-repeat 0 0; text-indent:-9999px; }
+/*  Nodes > Content > Rows */
+div.node div.node-content div.odd,
+div.node div.node-content div.even { padding:10px 0; border-top:1px dashed #8692BC; }
+/*  Nodes > Content > Rows (with arrow comment background) */
+div.node.content-colspans-2-6 div.node-content div.odd, div.node.content-colspans-2-6 div.node-content div.even { background:transparent url(../images/wiews/bg_arrow_comment.png) no-repeat 98px 10px; }
+/*  Nodes > Content > Rows, Last */
+div.node div.node-content div.nodes-row-first { border:none; background: none; }
+/*  Nodes > Content > Columns, First */
+div.node div.node-content div.fields.first * { margin:0 auto; }
+div.node div.node-content div.fields.first.colspan-2 { margin-top:10px; text-align:center; }
+/*  Nodes > Content > Columns > Fields */
+div.node div.node-content div.fields div.field { font-size:80%; font-weight:bold; color:#7F7F7F; }
+/*  Nodes > Content > Columns > Fields, Last */
+div.node div.node-content div.fields.last div.field { margin-right:10px; }
+/*  Nodes > Content > Columns > Fields, Field Definition */
+div.node div.node-content div.fields div.field.field-comment-links { float:right; margin:-5px 0 0 0; }
+div.node div.node-content div.fields div.field.field-picture { text-align:center; }
+div.node div.node-content div.fields div.field.field-title { font-size:100%; margin-top:0; }
+div.node div.node-content div.fields div.field.field-body, div.node div.node-content div.fields div.field.field-content { font-size:100%; color:#000; margin:10px 0 0 0; font-weight:normal; }
+div.node div.node-content div.fields div.field.field-body p { padding:0; }
+div.node div.node-content div.fields div.field.field-body code { display:block; margin:10px 0; padding:3px 3px 3px 30px; background:#FFF url(../images/wrapper/bg_comment_code.png) no-repeat 0 0; border:1px solid #ECE9D8; color:#00C; }
+div.node div.node-content div.fields div.field.field-type div.quote { display:block; float:left; margin:10px 5px 0 0; width:22px; height:19px; background:transparent url(../images/wiews/bg_flags.png) no-repeat 0 0; }
+div.node div.node-content div.fields div.field.field-type div.quote.topic { background-position:0 -88px; text-indent:-9999px; }
+div.node div.node-content div.fields div.field.field-content form { margin:0; }
+div.node div.node-content div.fields div.field.field-content form div#edit-comment-wrapper label { display:none; }
+/*  Nodes > Content > Columns > Fields, Field Definition > Project Issue > Summary */
+div.node div.node-content div.fields div.field.field-body div.project-issue div.summary { margin:10px 0; width:400px; padding:1em 0; background:#FFF url(../images/wrapper/bg_comment_summary.png) repeat-x 0 0; border:1px solid #F4F0F5; }
+div.node div.node-content div.fields div.field.field-body div.project-issue div.summary table { border:none; width:400px; margin:0; }
+div.node div.node-content div.fields div.field.field-body div.project-issue div.summary table tr.odd,
+div.node div.node-content div.fields div.field.field-body div.project-issue div.summary table tr.even { background-color:transparent; }
+div.node div.node-content div.fields div.field.field-body div.project-issue div.summary table tr td { color:#7F7F7F; }
+div.node div.node-content div.fields div.field.field-body div.project-issue div.summary table tr td:first-child { font-weight:bold; text-align:right; padding-left:0; width:100px; color:#000; }
+/*  Nodes > Content > Columns > Fields, Field Definition > Project Issue > Fieldset */
+div.node div.node-content div.fields div.field.field-content div.project-issue div.node-form fieldset { width:auto; }
+/*  Nodes > Content > Boxes */
+div.node div.node-content div.box { position:relative; display:block; padding:10px; margin-bottom:20px; border:1px solid #DBE4EA; background:#FFF url(../images/wrapper/bg_boxes.png) repeat-x 0 0; }
+/*  Nodes > Content > Boxes (Information) */
+div.node div.node-content div.box.information { margin:20px 0; }
+div.node div.node-content div.box.information p { padding: 0px; }
+/*  Nodes > Content > Boxes > Headings */
+div.node div.node-content div.box h3 { padding:0 0 10px 0; background:none; }
+/*  Nodes > Content > Definition List */
+div.node div.node-content dl dt, div.node div.box dl dd { font-size:88%; } div.node div.box dl dt { font-weight:bold; min-width: 150px; clear: left; }
+/*  Nodes > Content > Information Box > Definition List > Definition Term */
+div.node div.node-content div.box.information dl dt { text-align:right; min-width: 180px; clear: left;}
+div.node div.node-content div.edit-link { text-align:right; margin: -30px 0 1px 0; }
+
+/*  WAI
+
+    Web Content Accessibility Information */
+.accessibility-info { height:1px; width:1px; position:absolute; overflow:hidden; left:-9999px; }
+.hide { display:none; }
+
+/*  CUSTOM CSS
+
+
+
+
+    Default Content Type Images */
+div.view div.view-content div.views-field-type div.field-type div.node-type { display:block; height:40px; width:40px; background:transparent url(../images/icons/node_type.png) no-repeat 0 0; text-indent:-9999px; }
+div.view div.view-content div.views-field-type div.field-type div.node-type.Community { background-position:0 -40px; }
+div.view div.view-content div.views-field-type div.field-type div.node-type.Project { background-position:0 -80px; }
+
+
+/* 
+All node add form, move field description for file upload
+*/
+
+div#content-region div.node-form div.filefield-element  {
+  
+  margin : 0;
+}
+div#content-region div.node-form div.filefield-element div.widget-preview {
+  border-style : none;
+  float: none;
+  max-width:100%;
+  margin-bottom:1em;
+}
+
+
+
+div#content-region div.node-form div.filefield-element div.widget-edit {
+  float:none;	
+  max-width:100%;
+}
+
+div.link-field-column {
+  float: left;
+  width: 50%;
+}
+
+div#popups-overlay { width: 150%; margin-left: -15%; }
+div#after-content-region div.block.upcoming-events{
+    overflow: hidden;
+}
+div#after-content-region div.block.sự-kiện-sắp-tới{
+    overflow: hidden;
+}

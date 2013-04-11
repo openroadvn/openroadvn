@@ -1,0 +1,223 @@
+# $Id: release.pot,v 1.2 2009/07/17 23:04:07 hass Exp $
+#
+# LANGUAGE translation of Drupal (release)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  package-release-nodes.php,v 1.43 2009/03/03 18:53:52 dww
+#  project_release.module,v 1.117 2009/06/23 03:33:18 dww
+#  project_release.install,v 1.22 2009/01/30 00:34:26 dww
+#  project_release.info,v 1.5 2009/01/12 22:24:03 dww
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2009-07-18 00:17+0200\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: release/package-release-nodes.php:183
+msgid "tags"
+msgstr ""
+
+#: release/package-release-nodes.php:190
+msgid "branches"
+msgstr ""
+
+#: release/package-release-nodes.php:195;284;344;580;668;859
+msgid "view"
+msgstr ""
+
+#: release/package-release-nodes.php:859
+msgid "package_security"
+msgstr ""
+
+#: release/package-release-nodes.php:859
+msgid "Not auto-publishing security update release."
+msgstr ""
+
+#: release/project_release.module:21
+msgid "The version format string can only contain letters, numbers, and the characters . _ and - (in addition to the special characters used for identifying variables: % ! and #)."
+msgstr ""
+
+#: release/project_release.module:22
+msgid "Available variables are: %api, %major, %minor, %patch, %extra. The percent sign ('%') at the front of the variable name indicates that a period ('.') should be inserted as a delimiter before the value of the variable. The '%' can be replaced with a hash mark ('#') to use a hyphen ('-') delimiter, or with an exclaimation point ('!') to have the value printed without a delimiter. Any variable in the format string that has no value will be removed entirely from the final string."
+msgstr ""
+
+#: release/project_release.module:132
+msgid "A release of a project with a specific version number."
+msgstr ""
+
+#: release/project_release.module:407
+msgid "Nightly development snapshot from CVS branch: @tag"
+msgstr ""
+
+#: release/project_release.module:410
+msgid "Official release from CVS tag: @tag"
+msgstr ""
+
+#: release/project_release.module:414
+msgid "First released: !created"
+msgstr ""
+
+#: release/project_release.module:434
+msgid "View usage statistics for this release"
+msgstr ""
+
+#: release/project_release.module:450
+msgid "Packaging error messages"
+msgstr ""
+
+#: release/project_release.module:469
+msgid "Download: !file"
+msgstr ""
+
+#: release/project_release.module:472
+msgid "File: @filepath"
+msgstr ""
+
+#: release/project_release.module:474
+msgid "Size: !size"
+msgstr ""
+
+#: release/project_release.module:475
+msgid "md5_file hash: !filehash"
+msgstr ""
+
+#: release/project_release.module:476
+msgid "Last updated: !changed"
+msgstr ""
+
+#: release/project_release.module:599
+msgid "This string is also used to generate the name of releases associated with this project."
+msgstr ""
+
+#: release/project_release.module:872
+msgid "Development snapshots"
+msgstr ""
+
+#: release/project_release.module:893
+msgid "View all releases"
+msgstr ""
+
+#: release/project_release.module:893
+msgid "RSS feed of all releases"
+msgstr ""
+
+#: release/project_release.module:898
+msgid "Add new release"
+msgstr ""
+
+#: release/project_release.module:899
+msgid "Administer releases"
+msgstr ""
+
+#: release/project_release.module:1088
+msgid "Date"
+msgstr ""
+
+#: release/project_release.module:1094
+msgid "Size"
+msgstr ""
+
+#: release/project_release.module:1099
+msgid "Links"
+msgstr ""
+
+#: release/project_release.module:1103
+msgid "Status"
+msgstr ""
+
+#: release/project_release.module:1141
+msgid "Download"
+msgstr ""
+
+#: release/project_release.module:1149
+msgid "Edit"
+msgstr ""
+
+#: release/project_release.module:1227
+msgid "Recommended for %api_term_name"
+msgstr ""
+
+#: release/project_release.module:1229
+msgid "This is currently the recommended release for @api_term_name."
+msgstr ""
+
+#: release/project_release.module:1239
+msgid "Supported for %api_term_name"
+msgstr ""
+
+#: release/project_release.module:1241
+msgid "This release is supported but is not currently the recommended release for @api_term_name."
+msgstr ""
+
+#: release/project_release.module:1251
+msgid "Development snapshot"
+msgstr ""
+
+#: release/project_release.module:1253
+msgid "Development snapshots are automatically regenerated and their contents can frequently change, so they are not recommended for production use."
+msgstr ""
+
+#: release/project_release.module:1263
+msgid "Unsupported"
+msgstr ""
+
+#: release/project_release.module:1265
+msgid "This release is not supported and may no longer work."
+msgstr ""
+
+#: release/project_release.module:1300
+msgid "Project release API compatibility"
+msgstr ""
+
+#: release/project_release.module:1434
+msgid "Specified argument (%project) is not a valid project ID number."
+msgstr ""
+
+#: release/project_release.module:1570
+msgid "The Project release module makes special use of the taxonomy (category) system. A special vocabulary, %vocabulary_name, has been created automatically."
+msgstr ""
+
+#: release/project_release.module:1571
+msgid "To categorize project releases by their compatibility with a version of some outside software (eg. a library or API of some sort), add at least one term to this vocabulary. For example, you might add the following terms: \"5.x\", \"6.x\", \"7.x\"."
+msgstr ""
+
+#: release/project_release.module:1572
+msgid "For more information, please see !url."
+msgstr ""
+
+#: release/project_release.module:1574
+msgid "Use the <a href=\"@taxonomy-admin\">vocabulary admininistration page</a> to view and add terms."
+msgstr ""
+
+#: release/project_release.module:53
+msgid "Configure the default version string for releases and other settings for the Project release module."
+msgstr ""
+
+#: release/project_release.module:54
+msgid "Project release settings"
+msgstr ""
+
+#: release/project_release.module:0
+msgid "project_release"
+msgstr ""
+
+#: release/project_release.install:355
+msgid "Converted release file attachments for @count releases"
+msgstr ""
+
+#: release/project_release.info:0
+msgid "Project releases"
+msgstr ""
+
+#: release/project_release.info:0
+msgid "Provides a release node type to represent releases of projects."
+msgstr ""
+

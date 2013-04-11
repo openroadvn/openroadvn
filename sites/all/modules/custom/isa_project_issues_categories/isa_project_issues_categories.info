@@ -1,0 +1,7 @@
+; $Id
+core            = "6.x"
+description     = "Manage categories for project issues"
+name            = "Categories for project issues"
+package         = "ISA Toolbox"
+dependencies[]  = project_issue
+dependencies[]  = isa_toolbox

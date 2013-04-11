@@ -1,0 +1,99 @@
+<?php
+// $Id: autotagging_calais.module,v 1.3 2009/07/24 17:30:25 acstewart Exp $
+
+/*
+ * @file autotagging_calais.module
+ * OpenCalais support for autotagging module.
+ */
+
+// SGS : ADD "" to AUTOTAGGING_CALAIS_URL
+define("AUTOTAGGING_CALAIS_URL", 'http://api.opencalais.com/enlighten/rest/');
+
+/** implementation of hook_autotagging_api_register */
+function autotagging_calais_autotagging_api_register() {
+  return array('autotagging_calais' => 'OpenCalais');
+}
+
+/** implementation of hook_autotagging_api_update */
+function autotagging_calais_autotagging_api_update(&$node, &$text) {
+  return autotagging_calais_autotagging_api_insert($node, $text);
+}
+
+/** implementation of hook-autotagging_api_insert */
+function autotagging_calais_autotagging_api_insert(&$node, &$text) {
+  $url = AUTOTAGGING_CALAIS_URL;
+  $data = array();
+  $xmlinput = '<c:params xmlns:c="http://s.opencalais.com/1/pred/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><c:processingDirectives c:contentType="text/html" c:enableMetadataType="SocialTags" c:outputFormat="xml/rdf"/></c:params>';
+  $data['licenseID'] = variable_get('autotagging_calais_license_id', '');
+  $data['content'] = urlencode($text);
+  $data['paramsXML'] = urlencode($xmlinput);
+
+  $alldata = '';
+  $bfirst = TRUE;
+  foreach ($data as $key => $value) {
+    if ($bfirst) {
+      $alldata .= '?';
+      $bfirst = FALSE;
+    }
+    else {
+      $alldata .= '&';
+    }
+    $alldata .= $key .'='. $value;
+
+  }
+  $response = drupal_http_request($url . $alldata, array(), 'POST');
+  $xml = $response->data;
+
+  if ($response->code != 200) {
+    watchdog('autotagging_calais', 'Received response code '. $response->code .' from OpenCalais', WATCHDOG_SEVERE);
+    return array();
+  }
+  $doc = DOMDocument::loadXML($xml);
+  $xp = new DOMXPath($doc);
+  $xp->registerNamespace('rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#');
+  $xp->registerNamespace('c', 'http://s.opencalais.com/1/pred/');
+
+  $items = $xp->evaluate("//rdf:RDF/rdf:Description/c:name");
+  $terms = array();
+  $vid = variable_get('autotagging_calais_vocabulary', '');
+  if ($vid == '' || $vid == '<none>') {
+    $vid = variable_get('autotagging_global_vocabulary', '');
+  }
+  if ($vid == '' || $vid == '<none>') {
+    return array();
+  }
+  $terms[$vid] = array();
+  for ($i = 0; $i < $items->length; $i++) {
+    $item = $items->item($i);
+    $terms[$vid][] = str_replace('_', ' ', $item->nodeValue);
+  }
+  return $terms;
+}
+
+function autotagging_calais_autotagging_api_settings() {
+  $form_additions = array();
+  $form_additions['autotagging_calais'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Calais Settings'),
+  );
+  $form_additions['autotagging_calais']['autotagging_calais_license_id'] = array(
+    '#type' => 'textfield',
+    '#title' => t('OpenCalais API Key'),
+    '#default_value' => variable_get('autotagging_calais_license_id', ''),
+    '#description' => t('Your OpenCalais API Key.  If you do not yet have an API Key, you can '. l('get one here', 'http://opencalais.com/APIkey') .'.')
+  );
+    $vocabs = taxonomy_get_vocabularies();
+  $vocab_options = array('<none>' => '<none>');
+  foreach ($vocabs as $id => $vocab) {
+    $vocab_options[$vocab->vid] = $vocab->name;
+  }
+
+  $form_additions['autotagging_calais']['autotagging_calais_vocabulary'] = array(
+    '#type' => 'select',
+    '#title' => 'Vocabulary for Calais',
+    '#options' => $vocab_options,
+    '#default_value' => variable_get('autotagging_calais_vocabulary', ''),
+    '#description' => t('Override the default options for vocabulary assignment.  Leave blank to inherit from global options.'),
+  );
+  return $form_additions;
+}

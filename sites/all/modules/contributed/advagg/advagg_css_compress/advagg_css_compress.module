@@ -1,0 +1,130 @@
+<?php
+
+/**
+ * @file
+ * Advanced aggregation css compression module.
+ *
+ */
+
+/**
+ * Default value to see if CSSTidy will preserve CSS.
+ */
+define('ADVAGG_CSS_COMPRESS_PRESERVE_CSS', TRUE);
+
+/**
+ * Default value to see if this will compress aggregated files.
+ */
+define('ADVAGG_CSS_COMPRESS_AGG_FILES', TRUE);
+
+/**
+ * Default value to see if this will compress inline css.
+ */
+define('ADVAGG_CSS_COMPRESS_INLINE', TRUE);
+
+/**
+ * Default value for which css compression library to use.
+ */
+define('ADVAGG_CSS_COMPRESSOR', 1);
+
+/**
+ * Implementation of hook_menu
+ */
+function advagg_css_compress_menu() {
+  $items = array();
+  $file_path = drupal_get_path('module', 'advagg_css_compress');
+
+  $items['admin/settings/advagg/css-compress'] = array(
+    'title' => 'CSS Compression',
+    'description' => 'Adjust CSS Compression settings.',
+    'page callback' => 'advagg_css_compress_admin_page',
+    'type' => MENU_LOCAL_TASK,
+    'access arguments' => array('administer site configuration'),
+    'file path' => $file_path,
+    'file' => 'advagg_css_compress.admin.inc',
+    'weight' => 10,
+  );
+
+  return $items;
+}
+
+/**
+ * Implement hook_advagg_css_alter.
+ */
+function advagg_css_compress_advagg_css_alter(&$contents, $files, $bundle_md5) {
+  if (!variable_get('advagg_css_compress_agg_files', ADVAGG_CSS_COMPRESS_AGG_FILES)) {
+    return;
+  }
+
+  $compressor = variable_get('advagg_css_compressor', ADVAGG_CSS_COMPRESSOR);
+  if ($compressor == 0) {
+    advagg_css_compress_css_tidy($contents);
+  }
+  if ($compressor == 1) {
+    advagg_css_compress_css_compressor($contents);
+  }
+}
+
+/**
+ * Implement hook_advagg_css_inline_alter.
+ */
+function advagg_css_compress_advagg_css_inline_alter(&$contents) {
+  if (!variable_get('advagg_css_compress_inline', ADVAGG_CSS_COMPRESS_INLINE)) {
+    return;
+  }
+
+  $compressor = variable_get('advagg_css_compressor', ADVAGG_CSS_COMPRESSOR);
+  if ($compressor == 0) {
+    advagg_css_compress_css_tidy($contents);
+  }
+  if ($compressor == 1) {
+    advagg_css_compress_css_compressor($contents);
+  }
+}
+
+/**
+ * Use the CSS Tidy library to compress the CSS.
+ *
+ * TODO have set_cfg be fully configurable from GUI.
+ */
+function advagg_css_compress_css_tidy(&$contents) {
+  // Initialize CSSTidy.
+  $filename = drupal_get_path('module', 'advagg_css_compress') . '/csstidy/class.csstidy.inc';
+  include_once($filename);
+  $css = new csstidy();
+
+  // Try to allocate enough time to run CSSTidy.
+  if (function_exists('set_time_limit')) {
+    @set_time_limit(240);
+  }
+
+  // Set configuration.
+  $css->set_cfg('preserve_css', variable_get('advagg_css_compress_preserve_css', ADVAGG_CSS_COMPRESS_PRESERVE_CSS));
+  $css->set_cfg('remove_last_;', TRUE);
+  $css->set_cfg('merge_selectors', TRUE);
+  $css->set_cfg('optimise_shorthands', TRUE);
+  $css->set_cfg('silent', TRUE);
+  $css->set_cfg('compress_colors', TRUE);
+  $css->set_cfg('sort_selectors', FALSE);
+  $css->set_cfg('sort_properties', FALSE);
+  $css->set_cfg('discard_invalid_properties', FALSE);
+  $css->set_cfg('timestamp', FALSE);
+  $css->load_template("highest_compression");
+
+  // Compress CSS.
+  $css->parse($contents);
+  $contents = $css->print->plain();
+}
+
+/**
+ * Use the CSS Compressor library to compress the CSS.
+ *
+ * TODO have compression level be selectable from GUI.
+ */
+function advagg_css_compress_css_compressor(&$contents) {
+  // Initialize CSSTidy.
+  $filename = drupal_get_path('module', 'advagg_css_compress') . '/css-compressor-3.x/src/CSSCompression.inc';
+  include_once($filename);
+
+  $CSSC = new CSSCompression('sane');
+  $contents = $CSSC->compress($contents);
+}

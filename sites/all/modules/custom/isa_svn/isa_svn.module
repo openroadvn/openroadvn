@@ -1,0 +1,80 @@
+<?php
+
+// $Id$
+
+define('INCORRECT_NUMBER', -1);
+define('NO_NUMBER', -2);
+
+function isa_svn_help($path, $arg) {
+  $output = '';
+  switch ($path) {
+    case "admin/help#isa_svn":
+      $output = '<p>' . t("Creates repositories when asked on projects creation.") . '</p>';
+      break;
+  }
+  //return $output;
+}
+
+function isa_svn_perm() {
+  return array('access source code repository', 'access webdav repository');
+}
+
+function isa_svn_enable() {
+  // Create role and grant permission
+  $role = permissions_create_role('developer');
+  variable_set('developer_rid', $role->rid);
+  permissions_grant_permissions('developer', array('access source code repository'));
+}
+
+/*
+ * Cron to add comment into issues (from commit_management table)
+ */
+
+function isa_svn_cron() {
+  $query = 'SELECT * FROM {commit_management}
+            WHERE status = 0 ORDER BY date_commit ASC';
+  $commits = db_query($query);
+
+  //Recuperation of issue number
+  while ($commit = db_fetch_array($commits)) {
+    $status = INCORECT_NUMBER;
+    if (preg_match('/^\[([0-9]*)\](.*)$/', $commit['message_commit'], $matches)) {
+      $issue_id = $matches[1];
+      //Verification : the issue number corresponds to an issue of the specific project
+      $query = "SELECT project.nid AS project_nid, issue.category, issue.priority, issue.component, issue.sid, node.title FROM {node} AS node
+                INNER JOIN {project_issues} AS issue USING (nid)
+                INNER JOIN {project_projects} AS project ON project.nid = issue.pid
+                WHERE node.nid = %d AND node.type = '%s' AND project.uri = '%s'";
+
+      $project_issues = db_query($query, $issue_id, 'project_issue', $commit['project_shortname']);
+      while ($project_issue = db_fetch_array($project_issues)) {
+        //User
+        $user = user_load(array('name' => $commit['username']));
+        //Comment creation
+        $comment = array(
+            'nid' => $issue_id,
+            'pid' => 0,
+            'uid' => $user->uid,
+            'subject' => "Commit (revision {$commit['revision']})",
+            'comment' => "Commit on SVN (revision {$commit['revision']}) " . $matches[2],
+            'format' => 1,
+            'status' => COMMENT_PUBLISHED,
+            'timestamp' => $commit['date_commit'],
+            'project_info' => array('pid' => $project_issue['project_nid'], 'component' => $project_issue['component']),
+            'category' => $project_issue['category'],
+            'priority' => $project_issue['priority'],
+            'title' => $project_issue['title'],
+            'sid' => $project_issue['sid'],
+        );
+
+        $cid = comment_save($comment);
+        $status = 1;
+      }
+    }
+    else {
+      $status = NO_NUMBER;
+    }
+    $query = "UPDATE {commit_management} SET status = %d WHERE cid = %d";
+    db_query($query, $status, $commit['cid']);
+  }
+}

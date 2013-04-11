@@ -1,0 +1,95 @@
+<?php
+/*
+ * enable to use a js file in the module
+ */
+function isa_release_multiple_files_init() {
+  drupal_add_js(drupal_get_path('module', 'isa_release_multiple_files') . '/js/isa_release_multiple_files_dynamic_newfiles.js');
+}
+
+/*
+ * Immplemention of hook form alter
+ */
+function isa_release_multiple_files_form_alter(&$form, &$form_state, $form_id) {
+  if($form_id == "project_release_node_form") {
+    //Ajouter un bouton "Add more files"
+    //Ajouter au formfield
+    
+    $form['project_release_files']['addmf'] = array(
+        '#type'       => 'button',
+        '#title'      => 'Add more file',
+        '#name'       => '2',
+        '#value'      => 'Add more file',
+        '#attributes' => array('style' => 'display:none;') //Do not display the input field now
+    );
+    $form['#validate'][] = 'isa_release_multiple_files_node_form_validate';
+    //if button have type submit upload (multiple) files
+    foreach ($form['buttons'] as $key => $value) {
+      if ($value['#type'] == 'submit'){
+        $form['buttons'][$key]['#submit'][] = 'isa_release_multiple_files_submit';
+      }
+    }
+    //call js again to make visible the input field
+    drupal_add_js(drupal_get_path('module', 'isa_release_multiple_files') . '/js/isa_release_multiple_files_dynamic_newfiles.js');
+   	
+	//JIRA 110, add custom description
+	$form ['project_release_files']['file']['#description'] = t('Attach here your release file in one of the following formats : '.str_replace (' ',', ',variable_get('project_release_file_extensions', PROJECT_RELEASE_FILE_EXTENSIONS)));
+	$form ['project_release_files']['file']['#size'] = 50;	
+	
+	return $form; 
+  }
+}
+
+/*
+ * implementation of submit (Button) 
+ */
+function  isa_release_multiple_files_submit(&$form, $form_state) {
+  //Browse all files to upload 
+  for($i=$form_state['iter_file']; $i>1; $i--)  {
+    if (isset($form_state['project_release']['new_file'.$i])) {
+      $new_file = $form_state['project_release']['new_file'.$i];      
+      if (isset($new_file)) {
+        $status_updated = file_set_status($new_file, FILE_STATUS_PERMANENT);
+        if ($status_updated) {          
+          $new_file->nid = $form_state['nid'];
+          $filepath = file_create_path($new_file->filepath);
+          $new_file->filehash = md5_file($filepath);
+          drupal_write_record('project_release_file', $new_file);
+        }
+      }
+    }
+  }
+}
+
+/*
+ * implementation of validate 
+ * 
+ */
+function isa_release_multiple_files_node_form_validate(&$form, &$form_state) {
+  module_load_include('inc', 'project_release', 'includes/release_node_form');
+  return _isa_release_multiple_files_node_form_validate($form, $form_state);
+}
+/**
+ * Private callback to validate a release node form.
+ *
+ * @see isa_release_multiple_files_node_form_validate()
+ */
+function _isa_release_multiple_files_node_form_validate(&$form, &$form_state) {
+  $validators = array(
+    'project_release_validate_file_extension' => array(),
+  );
+  $i = 2; 
+  foreach ($_FILES['files']['name'] as $key => $value) {
+    //we do not want to xare about normal files (ie not multiple)
+    if($key != "project_release_files") {      
+      if (preg_match('/project_release_files[0-9]*/', $key))
+      {
+        if ($file = file_save_upload($key, $validators, file_directory_path() . '/project')) {
+            // We need the file object, so pass that into $form_state here.
+            $form_state['project_release']['new_file'.$i] = $file;
+            $form_state['iter_file'] = $i; 
+            $i++;
+           }      
+      }
+    }
+  }  
+}

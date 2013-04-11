@@ -1,0 +1,110 @@
+<?php
+
+/**
+ * This function set the "member guest" role if the user is not a member of current open community.
+ * Remove the "member" role if the user in not member of the community (case who user request membership)
+ *
+ * @param object $account the current user
+ *
+ * @see isa_og_user_roles_init
+ * @see isa_og_user_roles_user
+ */
+function isa_og_user_roles_grant_roles(&$account) {
+  $user_groups = og_get_subscriptions($account->uid);
+  $user_groups = array_keys($user_groups);
+  $members_role_rid = variable_get('og_user_roles_default_role', -1);
+  $gid = isa_toolbox_get_community_nid();
+// if in the group context
+  if ($gid != NULL) {
+    //if the user is not group member
+    if (!in_array($gid, $user_groups)) {
+      // remove member role if the user is not in group but have member role (case who user request membership)
+      if (isset($account->roles[$members_role_rid])) {
+        unset($account->roles[$members_role_rid]);
+        
+      }
+   //   $community = node_load($gid);
+      // if the group is open, or is software/asset set the role "member guest" to current user
+    //  if ($community->og_selective == 0 || $community->type == ISA_PROJECT_TYPE) {
+    //    $member_guest = isa_toolbox_get_role_by_rid(variable_get("member_guest_rid", 0));
+    //    $account->roles [$member_guest['rid']] = $member_guest['name'];
+   //     dd ('add member guest !!');
+   //   }
+    }
+   else {
+        $member_guest = isa_toolbox_get_role_by_rid(variable_get("member_guest_rid", 0));
+        $account->roles [$member_guest['rid']] = $member_guest['name'];
+  }
+
+}
+  // Reload user permissions.
+  user_access(NULL, $account, TRUE);
+}
+
+/**
+ * Implementation of hook_init().
+ *
+ * @see isa_og_user_roles_grant_roles()
+ */
+function isa_og_user_roles_init() {
+  global $user;
+  isa_og_user_roles_grant_roles($user);
+}
+
+/**
+ * Implementation of hook_user
+ *
+ *
+ * @param string $op What kind of action is being performed
+ * @param array $edit The array of form values submitted by the user.
+ * @param object $account The user object on which the operation is being performed.
+ * @param array $category The active category of user information being edited.
+ *
+ */
+function isa_og_user_roles_user($op, &$edit, &$account, $category = NULL) {
+  switch ($op) {
+    case 'load':
+      // In case the global user object is reloaded from scratch, re-assign
+      // our additional roles.
+      if ($account->uid == $GLOBALS['user']->uid) {
+        isa_og_user_roles_grant_roles($account);
+      }
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_enable()
+ */
+function isa_og_user_roles_enable() {
+  $query_result = db_query("SELECT weight FROM {system} WHERE name ='og'");
+  $weight_og = db_result($query_result);
+
+  $modules_weights = array(
+      'isa_og_helper' => $weight_og - 15,
+      'og_user_roles' => $weight_og - 10,
+      'isa_og_user_roles' => $weight_og - 15,
+  );
+  foreach ($modules_weights as $module => $weight) {
+    if (module_exists($module)) {
+      db_query("UPDATE {system} SET weight = %d WHERE name = '%s'", $weight, $module);
+    }
+  }
+  $role = isa_toolbox_get_role_by_rid(variable_get("member_guest_rid", 0));
+  if ($role) {
+    $ok = permissions_grant_all_permissions_by_module($role['name'], "isa_og_user_roles");
+  }
+}
+
+/**
+ * Implementation of hook_perm().
+ */
+function isa_og_user_roles_perm() {
+  return (
+  array(
+      // permission granted to "member", "facilitator","modetator", "guest" roles
+      'access community',
+  )
+  );
+}
+

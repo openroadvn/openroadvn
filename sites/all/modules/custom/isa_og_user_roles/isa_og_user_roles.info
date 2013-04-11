@@ -1,0 +1,8 @@
+; $Id
+core            = "6.x"
+dependencies[]  = og
+dependencies[]  = og_user_roles
+dependencies[]  = permissions_api
+description     = "Module for adds 'member guest' role to users,  and remove 'member' role if users request membership"
+name            = "ISA OG user roles"
+package         = "ISA Toolbox"

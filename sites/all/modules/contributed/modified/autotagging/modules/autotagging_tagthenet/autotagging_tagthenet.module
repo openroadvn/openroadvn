@@ -1,0 +1,93 @@
+<?php
+// $Id: autotagging_tagthenet.module,v 1.5 2009/07/24 17:30:25 acstewart Exp $
+
+/* 
+ * @file autotagging_tagthenet.module
+ * Tagthe.net support for autotagging module.
+ */
+
+define(AUTOTAGGING_TAGTHENET_URL, 'http://tagthe.net/api/');
+
+/** implementation of hook_autotagging_api_register */
+function autotagging_tagthenet_autotagging_api_register() {
+  return array('autotagging_tagthenet' => 'TagThe.net');
+}
+
+/** implementation of hook_autotagging_api_update */
+function autotagging_tagthenet_autotagging_api_update(&$node, &$text) {
+  return autotagging_tagthenet_autotagging_api_insert($node, $text);
+}
+
+/** implementation of hook-autotagging_api_insert */
+function autotagging_tagthenet_autotagging_api_insert(&$node, &$text) {
+  $url = AUTOTAGGING_TAGTHENET_URL;
+  $data = 'text='. urlencode($text);
+  $response = drupal_http_request($url .'?'. $data, array(), 'POST');
+  if ($response->code != 200) {
+    watchdog('autotagging_tagthenet', 'Received response code '. $response->code .' from Tagthe.net', WATCHDOG_SEVERE);
+    return array();
+  }
+  $xml = $response->data;
+  $dom = DOMDocument::loadXML($xml);
+  $xp = new DOMXPath($dom);
+  $dims = $xp->evaluate("/memes/meme/dim");
+  for ($i = 0; $i < $dims->length; $i++) {
+    $dim = $dims->item($i);
+    $type = $dim->getAttribute("type");
+    $vid = variable_get("tagthenet_associate_" . $type, '');
+    $global_vid = variable_get('autotagging_global_vocabulary', '');
+    if ($vid == '') {
+      // fall back to global vocabulary if it's set
+      //
+      $vid = $global_vid;
+      // if it's not set, we skip this set of data
+      //
+    }
+    if ($vid != '' && $vid != '<none>') {
+      if (!isset($terms[$vid])) {
+        $terms[$vid] = array();
+      }
+      $items = $xp->evaluate("item", $dim);
+      for ($j = 0; $j < $items->length; $j++) {
+        $item = $items->item($j);
+        $terms[$vid][] = $item->nodeValue;
+      }
+    }
+  }
+  return $terms;
+}
+
+/** implementation of autotagging_api_settings */
+function autotagging_tagthenet_autotagging_api_settings() {
+  $form_additions = array();
+  $form_additions['autotagging_tagthenet'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Associate TagThe.net data with vocabularies'),
+  );
+
+  $option_types = array(
+    'title' => t('Title'),
+    'topic' => t('Topic'),
+    'person' => t('Person'),
+    'size' => t('Size'),
+    'content-type' => t('Content Type'),
+    'language' => t('Language'),
+    'author' => t('Author')
+  );
+
+  $vocabs = taxonomy_get_vocabularies();
+  $vocab_options = array('<none>' => '<none>');
+  foreach ($vocabs as $id => $vocab) {
+    $vocab_options[$vocab->vid] = $vocab->name;
+  }
+
+  foreach ($option_types as $option_key => $option_value) {
+    $form_additions['autotagging_tagthenet']['tagthenet_associate_'. $option_key] = array(
+      '#type' => 'select',
+      '#title' => 'Vocabulary for '. $option_value,
+      '#options' => $vocab_options,
+      '#default_value' => variable_get('tagthenet_associate_'. $option_key, ''),
+    );
+  }
+  return $form_additions;
+}

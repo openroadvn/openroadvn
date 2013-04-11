@@ -1,0 +1,7 @@
+
+;ID
+name = "ISA Contact Form"
+description = Enables the use of both personal and site-wide contact forms.
+package = "ISA Toolbox"
+core = 6.x
+

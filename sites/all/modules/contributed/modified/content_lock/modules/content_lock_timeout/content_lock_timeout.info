@@ -1,0 +1,13 @@
+name = "Content locking (edit lock) timeouts"
+description = "Provides mechanisms for automatically unlocking nodes that have been locked for a certain length of time."
+core = 6.x
+project = "content_lock"
+package = "Drupal Wiki"
+dependencies[] = content_lock
+
+; Information added by drupal.org packaging script on 2011-03-17
+version = "6.x-2.6"
+core = "6.x"
+project = "content_lock"
+datestamp = "1300371067"
+

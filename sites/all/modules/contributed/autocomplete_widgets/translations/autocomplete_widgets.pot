@@ -1,0 +1,114 @@
+# $Id: autocomplete_widgets.pot,v 1.1.2.1 2009/10/04 17:03:18 markuspetrux Exp $
+#
+# LANGUAGE translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  autocomplete_widgets.admin.inc,v 1.1.2.1 2009/10/04 16:52:03 markuspetrux
+#  autocomplete_widgets.module,v 1.1.2.7 2009/10/04 16:52:03 markuspetrux
+#  autocomplete_widgets.info,v 1.1.2.1 2009/02/24 01:44:29 markuspetrux
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2009-10-04 16:58+0000\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: autocomplete_widgets.admin.inc:18
+msgid "Create a list of options as a list in <strong>Allowed values list</strong> or as an array in PHP code. These values will be the same for %field in all content types."
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:24
+msgid "You need to specify the 'allowed values' for this field."
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:49
+msgid "Size of textfield"
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:56
+msgid "Autocomplete matching"
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:58
+msgid "Starts with"
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:58
+msgid "Contains"
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:59
+msgid "Select the method used to collect autocomplete suggestions. Note that <em>Contains</em> can cause performance issues on sites with thousands of records."
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:63
+msgid "Case sensitive"
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:65;93
+msgid "Disabled"
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:65;93
+msgid "Enabled"
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:68
+msgid "Case-insensitive queries are implemented using the <a href=\"!function-lower-url\">LOWER()</a> function in combination with the <a href=\"!operator-like-url\">LIKE</a> operator."
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:73
+msgid "Note that MySQL might ignore case sensitivity depending on the collation used in your database definition (see <a href=\"!mysql-i18n-l10n-url\">Internationalization and Localization</a> chapter in the MySQL manual). If you need case insensitive checks, it is recommended (for performance reasons) to use a case insensitive collation as well (such as utf8_general_ci), rather than disabling the case sensitive option here."
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:78
+msgid "You may want to create an expression index using the LOWER() function to speed up this kind of queries in PostgreSQL (See <a href=\"!indexes-expressional-url\">Indexes on Expressions</a>)."
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:84
+msgid "Case-insensitive queries are implemented using the function <a href=\"!drupal-strtolower-url\">drupal_strtolower()</a>."
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:91
+msgid "Internationalization support"
+msgstr ""
+
+#: autocomplete_widgets.admin.inc:94
+msgid "Enable this option to provide a different set of allowed values based on the language their nodes are assigned to. This option is only available when <a href=\"@i18n-project-page\">Internationalization</a> module is enabled."
+msgstr ""
+
+#: autocomplete_widgets.module:53
+msgid "Autocomplete for allowed values list"
+msgstr ""
+
+#: autocomplete_widgets.module:56
+msgid "Autocomplete for existing field data"
+msgstr ""
+
+#: autocomplete_widgets.module:168
+msgid "%name: found no valid option."
+msgstr ""
+
+#: autocomplete_widgets.module:15 autocomplete_widgets.info:0
+msgid "Autocomplete Widgets"
+msgstr ""
+
+#: autocomplete_widgets.module:0
+msgid "autocomplete_widgets"
+msgstr ""
+
+#: autocomplete_widgets.info:0
+msgid "Provides autocomplete widgets for CCK Text and Number fields."
+msgstr ""
+
+#: autocomplete_widgets.info:0
+msgid "CCK"
+msgstr ""
+

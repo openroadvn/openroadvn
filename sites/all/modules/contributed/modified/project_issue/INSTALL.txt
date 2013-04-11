@@ -1,0 +1,46 @@
+-------------------------------------------------------------
+New Installation
+-------------------------------------------------------------
+
+1. Install the Project module (http://drupal.org/project/project),
+   which the project issue tracking module requires and depends on.
+
+2. Enable Drupal's Comment module under admin/build/modules, which 
+   the project issue tracking module requires and depends on.
+
+3. Enable Drupal's Upload module under admin/build/modules, which 
+   the project issue tracking module requires and depends on.
+
+4. Install the comment upload module
+   (http://drupal.org/project/comment_upload), which the project 
+   issue tracking module requires and depends on.
+
+5. Install the project issue tracking module 
+   (http://drupal.org/project/project_issue).
+
+6. Enable the project issue tracking module under admin/build/modules
+
+7. Configure the status messages at admin/project/project-issue-status
+
+8. Grant the proper access to users under admin/user/access
+
+9. Enable the project issue to link filter in proper input formats at 
+   admin/settings/filters.  If your site uses ANY node access
+   control modules (including, but not limited to, Organic
+   Groups, Simple Access, and Node Access), you should not enable
+   this filter.  Furthermore, if your site does not give the
+   'access project issues' permission to all users (including
+   anonymous users), you should not use this filter.  In both cases
+   this is because the output of the project issue to link filter
+   is cached, and it is not possible to ensure that the user who initially
+   viewed the content and set the cache has the same access permissions as
+   another user that might view the (now cached) content.
+
+
+--------------------------------------------------------------
+Upgrading
+--------------------------------------------------------------
+
+Consult UPGRADE.txt
+
+$Id: INSTALL.txt,v 1.7 2008/01/01 03:54:39 thehunmonkgroup Exp $

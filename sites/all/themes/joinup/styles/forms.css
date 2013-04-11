@@ -1,0 +1,40 @@
+/*  $Name: ISA - Integrated Collaborative Platform - CSS Forms definition $
+	$File: forms.css $
+	$Date: 2011-01-18 $
+	$Modify date: 2011-08-25 $
+	$Version: 007 $
+*/
+
+/*	COMMON STYLES
+
+	Fieldset */
+fieldset { border:1px solid #DBE4EA; margin:1em 0; padding:1em; background:#FFF url(../images/forms/fieldset/bg.png) repeat-x 0 0; }
+fieldset.collapsible { position:relative; }
+fieldset.collapsed { padding:0 1em; margin-bottom:.5em; height:20px; border-width:0; background:none; }
+/*	Fieldset - Legend */
+fieldset > legend { padding:0 2px; }
+fieldset.collapsed legend { display:block; }
+fieldset.collapsed legend.collapse-processed { display:block; font-weight:normal; }
+fieldset.collapsible legend a, fieldset.collapsed legend a { background:transparent no-repeat scroll 0 50%; }
+fieldset.collapsible legend a { background-image:url(../images/forms/fieldset/menu-expanded.png); display:block; padding-left:2em; }
+fieldset.collapsed legend a { background-image:url(../images/forms/fieldset/menu-collapsed.png); }
+/*	Fieldset - Wrapper */
+fieldset.collapsible div.fieldset-wrapper, html.js fieldset.collapsible div.fieldset-wrapper { overflow:visible; }
+/*	Form */
+form { margin-bottom:2em; }
+/*	Form - Input field - Button/Submit */
+input.form-button, input.form-submit { margin:2em .5em 1em 0; }
+.members-filters input.form-submit { margin: 2.5em 0 0 0; }
+/*	Form - Five Stars Widget */
+form.fivestar-widget { margin:0; }
+form.fivestar-widget div.form-item div.description { display:none; }
+
+/*  BLOCKS
+
+    Blocks > Sort Form */
+div.block.sort-form h3 { display:none; }
+div.block.sort-form div.content form, div.block.sort-form div.content form div.form-item, div.block.sort-form div.content form input.form-submit { margin:0; }
+div.block.sort-form div.content form { height:24px; }
+div.block.sort-form div.content form * { display:inline; }
+div.block.sort-form div.content form div.form-item label { margin-right:5px; }
+div.block.sort-form div.content form div.form-item select.form-select * { display:block; }

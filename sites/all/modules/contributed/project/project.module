@@ -1,0 +1,1265 @@
+<?php
+// $Id: project.module,v 1.356 2010/01/30 02:43:23 dww Exp $
+
+/**
+ * Implementation of hook_init().
+ */
+function project_init() {
+  $path = drupal_get_path('module', 'project');
+  drupal_add_css($path .'/project.css');
+  if (file_exists("$path/project.inc")) {
+    require_once "$path/project.inc";
+  }
+}
+
+function project_help($path, $arg) {
+  switch ($path) {
+    case 'admin/project/project-settings':
+      if (project_use_taxonomy()) {
+        return _project_taxonomy_help();
+      }
+      break;
+    case 'admin/content/taxonomy/%':
+      $vid = _project_get_vid();
+      if ($arg[3] == $vid) {
+        return _project_taxonomy_help($vid, FALSE);
+      }
+      break;
+  }
+}
+
+/**
+ * Prints out a help message about how to configure the project vocabulary.
+ *
+ * @param $vid
+ *   Vocabulary ID of the project taxonomy.
+ * @param $vocab_link
+ *   Boolean that controls if a link to the vocabulary admin page is added.
+ */
+function _project_taxonomy_help($vid = 0, $vocab_link = TRUE) {
+  if (!$vid) {
+    $vid = _project_get_vid();
+  }
+  $vocabulary = taxonomy_vocabulary_load($vid);
+  $text = '<p>'. t('The project module makes special use of the taxonomy (category) system. A special vocabulary, %vocabulary_name, has been created automatically.', array('%vocabulary_name' => $vocabulary->name)) .'</p>';
+  $text .= '<p>'. t('To take full advantage of project categorization, add at least two levels of terms to this vocabulary. The first level will be the basic project types, e.g., "Modules", "Themes", "Translations".') .'</p>';
+  $text .= '<p>'. t('Subterms of each of these types will be the categories that users can select to classify the projects. For example, "Modules" might have sub-terms including "Mail" and "XML".') .'</p>';
+  if ($vocab_link) {
+    $text .= '<p>'. t('Use the <a href="@taxonomy-admin">vocabulary administration page</a> to view and add terms.', array('@taxonomy-admin' => url('admin/content/taxonomy/'. $vid))) .'</p>';
+  }
+  return $text;
+}
+
+/**
+ * Implementation of hook_block().
+ */
+function project_block($op = 'list', $delta = 0, $edit = array()) {
+  if ($op == 'list') {
+    // Note:  We can get by with using BLOCK_CACHE_PER_ROLE below because
+    // block caching is disabled when node access control modules are in use.
+    $blocks['project_navigation_select'] = array(
+      'info' => t('Project navigation (drop-down select)'),
+      'cache' => BLOCK_CACHE_PER_ROLE,
+    );
+    $blocks['project_navigation_text'] = array(
+      'info' => t('Project navigation (text field)'),
+      'cache' => BLOCK_CACHE_PER_ROLE,
+    );
+    if (module_exists('search')) {
+      $blocks['project_search'] = array(
+        'info' => t('Project search'),
+        'cache' => BLOCK_CACHE_PER_ROLE,
+      );
+    }
+
+    module_load_include('inc', 'project', 'project');
+    foreach (project_get_project_link_info() as $key => $links) {
+      if (isset($links['type']) && $links['type'] == 'block') {
+        $blocks[$key] = array(
+          'info' => t('Project: @section', array('@section' => $links['name'])),
+          'cache' => BLOCK_CACHE_PER_ROLE | BLOCK_CACHE_PER_PAGE,
+        );
+      }
+    }
+
+    return $blocks;
+  }
+  else if ($op == 'view') {
+    switch ($delta) {
+      case 'project_navigation_select':
+        $block = array(
+          'subject' => t('Project navigation'),
+          'content' => drupal_get_form('project_quick_navigate_form'),
+        );
+        break;
+
+      case 'project_navigation_text':
+        $block = array(
+          'subject' => t('Project navigation'),
+          'content' => drupal_get_form('project_quick_navigate_title_form'),
+        );
+        break;
+
+      case 'project_search':
+        if (user_access('search content')) {
+          $block = array(
+            'subject' => t('Search projects'), 
+            'content' => drupal_get_form('project_search_block_form', 'project_project'),
+          );
+        }
+        break;
+
+    }
+    if (empty($block) && ($node = project_get_project_from_menu()) && node_access('view', $node)) {
+      module_load_include('inc', 'project', 'project');
+      foreach (project_get_project_link_info($node) as $key => $links) {
+        if ($delta == $key && isset($links['type']) && $links['type'] == 'block' && !empty($links['links'])) {
+          $block = array(
+            'subject' => $links['name'],
+            'content' => theme('item_list', $links['links']),
+          );
+        }
+      }
+    }
+    return $block;
+  }
+  elseif ($op == 'configure' && $delta == 1) {
+    $form = array();
+    $form['help_text'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Help text'),
+      '#description' => t('Enter optional help text to display in the block.'),
+      '#default_value' => variable_get('project_search_block_help_text', ''),
+    );
+    return $form;
+  }
+  elseif ($op == 'save' && $delta == 1) {
+    variable_set('project_search_block_help_text', $edit['help_text']);
+  }
+}
+
+function project_search_block_form($form_state, $node_type) {
+  $form = search_box($form_state, 'project_search_block_form');
+  $form['node_type'] = array(
+    '#type' => 'value',
+    '#value' => $node_type,
+  );
+  $form['#base'] = 'project_search_block_form';
+  $help_text = variable_get('project_search_block_help_text', '');
+  if (!empty($help_text)) {
+     $element = 'project_search_block_form';
+     $form[$element]['#description'] = check_plain($help_text);
+  }
+  $form['#submit'][] = 'project_search_block_form_submit';
+  return $form;
+}
+
+function project_search_block_form_submit($form, &$form_state) {
+  $form_state['redirect'] = 'search/node/type:'. $form_state['values']['node_type'] .' '. trim($form_state['values'][$form_state['values']['form_id']]);
+}
+
+function project_node_info() {
+  return array(
+    'project_project' => array(
+      'name' => t('Project'),
+      'module' => 'project_project',
+      'description' => t('A project is something a group is working on. It can optionally have issue tracking, integration with revision control systems, releases, and so on.'),
+    ),
+  );
+}
+
+function project_perm() {
+  $perms = array(
+    'administer projects',
+    'maintain projects',
+    'access projects',
+    'access own projects',
+    'delete any projects',
+    'delete own projects',
+    'browse project listings',
+  );
+  return $perms;
+}
+
+/**
+ * Implementation of hook_db_rewrite_sql().
+ *
+ * Both project (and, if enabled, project_issue) provide some permissions that
+ * restrict access to viewing projects (and issues). For these permissions to
+ * be globally honored by the system, db_rewrite_sql() has to check what
+ * permissions the current user has and restrict query results accordingly.
+ *
+ * If a user has 'access projects' and 'access project issues', they have full
+ * access, so there's nothing to re-write. If they have 'access own projects'
+ * and/or 'access own project issues', the resulting query should JOIN on
+ * {node} and ensure that the node type is not project_project or
+ * project_issue, or that the owner of the node is the current user. If they
+ * do not have any access to either, then we can just restrict the query based
+ * on the {node}.type column.
+ *
+ * @see project_perm()
+ * @see project_issue_perm()
+ * @see project_find_alias()
+ */
+function project_db_rewrite_sql($query, $primary_table, $primary_field) {
+  if ($primary_field == 'nid') {
+    $return = array();
+    $access_projects = user_access('access projects');
+    $admin_projects = user_access('administer projects');
+    if (module_exists('project_issue')) {
+      $access_issues = user_access('access project issues');
+      $access_own_issues = user_access('access own project issues');
+    }
+    else {
+      $access_issues = TRUE;
+      $access_own_issues = TRUE;
+    }
+    if ($admin_projects || ($access_projects && $access_issues)) {
+      // User has full access, nothing to re-write.
+      return;
+    }
+    else {
+      // We have to make sure {node} is in the query and know the alias.
+      if ($primary_table == 'n' || $primary_table == 'node') {
+        // Great, it's the primary table and we already know the alias.
+        $alias = $primary_table;
+      }
+      else {
+        // Look for {node} in the query.
+        if (!($alias = project_find_alias($query, 'node'))) {
+          // Not already in the query, JOIN it.
+          $return['join'] = "INNER JOIN {node} pn ON pn.nid = ". $primary_table .'.nid';
+          $alias = 'pn';
+        }
+      }
+    }
+    // At this point, we know we have to restrict something, and we know what
+    // the {node} table's alias is in the query.
+    $where = array();
+
+    global $user;
+    $uid = $user->uid;
+
+    // Some node types will be restriced by our query, but we want to allow
+    // every other node type. We keep track of the types we're handling, and
+    // at the end we'll add a clause to ignore/allow all other types.
+    $restricted_types = array();
+
+    if (!$access_projects) {
+      $restricted_types[] = "'project_project'";
+      if (user_access('access own projects')) {
+        $where[] = "($alias.type = 'project_project' AND $alias.uid = $uid)";
+      }
+    }
+
+    if (module_exists('project_issue') && !$access_issues) {
+      $restricted_types[] = "'project_issue'";
+      if ($access_own_issues) {
+        $where[] = "($alias.type = 'project_issue' AND $alias.uid = $uid)";
+      }
+    }
+
+    // If the type is not one of the restricted project* ones, allow access.
+    $where[] = "($alias.type NOT IN (". implode(', ', $restricted_types) ."))";
+
+    // Now that we have all our WHERE clauses, we just OR them all together.
+    $return['where'] = implode(' OR ', $where);
+    return $return;
+  }
+}
+
+/**
+ * Find the table alias for a table in a query.
+ *
+ * @param $query
+ *   The query to examine for the alias.
+ * @param
+ *   $table The table to examine for the alias.
+ * @return
+ *   The alias if it exists, or the name of the table if it's present but not
+ *   aliased, or FALSE if the table is not present.
+ *
+ * @see project_db_rewrite_sql()
+ */
+function project_find_alias($query, $table) {
+  // See if {$table} is already in the query.
+  $match = array();
+  // This regexp handles many cases:
+  // - {$table} can be either in FROM or in a JOIN clause
+  // - Query might end immediately after {$table}
+  // - Might not have a table alias for {$table}
+  $pattern = "@.*(FROM|JOIN)\s+\{$table\}\s*(\S+)?@";
+  if (preg_match($pattern, $query, $match)) {
+    $keywords = '@(ON|INNER|LEFT|RIGHT|WHERE|ORDER|GROUP|HAVING|LIMIT)@';
+    if (!isset($match[2]) || preg_match($keywords, $match[2])) {
+      // No alias found, just use $table.
+      $alias = $table;
+    }
+    else {
+      // Alias found.
+      $alias = $match[2];
+    }
+  }
+  else {
+    // Table not in query.
+    $alias = FALSE;
+  }
+
+  return $alias;
+}
+
+/**
+ * Callback for the main settings page.
+ *
+ * @TODO:  This function is probably one we can delete, since there are no settings
+ * to be set anymore.
+ */
+function project_settings_form() {
+  $form = array();
+
+  if (module_exists('path')) {
+    $form['project_enable_alias'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Enable auto-generated project aliases'),
+      '#default_value' => variable_get('project_enable_alias', TRUE),
+      '#description' => t('If checked, project module will automatically generate path aliases (eg. /project/&lt;shortname&gt;/) for each project. Uncheck if you want to use another module, such as pathauto, to generate aliases.')
+    );
+  }
+  else {
+    $form['project_enable_alias'] = array(
+      '#type' => 'markup',
+      '#value' => t('If you enable the Path module from Drupal core, you can control if the Project module will automatically generate path aliases (eg. /project/&lt;shortname&gt;/) for each project.')
+    );
+    variable_set('project_enable_alias', FALSE);
+  }
+
+  return system_settings_form($form);
+}
+
+/**
+ * Returns the vocabulary id for projects.
+ */
+function _project_get_vid() {
+  $vid = variable_get('project_vocabulary', '');
+  if (empty($vid)) {
+    // Check to see if a project module vocabulary exists.
+    $vid = db_result(db_query("SELECT vid FROM {vocabulary} WHERE module='%s'", 'project'));
+    if (!$vid) {
+      $edit = array(
+        'name' => t('Project types'),
+        'multiple' => 1,
+        'hierarchy' => 1,
+        'relations' => 0,
+        'module' => 'project',
+        'nodes' => array('project_project' => 1),
+      );
+      // If there is already a vocabulary assigned to 'project_project' nodes, use it.
+      $vocabularies = taxonomy_get_vocabularies('project_project');
+      if (count($vocabularies)) {
+        $vocabulary = reset($vocabularies);
+        $edit['vid'] = $vocabulary->vid;
+      }
+      taxonomy_save_vocabulary($edit);
+      $vid = $edit['vid'];
+    }
+    variable_set('project_vocabulary', $vid);
+  }
+
+  return $vid;
+}
+
+/**
+ * Implementation of hook_term_path().
+ *
+ * @TODO:  Modify this function to use the new project settings where the
+ * user selects the views to use.
+ */
+function project_term_path($term) {
+  // Make sure we have the entire term object.
+  $term = taxonomy_get_term($term->tid);
+
+  // The path must include the first-level term name for this term.
+  $tree = taxonomy_get_tree(_project_get_vid());
+  $parents = taxonomy_get_parents_all($term->tid);
+  foreach($parents as $parent) {
+    $ancestors[] = $parent->tid;
+  }
+  foreach ($tree as $t) {
+    if (in_array($t->tid, $ancestors) && $t->depth == 0) {
+      $termname = $t->name;
+      if ($term->name == $termname) {
+        return 'project/' . drupal_strtolower($termname);
+      }
+      break;
+    }
+  }
+  // TODO: when the project browsing views work, if there's a direct URL to
+  // link to a project category view, we should add that here.
+  // Also, note that in the project_solr case, we'd like to link to,
+  // e.g. "project/modules?filter=tid:12" but it's apparently impossible to
+  // return url() for this since things get double encoded or something.
+  // So, for now, we punt and always link the subterms to the taxonomy page.
+  return 'taxonomy/term/'. $term->tid;
+}
+
+/**
+ * Implementation of hook_taxonomy().
+ */
+function project_taxonomy($op, $type, $array = NULL) {
+  if ($op == 'delete' && $type == 'vocabulary' && $array['vid'] == _project_get_vid())  {
+    variable_del('project_vocabulary');
+  }
+}
+
+/**
+ * Determine if the currently logged in user could have access to any project_project nodes.
+ */
+function project_project_access_any() {
+  return user_access('access projects') || user_access('access own projects') || user_access('administer projects');
+}
+
+/**
+ * Implement hook_menu().
+ */
+function project_menu() {
+  $items = array();
+
+  // @TODO: The project type and browsing views are currently set to require
+  // 'access projects' permission.  However, we really want them to require at
+  // least one of 'access projects', 'access own projects', or 'administer
+  // projects'.  At this point I'm not sure what the best way to do this is,
+  // but we need to figure this out to keep the same functionality.
+
+  $items['project/autocomplete/project'] = array(
+    'title' => 'Autocomplete project',
+    'page callback' => 'project_autocomplete_project',
+    'access callback' => 'project_project_access_any',
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['project/autocomplete/project-user/%'] = array(
+    'title' => 'Autocomplete project',
+    'page callback' => 'project_autocomplete_project_user',
+    'page arguments' => array(3, 4),
+    'access callback' => 'project_project_access_any',
+    'type' => MENU_CALLBACK,
+  );
+
+  // CVS messages:
+  $items['project/cvs'] = array(
+    'title' => 'CVS',
+    'page callback' => 'project_cvs',
+    'access callback' => 'project_project_access_any',
+    'type' => MENU_CALLBACK,
+  );
+
+  // Administration pages
+  $items['admin/project'] = array(
+    'title' => 'Project administration',
+    'description' => 'Administrative interface for project management and related modules.',
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => array('administer projects'),
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['admin/project/project-settings'] = array(
+    'title' => 'Project settings',
+    'description' => 'Configure settings for the Project module.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('project_settings_form'),
+    'access arguments' => array('administer projects'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['node/%project_edit_project/edit/project'] = array(
+    'title' => 'Project',
+    'page callback' => 'node_page',
+    'page arguments' => array(1),
+    'access callback' => 'node_access',
+    'access arguments' => array('update', 1), 
+    'weight' => -5, 'type' => MENU_DEFAULT_LOCAL_TASK,
+  );
+  return $items;
+}
+
+/**
+ * Menu loader callback to load a project node.
+ *
+ * @param $arg
+ *   The menu argument to attempt to load a project from.  Can be either a
+ *   numeric node ID (nid), or a string project short name (uri).
+ *
+ * @return
+ *   The loaded node object if the argument was a valid project, FALSE if not.
+ */
+function project_node_load($arg) {
+  if (is_numeric($arg)) {
+    $nid = $arg;
+  }
+  else {
+    $nid = db_result(db_query(db_rewrite_sql("SELECT p.nid FROM {project_projects} p WHERE p.uri = '%s'", 'p'), $arg));
+  }
+  $node = node_load($nid);
+  if (!isset($node->type) || $node->type != 'project_project') {
+    return FALSE;
+  }
+  return $node;
+}
+
+/**
+ * Menu loader callback to load a project node if the edit tab needs subtabs.
+ *
+ * Load a project_project node if the given nid is a project_project node and
+ * if the user has permission to edit the project and if either the
+ * project_issue or project_release module exists.
+ */
+function project_edit_project_load($nid) {
+  if (!module_exists('project_issue') && !module_exists('project_release')) {
+    return FALSE;
+  }
+  return project_node_load($nid);
+}
+
+function project_check_admin_access($project, $cvs_access = NULL) {
+  global $user;
+  if (empty($user->uid)) {
+    return FALSE;
+  }
+
+  $project_obj = is_numeric($project) ? node_load($project) : $project;
+  if (!isset($project_obj) || (isset($project_obj->type) && $project_obj->type != 'project_project')) {
+    return FALSE;
+  }
+
+  if (user_access('administer projects')) {
+     return TRUE;
+  }
+
+  // If $cvs_access is not defined, check to make sure the user has cvs access
+  // and that the user's cvs account is approved.
+  if (project_use_cvs($project_obj) && !isset($cvs_access)) {
+    if (db_result(db_query("SELECT COUNT(*) FROM {cvs_accounts} WHERE uid = %d AND status = %d", $user->uid, CVS_APPROVED))) {
+      $cvs_access = TRUE;
+    }
+    else {
+      $cvs_access = FALSE;
+    }
+  }
+
+  if (user_access('maintain projects')) {
+    if ($user->uid == $project_obj->uid) {
+       return TRUE;
+    }
+    if (project_use_cvs($project_obj) && $cvs_access) {
+      if (db_result(db_query("SELECT COUNT(*) FROM {cvs_project_maintainers} WHERE uid = %d AND nid = %d", $user->uid, $project_obj->nid))) {
+        return TRUE;
+      }
+    }
+  }
+  return FALSE;
+}
+
+/**
+ * Implementation of form_alter. This removes the work of
+ * taxonomy.module's form_alter() so we can do our own taxonomy
+ * selection.
+ */
+function project_form_alter(&$form, &$form_state, $form_id) {
+  switch ($form_id) {
+    case 'project_project_node_form':
+      $vid = _project_get_vid();
+      if (isset($form['taxonomy'][$vid])) {
+        unset($form['taxonomy'][$vid]);
+      }
+      // If there are no children elements, we should unset the entire
+      // thing so we don't end up with an empty fieldset.
+      if (!empty($form['taxonomy']) && (!element_children($form['taxonomy']))) {
+        unset($form['taxonomy']);
+      }
+  
+      // In D6, FAPI changed in such a way that completely unsetting
+      // $form['taxonomy'] causes warnings and errors when the project node is
+      // previewed. In order to prevent these problems, we need to add a
+      // submit handler to the preview button, and this handler needs to put
+      // the taxonomy terms back into $node->taxonomy like they would be if
+      // project wasn't replacing the usual taxonomy selection form elements
+      // with its own elements.
+      if (isset($form['buttons']['preview'])) {
+        $form['buttons']['preview']['#submit'][] = 'project_project_form_preview_submit';
+      }
+  
+      // If the form has an element for specifying a URL alias, we want
+      // to alter it, since we're just going to automatically override
+      // the specified value.
+      if (variable_get('project_enable_alias', TRUE) && isset($form['path'])) {
+        $url_alias = $form['path']['path']['#default_value'];
+        if (empty($url_alias)) {
+          unset($form['path']);
+        }
+        else {
+          unset($form['path']['path']);
+          $form['path']['value'] = array(
+            '#prefix' => '<div>',
+            '#value' => t('Automatically generated path alias: %url', array('%url' => $url_alias)),
+            '#suffix' => '</div>',
+          );
+        }
+      }
+      break;
+  
+    case 'taxonomy_form_vocabulary':
+      // Add a validate handler to the vocabulary form if the
+      // Project type vocabulary term is being edited so that its
+      // possible to detect if this vocabulary was set to be
+      // a free tagging vocabulary, and if so then throw an error.
+      $project_type_vid = _project_get_vid();
+      if (isset($project_type_vid) && !empty($form['vid']['#value']) && $form['vid']['#value'] == $project_type_vid) {
+        $form['#validate'][] = 'project_project_type_vocabulary_validate';
+        
+      }
+      break;
+  }
+}
+
+/**
+ * Implement hook_access().
+ */
+function project_project_access($op, $node, $account) {
+  switch ($op) {
+    case 'view':
+      // Since this function is shared for project_release nodes, we have to
+      // be careful what node we pass to project_check_admin_access().
+      if ($node->type == 'project_release') {
+        $node = node_load($node->project_release['pid']);
+      }
+      if (project_check_admin_access($node)) {
+        return TRUE;
+      }
+      if (!user_access('access projects')) {
+         return FALSE;
+      }
+      break;
+    case 'create':
+      if ($account->uid && user_access('maintain projects')) {
+        // Since this CVS access checking is non-standard, we need to
+        // special-case uid 1 to always allow everything.
+        if ($account->uid != 1 && module_exists('cvs') && variable_get('cvs_restrict_project_creation', 1)) {
+          return db_result(db_query("SELECT uid FROM {cvs_accounts} WHERE uid = %d AND status = %d", $account->uid, CVS_APPROVED)) ? TRUE : FALSE;
+        }
+        else {
+          return TRUE;
+        }
+      }
+      break;
+    case 'update':
+      if (project_check_admin_access($node)) {
+        return TRUE;
+      }
+      break;
+    case 'delete':
+      if (user_access('delete any projects', $account) || (user_access('delete own projects', $account) && ($account->uid == $node->uid))) {
+        return TRUE;
+      }
+      break;
+  }
+}
+
+/**
+ * Implement hook_load().
+ */
+function project_project_load($node) {
+  $additions = db_fetch_array(db_query('SELECT * FROM {project_projects} WHERE nid = %d', $node->nid));
+  $project = new stdClass;
+  $project->project = $additions;
+  return $project;
+}
+
+/**
+ * hook_nodeapi() implementation. This just decides what type of node
+ * is being passed, and calls the appropriate type-specific hook.
+ *
+ * @see project_project_nodeapi().
+ */
+function project_nodeapi(&$node, $op, $arg) {
+  switch ($node->type) {
+    case 'project_project':
+      module_load_include('inc', 'project', 'project');
+      project_project_nodeapi($node, $op, $arg);
+      break;
+  }
+}
+
+/**
+ * Build a SQL statment from a structured array.
+ *
+ * @param $sql_elements
+ *   An array with the following keys:
+ *     'fields', 'from', 'joins', 'wheres', 'group_bys', 'order_bys',
+ *     'parameters'
+ *   Each value is an array with the following keys:
+ *     'prefix', 'glue', 'pieces'
+ * @return
+ *   SQL string.
+ *
+ * @TODO This should move to project_usage.module
+ */
+function project_build_query($sql_elements) {
+  $sql = '';
+  foreach ($sql_elements as $key => $sql_element) {
+    if ($key != 'parameters' && count($sql_element['pieces'])) {
+      $sql .= $sql_element['prefix'] . implode($sql_element['glue'], $sql_element['pieces']);
+    }
+  }
+  return db_rewrite_sql($sql);
+}
+
+/**
+ * Construct an empty query for project_build_query().
+ *
+ * Set the default elements that will be used to construct the SQL statement.
+ *
+ * @TODO This should move to project_usage.module
+ */
+function project_empty_query() {
+  return array(
+    'fields' => array(
+      'prefix' => 'SELECT ',
+      'glue' => ', ',
+      'pieces' => array(),
+    ),
+    'from' => array(
+      'prefix' => ' FROM ',
+      'glue' => NULL,
+      'pieces' => array(''),
+    ),
+    'joins' => array(
+      'prefix' => '',
+      'glue' => ' ',
+      'pieces' => array(),
+    ),
+    'wheres' => array(
+      'prefix' => ' WHERE ',
+      'glue' => ' AND ',
+      'pieces' => array(),
+    ),
+    'group_bys' => array(
+      'prefix' => ' GROUP BY ',
+      'glue' => ', ',
+      'pieces' => array(),
+    ),
+    'order_bys' => array(
+      'prefix' => ' ORDER BY ',
+      'glue' => ', ',
+      'pieces' => array(),
+    ),
+    'parameters' => array(
+      'prefix' => NULL,
+      'glue' => NULL,
+      'pieces' => array(),
+    )
+  );
+}
+
+/**
+ * Helper function for grouping nodes by date.
+ */
+function _project_date($timestamp) {
+  static $last;
+  $date = format_date($timestamp, 'custom', 'F j, Y');
+  if ($date != $last) {
+    $last = $date;
+    return $date;
+  }
+}
+
+/**
+ * Returns an array of all projects on the system for use with select
+ * form elements. The keys are the project nid, and the values are
+ * the project names. If the project taxonomy is in use, the array
+ * will be sorted into the project categories with appropriate headers
+ * for each term.
+ *
+ * @param $project_urls
+ *   Reference to be filled with an array of project uri => id mappings. This
+ *   array is used by the project_issue search form code.
+ * @param $issues
+ *   If TRUE, only projects with issue tracking  enabled are returned.
+ *   For this option to do much good, the project_issue.module should be
+ *   enabled.
+ * @param $key_prefix
+ *   Prefix to prepend to all keys in the returned array.
+ */
+function project_projects_select_options(&$project_urls, $issues = TRUE, $key_prefix = NULL) {
+  $projects = array();
+  $ISSUE_JOIN = '';
+  $ISSUE_WHERE = '';
+  $args_use_taxonomy = array(1, 0);    // n.status, h.parent
+  $args_no_taxonomy = array(1);        // n.status
+  if ($issues && module_exists('project_issue')) {
+    $ISSUE_JOIN ='INNER JOIN {project_issue_projects} pip ON n.nid = pip.nid';
+    $ISSUE_WHERE = 'AND pip.issues = %d';
+    $args_use_taxonomy[] = 1;
+    $args_no_taxonomy[] = 1;
+  }
+  if (project_use_taxonomy()) {
+    $vid = _project_get_vid();
+    $args_use_taxonomy[] = $vid;
+    $result = db_query(db_rewrite_sql("SELECT n.nid, n.title, d.name, p.uri FROM {project_projects} p INNER JOIN {node} n ON n.nid = p.nid $ISSUE_JOIN LEFT JOIN {term_node} t ON t.vid = n.vid INNER JOIN {term_data} d ON t.tid = d.tid INNER JOIN {term_hierarchy} h ON t.tid = h.tid WHERE n.status = %d AND h.parent = %d $ISSUE_WHERE AND d.vid = %d GROUP BY n.nid, n.title, d.name, p.uri, d.weight ORDER BY d.weight, n.title"), $args_use_taxonomy);
+    while ($project = db_fetch_object($result)) {
+      if (isset($project->name)) {
+        if (!isset($projects[$project->name])) {
+          $projects[$project->name] = array();
+        }
+        $projects[$project->name][$key_prefix . $project->nid] = $project->title;
+      }
+      else {
+        $projects[$key_prefix . $project->nid] = $project->title;
+      }
+      if (is_array($project_urls)) {
+        $project_urls[$project->uri] = $project->nid;
+      }
+    }
+  }
+  else {
+   $result = db_query(db_rewrite_sql("SELECT n.nid, p.uri, n.title FROM {project_projects} p INNER JOIN {node} n ON n.nid = p.nid $ISSUE_JOIN WHERE n.status = %d $ISSUE_WHERE ORDER BY n.title"), $args_no_taxonomy);
+    while ($project = db_fetch_object($result)) {
+      $projects[$key_prefix . $project->nid] = $project->title;
+      if (is_array($project_urls)) {
+        $project_urls[$project->uri] = $project->nid;
+      }
+    }
+  }
+  return $projects;
+}
+
+function project_quick_navigate_form() {
+  $uris = NULL;
+  $projects = array(t('- Select a project -')) + project_projects_select_options($uris, FALSE);
+  $form = array();
+  $form['project_goto'] = array(
+    '#type' => 'select',
+    '#default_value' => '0',
+    '#options' => $projects,
+    '#attributes' => array('title' => t('Select a project to view')),
+  );
+  $form['project'] = array(
+    '#type' => 'submit',
+    '#value' => t('View project'),
+    '#submit' => array('project_quick_navigate_project_submit'),
+  );
+  return $form;
+}
+
+function project_quick_navigate_form_validate($form, $form_state) {
+  if (empty($form_state['values']['project_goto'])) {
+    form_set_error('project_goto', t('You must select a project to navigate to.'));
+  }
+}
+
+function project_quick_navigate_project_submit($form, &$form_state) {
+  $form_state['redirect'] = 'node/'. $form_state['values']['project_goto'];
+}
+ 
+function project_quick_navigate_title_form() {
+  $form = array();
+  $form['project_title'] = array(
+    '#title' => t('Project name'),
+    '#type' => 'textfield',
+    '#size' => 20,
+    '#autocomplete_path' => 'project/autocomplete/project',
+  );
+  $form['project'] = array(
+    '#type' => 'submit',
+    '#value' => t('View project'),
+    '#validate' => array('project_quick_navigate_title_project_validate'),
+    '#submit' => array('project_quick_navigate_title_project_submit'),
+  );
+  return $form;
+}
+
+function project_quick_navigate_title_project_validate($form, &$form_state) {
+  if (empty($form_state['values']['project_title'])) {
+    form_set_error('project_title', t('You must enter a project to navigate to.'));
+  }
+  else {
+    $nid = db_result(db_query("SELECT nid FROM {node} WHERE title = '%s' AND type = '%s'", $form_state['values']['project_title'], 'project_project'));
+    if (empty($nid)) {
+      form_set_error('project_title', t('The name you entered (%title) is not a valid project.', array('%title' => $form_state['values']['project_title'])));
+    }
+    else {
+      $form_state['nid'] = $nid;
+    }
+  }
+}
+
+function project_quick_navigate_title_project_submit($form, &$form_state) {
+  $form_state['redirect'] = 'node/'. $form_state['nid'];
+}
+ 
+
+/**
+ * Implementation of hook_views_api().
+ */
+function project_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'project') .'/views',
+  );
+}
+
+// Themables
+
+/**
+ * Implementation of hook_theme().
+ */
+function project_theme() {
+  return array(
+    'project_term_list' => array(
+      'arguments' => array(
+        'terms' => NULL,
+        'path' => NULL,
+      ),
+    ),
+    'project_summary' => array(
+      'arguments' => array(
+        'project' => NULL,
+      ),
+    ),
+    'project_feed_icon' => array(
+      'arguments' => array(
+        'url' => NULL,
+        'title' => NULL,
+      ),
+    ),
+    'project_project_node_form_taxonomy' => array(
+      'file' => 'project.inc',
+      'arguments' => array(
+        'form' => NULL,
+      ),
+    ),
+    'project_views_project_sort_method_options_form' => array(
+      'file' => 'theme.inc',
+      'path' => drupal_get_path('module', 'project') .'/views/theme',
+      'arguments' => array(
+        'form' => NULL,
+      ),
+    ),
+    'project_type' => array(
+      'arguments' => array(
+        'term' => NULL,
+      ),
+    ),
+    'project_type_description' => array(
+      'arguments' => array(
+        'term' => NULL,
+      ),
+    ),
+  );
+}
+
+function theme_project_term_list($terms, $path) {
+  $depth = 0;
+  $output = "\n<ul class=\"project-terms\">\n";
+  foreach ($terms as $term) {
+    if (!empty($term->description)){
+      $description = strip_tags($term->description);
+    }
+    else {
+      $description = '';
+    }
+    $link = l($term->name .' ('. $term->count .')', "$path/$term->tid", array('attributes' => array('title' => $description)));
+    $output .= '<li class="leaf">' . $link . "</li>\n";
+  }
+  $output .= "\n</ul>\n";
+  return $output;
+}
+
+/**
+ * Theme a compact project view/summary.
+ *
+ * $project has the following fields:
+ * - title: Title
+ * - nid: Node id
+ * - body: Filtered description
+ * - term: String with the selected term name
+ * - version: String with the version
+ * - links: Array of links
+ */
+function theme_project_summary($project) {
+  $output = '<div class="' . $project->class . '">';
+  $output .= '<h2>'. l($project->title, "node/$project->nid") .'</h2>';
+  if (!empty($project->changed)) {
+    $output .= '<p><small>' . t('Last changed: !interval ago', array('!interval' => format_interval(time() - $project->changed, 2))) . '</small></p>';
+  }
+  $output .= $project->body;
+  if (!empty($project->download_table)) {
+    $output .= $project->download_table;
+  }
+  if (!empty($project->links)) {
+    $output .= theme('links', $project->links);
+  }
+  if (!empty($project->terms)) {
+    $output .= theme('links', $project->terms);
+  }
+  $output .= '</div>';
+  return $output;
+}
+
+/**
+ * Display an RSS feed icon for use on project nodes.
+ */
+function theme_project_feed_icon($url, $title) {
+  if ($icon = theme('image', 'misc/feed.png', $title, $title)) {
+    return '<a href="'. check_url($url) .'" class="project-feed-icon">'. $icon .'</a>';
+  }
+}
+
+/**
+ * Return a string of valid project names for use with JS autocomplete fields.
+ */
+function project_autocomplete_project($string = '') {
+  $matches = array();
+
+  // The user enters a comma-separated list of projects. We only autocomplete
+  // the last one.
+  $array = drupal_explode_tags($string);
+  $last_string = trim(array_pop($array));
+
+  if ($last_string != '') {
+    $result = db_query_range(db_rewrite_sql("SELECT n.title FROM {node} n WHERE n.status = %d AND n.type = '%s' AND LOWER(n.title) LIKE LOWER('%%%s%%')"), 1, 'project_project', $last_string, 0, 10);
+
+    $prefix = count($array) ? implode(', ', $array) .', ' : '';
+    while ($project = db_fetch_object($result)) {
+      $title = $project->title;
+      // Commas and quotes in terms are special cases, so encode 'em.
+      if (strpos($title, ',') !== FALSE || strpos($title, '"') !== FALSE) {
+        $title = '"'. str_replace('"', '""', $project->title) .'"';
+      }
+      $matches[$prefix . $title] = check_plain($project->title);
+    }
+  }
+
+  drupal_json($matches);
+}
+
+
+/**
+ * Return a string of valid project names owned by a given user.
+ */
+function project_autocomplete_project_user($uid, $string = '') {
+  $matches = array();
+
+  // The user enters a comma-separated list of projects. We only autocomplete
+  // the last one.
+  $array = drupal_explode_tags($string);
+  $last_string = trim(array_pop($array));
+
+  if ($last_string != '') {
+    $result = db_query_range(db_rewrite_sql("SELECT n.title FROM {node} n WHERE n.status = %d AND n.type = '%s' AND n.uid = %d AND LOWER(n.title) LIKE LOWER('%%%s%%')"), 1, 'project_project', $uid, $last_string, 0, 10);
+
+    $prefix = count($array) ? implode(', ', $array) .', ' : '';
+    while ($project = db_fetch_object($result)) {
+      $title = $project->title;
+      // Commas and quotes in terms are special cases, so encode 'em.
+      if (strpos($title, ',') !== FALSE || strpos($title, '"') !== FALSE) {
+        $title = '"'. str_replace('"', '""', $project->title) .'"';
+      }
+      $matches[$prefix . $title] = check_plain($project->title);
+    }
+  }
+
+  drupal_json($matches);
+}
+
+/**
+ * Returns whether or not the project module should use
+ * taxonomy-specific functionality.
+ */
+function project_use_taxonomy() {
+  return module_exists('taxonomy') && taxonomy_get_tree(_project_get_vid());
+}
+
+/**
+ * Returns whether or not the project uses version control or not.
+ */
+function project_use_cvs($project) {
+  if (module_exists('cvs')) {
+    $project = is_numeric($project) ? node_load($project) : $project;
+    return !empty($project->cvs['repository']);
+  }
+}
+
+/**
+ * Determines if the current site supports caching of project-related pages.
+ *
+ * The pages can be cached if:
+ *   1. Anonymous users have the 'access projects' permission.
+ *   2. No node access modules are installed.
+ *
+ * @return TRUE if the output can be cached, FALSE otherwise.
+ */
+function project_can_cache() {
+  $grants = module_implements('node_grants');
+  if (!empty($grants)) {
+    return FALSE;
+  }
+  $allowed_roles = user_roles(FALSE, 'access projects');
+  if (!isset($allowed_roles[DRUPAL_ANONYMOUS_RID])) {
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+/**
+ * Intelligently merge project type terms selected by the
+ * user back into $node->taxonomy during a node preview.
+ */
+function project_project_form_preview_submit($form, &$form_state) {
+  $project_type_vid = _project_get_vid();
+  if (isset($project_type_vid) && isset($form_state['values']['project_type'])) {
+    $project_type_tid = $form_state['values']['project_type'];
+    $project_type_tid_field = 'tid_' . $project_type_tid;
+    $project_type_terms = array();
+    $project_type_terms[$project_type_tid] = $project_type_tid;
+    if (isset($form_state['values']->$project_type_tid_field)) {
+      foreach ($form_state['values'][$project_type_tid_field] as $tid) {
+        $project_type_terms[$tid] = $tid;
+      }
+    }
+    $form_state['node']['taxonomy'][$project_type_vid] = $project_type_terms;
+  }
+}
+
+/**
+ * Present a validation error if the user tries to make the
+ * Project types vocabulary a free tagging vocabulary.
+ */
+function project_project_type_vocabulary_validate($form, &$form_state) {
+  if (!empty($form_state['values']['tags'])) {
+    form_set_error('tags', t('The %name vocabulary does not support tags.', array('%name' => $form_state['values']['name'])));
+  }
+}
+
+/**
+ * Theme a project type item.
+ */
+function theme_project_type($term) {
+  $link = l($term->name, check_url('project/'. drupal_strtolower($term->name)));
+  $link = str_replace('%20', '+', $link);
+  $output = "<div>$link</div>\n";
+  if ($term->description) {
+    $output .= '<p>' . filter_xss($term->description) . '</p>';
+  }
+  return $output;
+}
+
+/**
+ * Theme a project type description.
+ */
+function theme_project_type_description($term) {
+  $output = '';
+  if ($term->description) {
+    $output .= '<p>' . filter_xss($term->description) . '</p>';
+  }
+  return $output;
+}
+
+
+/**
+ * Find a project node ID (nid) based on project short name (uri).
+ *
+ * @param $uri
+ *   The project shortname (uri) to search for.
+ *
+ * @return
+ *   The project node ID (nid) of the given project, or NULL if not found.
+ */
+function project_get_nid_from_uri($uri) {
+  static $nids = array();
+  if (!isset($nids[$uri])) {
+    $nids[$uri] = db_result(db_query_range("SELECT nid FROM {project_projects} WHERE uri = '%s'", $uri, 0, 1));
+  }
+  return $nids[$uri];
+}
+
+/**
+ * Find a project shortname (uri) based on project node ID (nid).
+ *
+ * @param $uri
+ *   The project node ID (nid) to search for.
+ *
+ * @return
+ *   The project shortname (uri) of the given project, or NULL if not found.
+ */
+function project_get_uri_from_nid($nid) {
+  static $uris = array();
+  if (!isset($uris[$nid])) {
+    $uris[$nid] = db_result(db_query_range("SELECT uri FROM {project_projects} WHERE nid = %d", $nid, 0, 1));
+  }
+  return $uris[$nid];
+}
+
+/**
+ * Get the project node context from the currently active menu, if any.
+ *
+ * @return
+ *   A fully loaded project $node object if the currently active menu has a
+ *   project node context, or NULL if the menu isn't pointing to a project.
+ */
+function project_get_project_from_menu() {
+  if (($node = menu_get_object('project_node')) ||
+      (($node = menu_get_object()) && $node->type == 'project_project')) {
+    return $node;
+  }
+}
+
+/**
+ * Implement hook_token_list() (from token.module)
+ */
+function project_token_list($type) {
+  if ($type == 'node') {
+    $tokens['node'] = array(
+      'project_shortname' => t("A project's short name"),
+      'project_homepage' => t("Link to a project's home page"),
+      'project_changelog' => t("Link to a project's changelog"),
+      'project_cvs' => t("Link to a project's cvs tree"),
+      'project_demo' => t('Demonstration link for a project'),
+      'project_documentation' => t("Link to a project's documentation"),
+      'project_screenshots' => t("Link to a project's screenshots"),
+      'project_license' => t("Link to a project's license"),
+    );
+    return $tokens;
+  }
+}
+ 
+/**
+ * Implement hook_token_values() (from token.module)
+ */
+function project_token_values($type = 'all', $object = NULL) {
+  if ($type == 'node') {
+    if ($object->type == 'project_project') {
+      $values['project_shortname'] = check_plain($object->project['uri']);
+      $values['project_homepage'] = check_url($object->project['homepage']);
+      $values['project_changelog'] = check_url($object->project['changelog']);
+      $values['project_cvs'] = check_url($object->project['cvs']);
+      $values['project_demo'] = check_url($object->project['demo']);
+      $values['project_documentation'] = check_url($object->project['documentation']);
+      $values['project_screenshots'] = check_url($object->project['screenshots']);
+      $values['project_license'] = check_url($object->project['license']);
+    }
+    else {
+      $values['project_shortname'] = '';
+      $values['project_homepage'] = '';
+      $values['project_changelog'] = '';
+      $values['project_cvs'] = '';
+      $values['project_demo'] = '';
+      $values['project_documentation'] = '';
+      $values['project_screenshots'] = '';
+      $values['project_license'] = '';
+    }
+    return $values;
+  }
+}
+

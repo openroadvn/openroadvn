@@ -1,0 +1,5 @@
+; $Id
+core            = "6.x"
+description     = "Manage Kudos"
+name            = "Kudos"
+package         = "ISA Toolbox"

@@ -1,0 +1,55 @@
+/* $Id: project.css,v 1.40 2009/01/12 20:07:19 dww Exp $ */
+
+.project table {
+  width: auto;
+}
+.project tbody, .project tr {
+  border: 0;
+}
+.project td {
+  vertical-align: top;
+  padding: 0.4em 0.1em;
+}
+.project .links {
+  font-size: 0.8em;
+}
+.project .author {
+  color: #999;
+  font-size: 0.8em;
+}
+
+.project .downloads td {
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 1em;
+}
+.project .downloads ul {
+  margin: 0px;
+}
+.project .downloads li {
+  list-style-type: none;
+  margin: 0px;
+}
+
+.project-links-section div {
+  float: left;
+  padding-right: 1.2em;
+  width: 30%;
+}
+
+#edit-project-goto {
+  width: 150px;
+}
+
+.node-form .project-taxonomy-element {
+  float: left;
+  padding-right: 2em;
+}
+
+ul.project-terms {
+  padding-left: 1.5em;
+}
+
+.project-feed-icon {
+  padding-left: 1em;
+}
+

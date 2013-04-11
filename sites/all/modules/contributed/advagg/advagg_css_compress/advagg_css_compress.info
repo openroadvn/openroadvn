@@ -1,0 +1,13 @@
+name = AdvAgg Compress CSS
+description = Compress CSS with a 3rd party compressor, CSSTidy currently.
+package = Advanced CSS/JS Aggregation
+core = 6.x
+dependencies[] = advagg
+php = 5.0
+
+; Information added by drupal.org packaging script on 2011-05-24
+version = "6.x-1.0-rc5"
+core = "6.x"
+project = "advagg"
+datestamp = "1306202815"
+

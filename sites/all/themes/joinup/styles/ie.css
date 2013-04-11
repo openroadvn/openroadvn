@@ -1,0 +1,3 @@
+body {
+  width:expression( documentElement.clientWidth < 960 ? (documentElement.clientWidth == 0 ? (body.clientWidth < 960 ? "960px" : "auto") : "960px") : "auto" );
+}

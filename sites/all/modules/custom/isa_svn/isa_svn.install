@@ -1,0 +1,69 @@
+<?php
+// $Id$
+
+function isa_svn_install() {
+  // Create CCK field
+  $my_field = array(
+      'type_name' => 'project_project',
+      'field_name' => 'field_project_common_svn_needed',
+      'type' => 'number_integer',
+      'widget_type' => 'checkbox',
+      'label' => 'Repository',
+      'widget_type' => 'optionwidgets_onoff',
+      'description' => 'Check this if you need a SVN repository.',
+      'module' => 'number',
+      'widget_module' => 'optionwidgets',
+      'weight' => 31,
+      'default_value' => array(0 => array('value' => 1)),
+      'default_value_php' => '',
+      'allowed_values' => '0|SVN not needed
+1|SVN needed',
+  );
+  module_load_include('inc', 'content', 'includes/content.crud');
+  content_field_instance_create($my_field);
+  // Create rule
+  $rule = array(
+      '#type' => 'rule',
+      '#set' => 'event_workflow_state_changed',
+      '#label' => t('Create a repository with new project'),
+      '#status' => 'custom',
+      '#categories' => array('project'),
+      '#active' => 1,
+  );
+  $condition1 = rules_use_condition('workflow_check_state', array(
+              '#settings' => array(
+                  'state' => array(9 => 9),
+                  '#argument map' => array('node' => 'node'),
+              ),
+                  ), t('Check if content workflow state is validated'));
+  $condition2 = rules_use_condition('rules_condition_content_is_type', array(
+              '#settings' => array(
+                  'type' => array('project_project'),
+                  '#argument map' => array('node' => 'node'),
+              ),
+                  ), t('Created content is Project'));
+  $condition3 = rules_use_condition('content_rules_field_has_value', array(
+              '#settings' => array(
+                  'field_name' => 'field_project_common_svn_needed',
+                  '#argument map' => array('node' => 'node'), 'value' => array(0 => array('value' => 1)),
+              ),
+                  ), t("Created content's field 'field_project_common_svn_needed' has value"));
+  $action1 = rules_use_action('isa_svn_action_new_repo', array());
+  $rule += array(
+      '#conditions' => array($condition1, $condition2, $condition3),
+      '#actions' => array($action1),
+  );
+  rules_item_save('rules', 'isa_svn_new_repo', $rule);
+  rules_clear_cache();
+  // Display message
+  drupal_set_message(t('Think of configuring action "Create a source code repository"'
+                  . ' within rule "Create a repository with new project" for repositories creation.'));
+}
+
+function isa_svn_uninstall() {
+  // Delete rule
+  rules_item_delete('rules', 'isa_svn_new_repo');
+  // Delete CCK field
+  module_load_include('inc', 'content', 'includes/content.crud');
+  content_field_instance_delete('field_project_common_svn_needed', 'project_project');
+}

@@ -1,0 +1,434 @@
+<?php
+
+/**
+ * Include all Pathauto include files.
+ */
+function _mail_edit_include() {
+  $pathauto_path = drupal_get_path('module', 'mail_edit');
+  require_once("$pathauto_path/mail_edit_user.inc");
+  if (module_exists('logintoboggan')) {
+    require_once("$pathauto_path/mail_edit_logintoboggan.inc");
+  }
+}
+
+/**
+ * Implementation of hook_perm().
+ */
+function mail_edit_perm() {
+  return array('administer mail templates');
+}
+
+function mail_edit_menu() {
+  $items = array();
+  $items['admin/build/mail-edit'] = array(
+    'access arguments' => array('administer mail templates'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mail_edit_list_form'),
+    'description' => 'Edit mails being sent out by Drupal.',
+    'title' => 'Mail templates',
+  );
+  $items['admin/build/mail-edit/%/%'] = array(
+    'access arguments' => array('administer mail templates'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mail_edit_trans', 3, 4),
+    'description' => 'Edit mails being sent out by Drupal.',
+    'title' => 'Mail templates',
+  );
+  return $items;
+}
+
+function mail_edit_trans(&$form_status, $id, $lang) {
+  _mail_edit_include();
+//  drupal_set_message('<pre>' . print_r(func_get_args(), 1) . '</pre>');
+  $query = "SELECT * FROM {mail_edit_registry} WHERE id = '%s'";
+  $result = db_query($query, $id);
+  $mailkey_obj = db_fetch_object($result);
+  $mailkey = $mailkey_obj->id;
+
+  $query = "SELECT * FROM {mail_edit} WHERE id = '%s' AND language = '%s'";
+  $result = db_query($query, $mailkey, $lang);
+  //if template is set, then we need to update, if its not set then we need to insert
+  $template = db_fetch_object($result);
+  if ($template) {
+    $update = TRUE;
+  }
+  else {
+    $update = FALSE;
+  }
+  $language = new stdClass();
+  $language->language = $lang;
+  $mail_data = module_invoke($mailkey_obj->module, 'mail_edit_text', $mailkey_obj->mailkey, $language);
+  if (!isset($template->subject)) {
+    $template->subject = $mail_data['subject'];
+  }
+  if (!isset($template->body)) {
+    $template->body = $mail_data['body'];
+  }
+//  drupal_set_message('<pre>' . print_r($template, 1) . '</pre>');
+
+  if ($update) {
+    $message = t('Update %mailkey template for %language', array('%mailkey' => $mailkey, '%language' => $lang));
+  }
+  else {
+    $message = t('Create new %mailkey template for %language', array('%mailkey' => $mailkey, '%language' => $lang));
+  }
+  drupal_set_title($message);
+
+  $tokens = array();
+  $tokens = module_invoke($mailkey_obj->module, 'mail_edit_tokens_list', $mailkey_obj->mailkey);
+  drupal_alter($mailkey_obj->id, $tokens);    //allow other modules to alter tokens for specific mailkey id
+
+  $form = array();
+  $form['update'] = array(
+    '#type'   => 'hidden',
+    '#value'  => $update,
+  );
+  $form['language'] = array(
+    '#type'   => 'hidden',
+    '#value'  => $lang,
+  );
+  $form['id'] = array(
+    '#type'   => 'hidden',
+    '#value'  => $id,
+  );
+  $form['description'] = array(
+    '#title'      => t('Description'),
+    '#type'       => 'textfield',
+    '#default_value' => isset($template->description) ? $template->description : (isset($mailkey_obj->description) ? filter_xss($mailkey_obj->description, array()) : ''),
+  );
+  $form['mail'] = array(
+    '#type' => 'fieldset',
+    '#title'  => t('Template'),
+    '#collapsible'  => TRUE,
+  );
+  $form['mail']['subject'] = array(
+    '#title'      => t('Subject'),
+    '#type'       => 'textfield',
+    '#default_value' => isset($template->subject) ? $template->subject : '',
+  );
+  $form['mail']['body'] = array(
+    '#title'      => t('Body'),
+    '#type'       => 'textarea',
+    '#default_value'  => isset($template->body) ? $template->body : '',
+    '#rows' => 15,
+
+  );
+  $placeholders = $tokens;
+  // Display the user documentation of placeholders supported by this module mailkey
+  $doc = "<dl>\n";
+  foreach ($placeholders as $name => $description) {
+    $doc .= '<dt>'. $name .'</dt>';
+    $doc .= '<dd>'. $description .'</dd>';
+  }
+  $doc .= "</dl>\n";
+  $form['mail']['token_help'] = array(
+    '#title' => t('Replacement patterns'),
+    '#type' => 'fieldset',
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+  $form['mail']['token_help']['help'] = array(
+    '#value' => $doc,
+  );
+  $form['op'] = array(
+    '#type'       => 'submit',
+    '#value'      => $update? t('Update template'): t('Save new template'),
+    '#submit'     => array('mail_edit_trans_save'),
+  );
+  if ($update) {
+    $form['delete'] = array(
+      '#type'       => 'submit',
+      '#value'      => t('Remove @language translation', array('@language' => $lang)),
+      '#submit'     => array('mail_edit_trans_delete'),
+    );
+  }
+  return $form;
+}
+
+function mail_edit_trans_delete($form, &$form_state) {
+  $query = "DELETE FROM {mail_edit} WHERE id = '%s' AND language = '%s'";
+  $args[] = $form_state['values']['id'];
+  $args[] = $form_state['values']['language'];
+  if (db_query($query, $args)) {
+    drupal_set_message(t('@language translation of @id has been removed', array('@language' => $form_state['values']['language'], '@id' => $form_state['values']['id'])));
+  }
+  else {
+    drupal_set_message(t('Failed to remove @language translation of @id', array('@language' => $form_state['values']['language'], '@id' => $form_state['values']['id'])));
+  }
+  $form_state['redirect'] = 'admin/build/mail-edit';
+
+}
+function mail_edit_trans_save($form, &$form_state) {
+//  drupal_set_message('<pre>' . print_r(func_get_args(), 1) . '</pre>');
+  $update = $form_state['values']['update'];
+  if ($update) {
+    //do update
+    $query = "
+      UPDATE {mail_edit} SET
+        description = '%s',
+        subject     = '%s',
+        body        = '%s'
+      WHERE
+        id     = '%s' AND
+        language    = '%s'
+    ";
+    $values = $form_state['values'];
+    $args[] = $values['description'];
+    $args[] = $values['subject'];
+    $args[] = $values['body'];
+    $args[] = $values['id'];
+    $args[] = $values['language'];
+    if (db_query($query, $args)) {
+    }
+    else {
+      drupal_set_message('Failed to save template for '.$values['id']. ' for '. $values['language']. ' translation');
+    }
+  }
+  else {
+    //do insert
+    $query = "INSERT INTO {mail_edit} (description, subject, id, body, language) VALUES (
+      '%s',
+      '%s',
+      '%s',
+      '%s',
+      '%s'
+    ) ";
+    $values = $form_state['values'];
+    $args[] = $values['description'];
+    $args[] = $values['subject'];
+    $args[] = $values['id'];
+    $args[] = $values['body'];
+    $args[] = $values['language'];
+    if (db_query($query, $args)) {
+    }
+    else {
+      drupal_set_message('Failed to save template for '.$values['id']. ' for '. $values['language']. ' translation');
+    }
+  }
+  $form_state['redirect'] = 'admin/build/mail-edit';
+}
+/**
+ * Builds registry of exposed mailkeys, keeps track of which module exposed them
+ *
+ * @return unknown
+ */
+function _mail_edit_key_registry_rebuild() {
+  //fetch exposed mailkeys
+  $hook = 'mailkeys';
+  foreach (module_implements($hook) as $module) {
+    $function = $module .'_'. $hook;
+    $result = $function();
+    if (isset($result)) {
+      $mailkeys[$module] = $result;
+    }
+  }
+  //find out if we already have record of the exposed keys
+  $query = "SELECT * FROM {mail_edit_registry}";
+  $result = db_query($query);
+  while ($row = db_fetch_object($result)) {
+    if (isset($mailkeys[$row->module][$row->mailkey])) {
+      unset($mailkeys[$row->module][$row->mailkey]);
+    }
+  }
+//    drupal_set_message('<pre>'. print_r($mailkeys, 1) .'</pre>');
+  //insert any new mailkeys into our registry table
+  foreach ($mailkeys as $module => $keys) {
+    foreach ($keys as $key => $description) {
+      $query = "INSERT INTO {mail_edit_registry} (id, module, mailkey, description) VALUES ('%s', '%s', '%s', '%s')";
+      db_query($query, $module. '_'. $key, $module, $key, $description);
+    }
+  }
+}
+
+function mail_edit_list_form() {
+  $form = array();
+  $form['mail_templates'] = array(
+    '#type' => 'item',
+    '#value' => mail_edit_list(),
+    '#weight' => 0,
+  );
+  return $form;
+}
+
+function mail_edit_list() {
+  _mail_edit_include();
+  _mail_edit_key_registry_rebuild();      //update mail_edit_registry table
+
+
+  static $sys_lang = array();
+  if (empty($sys_lang)) {
+    $sys_lang = language_list();
+  }
+  //step 1 : get all mail keys and all possible translations
+  $lang_query = "SELECT DISTINCT(language) FROM {mail_edit} ORDER BY language ASC";
+  $lang_result = db_query($lang_query);
+  $mail_langs = array();//fetch all current translations
+  while($row = db_fetch_object($lang_result)) {
+    $mail_langs[$row->language] = $row->language;
+  }
+  foreach (language_list() as $lang_key => $language) {
+    $mail_langs[$lang_key] = $lang_key;
+  }//<!-- fetch all current translations
+
+  //step 3 : get all exposed mail keys
+//  $sys_keys = module_invoke_all('mailkeys');
+  $query = "SELECT * FROM {mail_edit_registry}";
+  $result = db_query($query);
+  while ($row = db_fetch_object($result)) {
+    $sys_keys[$row->id] = $row->description;
+  }
+//  drupal_set_message('<pre>'. print_r($sys_keys, 1) .'</pre>');
+
+  //step 2 : get all available translations
+  //step 4 : merge translated and system exposed keys
+  $trans_keys = array();
+  foreach ($sys_keys as $key => $desc) {
+    $trans_keys[$key]['description'] = $desc;
+  }
+  $keys_query = "SELECT me.* FROM {mail_edit} me, {mail_edit_registry} mer WHERE me.id = mer.id ORDER BY me.id ASC";
+  $keys_result = db_query($keys_query);
+  while ($row = db_fetch_object($keys_result)) {
+    $trans_keys[$row->id]['description'] = $row->description;
+    $trans_keys[$row->id]['languages'][$row->language] = $row->language;
+  }
+
+  //step 5 : build mailkey to translation relationship matrix
+  $header = array(t('Mailkey'));
+  foreach ( $mail_langs as $lang => $desc) {
+    $header[$lang] = $lang;
+  }
+  $rows = array();
+  $has_extra = false;
+//        drupal_set_message('<pre>' . print_r($trans_keys, 1) . '</pre>');
+
+  foreach ($trans_keys as $key => $template) {
+    $row = array();
+    $row[] = $key. ' <dd class="description">' . $template['description'] . '</dd>';
+//      drupal_set_message('<pre>' . print_r($template, 1) . '</pre>');
+    foreach ($mail_langs as $lang_key => $desc) {
+      $extra = '';
+      if (!isset($sys_lang[$lang_key])) {
+        $extra = '*';$has_extra = true;
+      }
+      if (isset($template['languages'][$lang_key])) {
+        $row[] = l(t('Edit @language', array('@language' => $lang_key)) . $extra, 'admin/build/mail-edit/'. $key. '/'. $lang_key);
+      }
+      else {
+        $row[] = l(t('Add @language', array('@language' => $lang_key)) . $extra, 'admin/build/mail-edit/'. $key. '/'. $lang_key);
+      }
+    }
+    $rows[] = $row;
+  }
+  if (empty($rows)) {
+    $rows[] = array(
+      array('data' => 'No templates available for override', 'colspan' => 2),
+    );
+  }
+
+  $extra = '';
+  if ($has_extra) {
+    $extra = '* - language not enabled';
+  }
+  //i'll enalbe this feature later
+//  return theme('table', $header, $rows) . $extra  . drupal_get_form('create_new_mailkey');
+  return theme('table', $header, $rows) . $extra;
+}
+/**
+ * Implementation of hook_theme().
+ */
+function mail_edit_theme() {
+  return array(
+    'create_new_mailkey' => array(
+      'arguments' => array('form' => NULL),
+    ),
+  );
+}
+function create_new_mailkey(&$form_status) {
+  $form = array();
+  $form['id'] =  array(
+    '#title'  => 'mailkey',
+    '#type'   => 'textfield',
+  );
+
+  $mail_langs = array('--' => 'Add a new translation');
+  foreach (language_list() as $lang_key => $language) {
+    $mail_langs[$lang_key] = $lang_key;
+  }//<!-- fetch all current translations
+  $form['language'] = array(
+    '#title'    => 'Language',
+    '#type'     => 'select',
+    '#options'  => $mail_langs,
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value'  => 'submit',
+  );
+  $form['#theme'] = 'create_new_mailkey';
+  $form['#submit'] = array('create_new_mailkey_go');
+  $form['#validate'] = array('create_new_mailkey_validate');
+  return $form;
+}
+function create_new_mailkey_validate($form, &$form_state) {
+  if (empty($form_state['values']['mailkey'])) {
+    form_set_error('mailkey', 'You must specify a unique mailkey');
+  }
+  if ($form_state['values']['language'] == '--') {
+    form_set_error('language', 'You must choose a language ');
+  }
+}
+function create_new_mailkey_go($form, &$form_state) {
+  drupal_goto("admin/build/mail-edit/{$form_state['values']['mailkey']}/{$form_state['values']['language']}");
+}
+function theme_create_new_mailkey($form) {
+  unset($form['id']['#title']);
+  unset($form['language']['#title']);
+  $header = array('Add New Mailkey', 'Choose Language', 'Operation');
+  $row = array(
+    array(
+      drupal_render($form['id']),
+      drupal_render($form['language']),
+      drupal_render($form['submit']),
+    )
+  );
+  return theme('table', $header, $row) . drupal_render($form);
+}
+
+function mail_edit_mail_alter(&$mail) {
+  _mail_edit_include();
+  //find out if this mail id in our registry
+  $query = "SELECT * FROM {mail_edit_registry} where id = '%s'";
+  $result = db_query($query, $mail['id']);
+  $mail_data = db_fetch_object($result);
+  if (!$mail_data) {
+    //if we dont have registry record of mail id in question we shouldnt attempt to alter it
+    return ;
+  }
+  //load mail template if we have altered it
+  $query = "SELECT * FROM {mail_edit} WHERE id = '%s' AND language = '%s'";
+  $arg[] = $mail['id'];
+  $arg[] = $mail['language']->language;
+  $template = db_fetch_object(db_query($query, $arg));
+  if ($template) {// do not try to alter anything if we didnt modify this mail template
+    //fetch our token values
+    $tokens = module_invoke($mail_data->module, 'mail_edit_tokens_value', $mail_data->mailkey, $mail);
+    uksort($tokens, '_mail_edit_sort_long_keys_first');
+    $result = new stdClass();
+    $result->tokens = array_keys($tokens);
+    $result->values = array_values($tokens);
+    //perform replacement of tokens
+    $mail['subject'] = str_replace($result->tokens, $result->values, $template->subject);
+    unset($mail['body']);
+    $mail['body'][]  = str_replace($result->tokens, $result->values, $template->body);
+  }
+//  drupal_set_message('<pre>' . print_r($mail, 1) . '</pre>');
+}
+
+
+/*
+ * mail_edit needs the tokens in order of longest keys first
+ * (so [user-raw] comes before [user], for example),
+ * to prevent premature interpolation.
+ */
+function _mail_edit_sort_long_keys_first($a, $b) {
+  return (strlen($b) - strlen($a));
+}

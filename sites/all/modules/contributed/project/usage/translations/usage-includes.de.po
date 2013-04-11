@@ -1,0 +1,133 @@
+# LANGUAGE translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  comment.inc,v 1.65 2006/04/24 18:34:45 dww
+#  release.inc,v 1.70 2006/04/22 21:09:40 dww
+#  issue.inc,v 1.169 2006/04/28 15:40:26 dww
+#  project.module,v 1.238 2006/04/22 16:44:46 dww
+#  mail.inc,v 1.60 2006/04/22 21:14:57 dww
+#  project.inc,v 1.75 2006/04/22 16:44:46 dww
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: German translation for project module\n"
+"POT-Creation-Date: 2009-07-18 00:17+0200\n"
+"PO-Revision-Date: 2009-07-18 01:02+0100\n"
+"Last-Translator: Alexander Haß\n"
+"Language-Team: Alexander Hass\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n!=1)\n"
+"X-Poedit-Language: German\n"
+"X-Poedit-Country: GERMANY\n"
+"X-Poedit-SourceCharset: utf-8\n"
+
+#: usage/includes/admin.inc:25
+msgid "Daily usage data lifespan"
+msgstr "Lebensdauer der täglichen Nutzungsdaten"
+
+#: usage/includes/admin.inc:28
+msgid "Discard the daily usage data after this amount of time has passed."
+msgstr "Die täglichen Nutzungsdaten nach dem Ablauf dieses Zeitraums verwerfen."
+
+#: usage/includes/admin.inc:32
+msgid "Weekly project data lifespan"
+msgstr "Lebensdauer der wöchentlichen Projektdaten"
+
+#: usage/includes/admin.inc:35;42
+msgid "Discard the weekly usage for project nodes after this amount of time has passed."
+msgstr "Die wöchentlichen Nutzungsdaten für Projektbeiträge nach dem Ablauf dieses Zeitraums verwerfen."
+
+#: usage/includes/admin.inc:39
+msgid "Weekly release data lifespan"
+msgstr "Lebensdauer der wöchentlichen Veröffentlichungsdaten"
+
+#: usage/includes/pages.inc:18
+msgid "This page summarizes the usage of all projects on @site_name. For each week beginning on the given date the figures show the number of sites that reported they are using (any version of) the project. Detailed usage information for each release of a project is available by clicking the project name."
+msgstr ""
+
+#: usage/includes/pages.inc:18
+msgid "this site"
+msgstr "Diese Website"
+
+#: usage/includes/pages.inc:28
+msgid "This page provides information about the usage of the %project_title project, including summaries across all versions and details for each release. For each week beginning on the given date the figures show the number of sites that reported they are using a given version of the project. "
+msgstr ""
+
+#: usage/includes/pages.inc:31
+msgid "For each week beginning on a given date, the figures show the number of sites that reported they are using the %release_title release. "
+msgstr ""
+
+#: usage/includes/pages.inc:173;340
+msgid "Usage"
+msgstr "Verwendung"
+
+#: usage/includes/pages.inc:176
+msgid "Usage statistics for %project"
+msgstr ""
+
+#: usage/includes/pages.inc:220
+msgid "Release"
+msgstr "Veröffentlichung"
+
+#: usage/includes/pages.inc:283
+msgid "Week"
+msgstr "Woche"
+
+#: usage/includes/pages.inc:290
+msgid "Total"
+msgstr "Gesamt"
+
+#: usage/includes/pages.inc:344
+msgid "Usage statistics for %release"
+msgstr "Nutzungsstatistik für %release"
+
+#: usage/includes/pages.inc:354
+msgid "Week starting"
+msgstr ""
+
+#: usage/includes/pages.inc:355
+msgid "Count"
+msgstr "Anzahl"
+
+#: usage/includes/pages.inc:395
+msgid "There is no usage information for any release of this project."
+msgstr ""
+
+#: usage/includes/pages.inc:399
+msgid "Weekly project usage"
+msgstr "Wöchentliche Projektnutzung"
+
+#: usage/includes/pages.inc:400
+msgid "Weekly @project usage by API version"
+msgstr ""
+
+#: usage/includes/pages.inc:402
+msgid "Recent release usage"
+msgstr ""
+
+#: usage/includes/pages.inc:425
+msgid "There is no usage information for this release."
+msgstr "Es gibt keine Nutzungsinformation für diese Veröffentlichung."
+
+#: usage/includes/pages.inc:429
+msgid "Weekly @release usage"
+msgstr ""
+
+#: usage/includes/pages.inc:448
+msgid "%project_name project page"
+msgstr ""
+
+#: usage/includes/pages.inc:450
+msgid "%release_name release page"
+msgstr ""
+
+#: usage/includes/pages.inc:451
+msgid "All %project_name usage statistics"
+msgstr ""
+
+#: usage/includes/pages.inc:453
+msgid "Usage statistics for all projects"
+msgstr "Nutzungsstatistiken für alle Projekte"
+

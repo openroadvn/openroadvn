@@ -1,0 +1,181 @@
+# $Id: content_lock.pot,v 1.1.2.13.2.1 2010/09/29 14:50:29 eugenmayer Exp $
+#
+# LANGUAGE translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  content_lock.admin.inc: n/a
+#  content_lock.module: n/a
+#  content_lock.info: n/a
+#  js/content_lock_init.js: n/a
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2010-04-18 14:26+0200\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: content_lock.admin.inc:12
+msgid "Show lock / unlock messages"
+msgstr ""
+
+#: content_lock.admin.inc:13
+msgid "If you disable this option, no messages about unlock / lock of nodes are shown to the user anymore"
+msgstr ""
+
+#: content_lock.admin.inc:19
+msgid "Add cancel button"
+msgstr ""
+
+#: content_lock.admin.inc:20
+msgid "Should a cancel button be added to the node / user / comment form. This way a user can properly cancel the transaction"
+msgstr ""
+
+#: content_lock.module:22
+msgid "Drupal's default content locking strategy is optimistic, that is, two users may start to edit the same content and the one who is hitting the save button first wins the race, while the other is displayed a message stating <em>this content has been modified by another user, changes cannot be saved</em>.  Depending on the number of editors in your organization this might not be an acceptable solution."
+msgstr ""
+
+#: content_lock.module:23
+msgid "The Content locking module implements pessimistic locking, which means that content will be exclusively locked whenever a user starts editing it.  The lock will be automatically released when the user submits the form or navigates away from the edit page."
+msgstr ""
+
+#: content_lock.module:24
+msgid "Users may also permanently lock content, to prevent others from editing it.  Content locks that have been \"forgotten\" can be automatically released after a configurable time span."
+msgstr ""
+
+#: content_lock.module:28
+msgid "Below is a list of all locked documents. Click on <em>check in</em> to release a lock."
+msgstr ""
+
+#: content_lock.module:31
+msgid "Below is a list of all documents locked by you. Click on <em>check in</em> to release a lock."
+msgstr ""
+
+#: content_lock.module:113
+msgid "Your lock has been removed!"
+msgstr ""
+
+#: content_lock.module:113
+msgid "You can still save the content if this user aborts the edit operation without saving changes."
+msgstr ""
+
+#: content_lock.module:119
+msgid "Your lock has been removed due to inactivity or by an administrator. Failed to regain the lock since the document has been changed since."
+msgstr ""
+
+#: content_lock.module:209;222;232;243
+msgid "Cancel"
+msgstr ""
+
+#: content_lock.module:311
+msgid "This document is locked for editing by !name since @date."
+msgstr ""
+
+#: content_lock.module:338
+msgid "Click <a href=\"!release-url\">here</a> to check back in now."
+msgstr ""
+
+#: content_lock.module:357
+msgid "This document is now locked against simultaneous editing. It will unlock when you navigate elsewhere."
+msgstr ""
+
+#: content_lock.module:389
+msgid "Title"
+msgstr ""
+
+#: content_lock.module:391
+msgid "Username"
+msgstr ""
+
+#: content_lock.module:397
+msgid "Locked since"
+msgstr ""
+
+#: content_lock.module:398
+msgid "Operations"
+msgstr ""
+
+#: content_lock.module:412
+msgid "release lock"
+msgstr ""
+
+#: content_lock.module:418
+msgid "No locked documents."
+msgstr ""
+
+#: content_lock.module:440
+msgid "The editing lock has been released."
+msgstr ""
+
+#: content_lock.module:471
+msgid "edit"
+msgstr ""
+
+#: content_lock.module:472
+msgid "here"
+msgstr ""
+
+#: content_lock.module:473
+msgid "You are currently blocking the node '!nodetitle' against edits. You might want to do this by clicking !unlocklinkhere, or !edit the node"
+msgstr ""
+
+#: content_lock.module:262
+msgid "content_lock"
+msgstr ""
+
+#: content_lock.module:262
+msgid "Released @count document(s) locked for more than @period."
+msgstr ""
+
+#: content_lock.module:260
+msgid "Released one document locked for more than @period."
+msgid_plural "Released @count documents locked for more than @period."
+msgstr[0] ""
+msgstr[1] ""
+
+#: content_lock.module:13
+msgid "check out documents"
+msgstr ""
+
+#: content_lock.module:13
+msgid "keep documents checked out"
+msgstr ""
+
+#: content_lock.module:13
+msgid "administer checked out documents"
+msgstr ""
+
+#: content_lock.module:40;60
+msgid "Locked documents"
+msgstr ""
+
+#: content_lock.module:88
+msgid "Content lock"
+msgstr ""
+
+#: content_lock.module:89
+msgid "Configuration options for the Content lock module"
+msgstr ""
+
+#: content_lock.info:0
+msgid "Content locking (edit lock)"
+msgstr ""
+
+#: content_lock.info:0
+msgid "Prevents users to edit the same node at the same time. The second user can enter the edit-mode and gets notified"
+msgstr ""
+
+#: content_lock.info:0
+msgid "Drupal Wiki"
+msgstr ""
+
+#: js/content_lock_init.js:0
+msgid "Be aware, if you press \"OK\" now, ALL your changes will be lost!"
+msgstr ""
+

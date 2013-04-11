@@ -1,0 +1,132 @@
+<?php
+// $Id: project_legacy_paths.module,v 1.1 2009/01/12 22:57:50 dww Exp $
+
+/**
+ * @file Redirect project browsing paths from the Drupal 5 form to the Drupal 6 form.
+ */
+
+function project_legacy_paths_menu(){
+  $items = array();
+
+  // Project browsing pages
+  if (project_use_taxonomy()) {
+    $items['project/%project_legacy_paths_top_level_term/%'] = array(
+      'access callback' => TRUE,
+      'page callback' => 'project_legacy_paths_page_callback',
+      'page arguments' => array(1, 2),
+    );
+    $items['project/%project_legacy_paths_top_level_term/%/%'] = array(
+      'access callback' => TRUE,
+      'page callback' => 'project_legacy_paths_page_callback',
+      'page arguments' => array(1, 2, 3),
+    );
+  }
+  return $items;
+}
+
+/**
+ * Menu load function for project type top level terms (eg. modules, themes, etc.).
+ */
+function project_legacy_paths_top_level_term_load($term_name) {
+  $project_type_vid = _project_get_vid();
+  if (empty($project_type_vid)) {
+    return FALSE;
+  }
+
+  $db_result = db_query(db_rewrite_sql("SELECT * FROM {term_data} t INNER JOIN {term_hierarchy} th ON t.tid = th.tid WHERE LOWER(t.name) = LOWER('%s') AND th.parent = 0 AND t.vid = %d", 't', 'tid'), trim($term_name), $project_type_vid);
+  $result = array();
+  while ($term = db_fetch_object($db_result)) {
+    $result[] = $term;
+  }
+  if (!empty($result)) {
+    return $result[0];
+  }
+  else {
+    return FALSE;
+  }
+}
+
+/**
+ * Implementation of hook_project_sort_methods().
+ *
+ * The code in this function is the (slightly modified) relevant piece of code
+ * from the project_project_sort_methods() function in the Drupal 5 version
+ * of the project module.  This code is here because the Drupal 6
+ * version of the project module no longer contains this function.
+ */
+function project_legacy_paths_project_sort_methods($op, $method = NULL) {
+  if ($op == 'methods') {
+    $methods = array();
+    $methods['name'] = 'project';
+    $methods['date'] = 'project';
+    // The D5 version put the next line within an if (project_use_taxonomy())
+    // block, but since we're already checking for that in
+    // project_legacy_paths_menu() there is no need to check again.
+    $methods['category'] = 'project';
+    return $methods;
+  }
+}
+
+/**
+ * Validate the arguments to see if they would have lead to an actual page
+ * in the Drupal 5 version of the project module.  If not, the user
+ * will be given a page not found error.  Otherwise, determine what the D6
+ * URL would be and redirect the user there.
+ */
+function project_legacy_paths_page_callback($top_level_term, $sort_method = NULL, $category_tid = NULL) {
+  // Validate $sort_method.
+  $sort_methods = module_invoke_all('project_sort_methods', 'methods');
+  if (!empty($sort_methods) && !empty($sort_method)) {
+    if (!array_key_exists($sort_method, $sort_methods)) {
+      return MENU_NOT_FOUND;
+    }
+  }
+  else {
+    return MENU_NOT_FOUND;
+  }
+
+  // Validate $category_tid. 
+  if (isset($category_tid)) {
+    if (!is_numeric($category_tid)) {
+      return MENU_NOT_FOUND;
+    }
+    
+    // Since 'category' is the only sorting method that uses $category_tid, make
+    // sure the sort method is 'category'.
+    if ($sort_method != 'category') {
+      return MENU_NOT_FOUND;
+    }
+
+    // Determine if $category_tid has $top_level_term as its parent.
+    if (!db_result(db_query(db_rewrite_sql("SELECT t.tid FROM {term_data} t INNER JOIN {term_hierarchy} th ON t.tid = th.tid WHERE t.tid = %d AND th.parent = %d", 't', 'tid'), $category_tid, $top_level_term->tid))) {
+      return MENU_NOT_FOUND;
+    }
+  }
+
+  // At this point we know that all of the parameters to this function
+  // are valid and would have returned a page in the D5 version of project.
+  // Now, we just need to redirect to the appropriate URL.
+
+  // @TODO: Below are several variables which we should not hard code.
+  // We need to figure out how exactly we want to do this.  Perhaps put the code
+  // below in a separate hook function or something.
+  $base = 'project';
+  $sort_by_identifier = 'sort_by';
+  $project_type_term_identifier = 'type';
+
+  $base_path = $base . '/' . strtolower($top_level_term->name);
+  
+  // Build an array with query key/value properties.
+  $query = array();
+  if ($sort_method == 'date') {
+    $query[$sort_by_identifier] = 'changed';
+  }
+  elseif ($sort_method == 'name') {
+    $query[$sort_by_identifier] = 'title';
+  }
+  elseif ($sort_method == 'category') {
+    $query[$project_type_term_identifier] = $category_tid;
+  }
+  drupal_goto($base_path, $query, NULL, 301);
+}
+

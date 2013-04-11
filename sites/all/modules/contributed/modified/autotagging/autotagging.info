@@ -1,0 +1,12 @@
+name = Autotagging API
+package = Autotagging
+description = API for handling Autotagging events.  This module does nothing on its own.  You must install one of the implementing autotagging modules for this to do anything useful.
+dependencies[] = taxonomy
+core = 6.x
+version = 6.x-1.x
+; Information added by drupal.org packaging script on 2009-07-24
+version = "6.x-1.4-beta3"
+core = "6.x"
+project = "autotagging"
+datestamp = "1248457220"
+

@@ -1,0 +1,97 @@
+<?php
+
+/**
+ * @file
+ * The automatic test for the public_and_private_files (PaPF) module
+ */
+
+/**
+ * Tests the public_and_private_files module hook_url_alter function.
+ */
+class PAPFWebTestCase extends DrupalWebTestCase {
+
+  /**
+   * User with rights to modify the configuration of the module.
+   */
+  protected $privileged_user;
+  
+  private $_GROUP = 'Public & Private Files';
+
+  /**
+   * getInfo() returns properties that are displayed in the test selection form.
+   */
+  public static function getInfo() {
+    return array(
+      'name' => 'SimpleTest Public & Private Files Web Test Case',
+      'description' => 'Ensure that the Public & Private files module is working as expected',
+      'group' => 'Public & Private Files',
+    );
+  }
+
+  /**
+   * setUp() performs any pre-requisite tasks that need to happen.
+   */
+  public function setUp() {
+    // Enable any modules required for the test.
+    parent::setUp('public_and_private_files');
+
+    // Create and log in our privileged user.
+    $this->privileged_user = $this->drupalCreateUser( array('administer site configuration') );
+    $this->drupalLogin($this->privileged_user);
+  }
+
+  /**
+   * Test the alteration of the form according to expected behaviour
+   */
+  public function testFormAlter() {
+    $setting_url = 'admin/settings/file-system';
+    $submit = t('Save configuration');
+    // Set the parameter to MIXED
+    $edit = array(
+     'file_downloads' => FILE_DOWNLOADS_MIXED,
+    );
+    
+    // <div class="messages status">The configuration options have been saved.</div>
+    // <div class="messages error">The directory <em>sites/default/files/privateazeazea</em> does not exist.</div>
+    $texts = array( 
+      'success' => 'The configuration options have been saved.',
+      'fail' => 'The directory @directory does not exist.',
+    );
+    
+    // Check that default parameters are corrects
+    $this->drupalPost($setting_url, $edit, $submit );
+    $this->assertText( t( $texts['success'] ), 'Check that default parameters are corrects', $this->_GROUP );
+    
+    // Check that an existing path is correct
+    $temp_dir = $this->randomName();
+    mkdir($temp_dir);
+    $edit['public_and_private_files_path'] = $temp_dir;
+    $this->drupalPost($setting_url, $edit, $submit );
+    $this->assertText( t( $texts['success'] ), 'Check that an existing path is correct', $this->_GROUP );
+    rmdir($temp_dir);
+
+    // check that we can't put an invalid path
+    $edit['public_and_private_files_path'] = $this->randomName();
+    $this->drupalPost($setting_url, $edit, $submit );
+    $this->assertText( t( $texts['fail'], array('@directory' => $edit['public_and_private_files_path'] ) ), 'Check that we can\'t put an invalid path', $this->_GROUP );
+    
+    
+  }
+
+  /**
+   * Detect if we're running on Drupal.org's automated testbot.
+   *
+   * This is used inside the edit test so that the testbot skips intentionally
+   * failing tests. Otherwise, it would mark this module as broken.
+   *
+   * For more information on the testbot, see http://qa.drupal.org/.
+   *
+   * @return boolean
+   *   TRUE if running on testbot.
+   */
+  public function runningOnTestbot() {
+    $testbot_code_directory = "../checkout";
+    return file_exists($testbot_code_directory);
+  }
+}
+

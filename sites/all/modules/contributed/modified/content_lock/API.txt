@@ -1,0 +1,29 @@
+<h4>hook_content_lock_skip_locking($node, $form_id, $form, $form_state)</h4>
+Implement this hook if you want to force the skipping of a using any reasons or logic you want.
+Be sure to check $node for null, as it might not always be an object. 
+If you return TRUE, the lock won't be applied (and this node will be skipped).
+
+<h4>hook_content_lock_form_id_blacklist_alter(&$blacklist, $node = NULL)</h4>
+Implement this hook to alter the blacklist of form_ids, where locking will be skipped.
+As parameter you get the current node, if the object is preset. You can implement your own logic here.
+If you want to blacklist a node type, add $blacklist['your_form_id'] = TRUE;
+
+<h4>hook_content_lock_node_type_blacklist_alter(&$blacklist, $node)</h4>
+Implement this hook to be able to alter the blacklist of node_types, where locking will be skipped.
+This hook only gets called if a node object is set at all (as otherwise types wont be able to be checked).
+If you want to blacklist a node type, set $blacklist['node_type'] = TRUE;.
+As normal, node_type is the machine-name of the node type, not the human-readable name.
+
+<h4>hook_content_lock_locked($nid, $uid)</h4>
+This hook gets called when a lock gets set. Implement this if you want to trigger any actions when a lock gets applied.
+
+<h4>hook_content_lock_released($nid)</h4>
+This hook is called after a lock has been successfully released from the node identified by $nid.
+Implement this to react to a node losing its lock.
+
+<h4>hook_content_lock_node_lockable($node)</h4>
+Implement this hook to control whether or not a node is lockable. If a
+node is lockable, a lock may be created on that node and existing
+locks on that node will be enforced. In the normal case where a node
+should be lockable, the hook should return TRUE. If one such hook
+returns FALSE, the node will not be considered lockable.

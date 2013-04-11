@@ -1,0 +1,406 @@
+<?php
+
+/**
+ * @file
+ * Module providing context help capability for Drupal
+ */
+define('CONTEXTHELP_PATH', drupal_get_path('module', 'contexthelp'));
+
+/**
+ * Implementation of hook_init()
+ */
+function contexthelp_init() {
+  // Do not do this for users who do not have access to context help
+  if (user_access('context help view')) {
+    jquery_ui_add('ui.accordion');
+    //drupal_add_js(CONTEXTHELP_PATH .'/jquery.accordion.js');
+    drupal_add_js(CONTEXTHELP_PATH .'/jquery.modal.js');
+    drupal_add_css(CONTEXTHELP_PATH .'/jqModal.css');
+    drupal_add_css(CONTEXTHELP_PATH .'/contexthelp.css');
+    drupal_add_js(CONTEXTHELP_PATH .'/contexthelp.js');
+    // Getting the contexthelp url we will utilize for ajax requests
+    if (!variable_get('contexthelp_disable_all_help', false)) {
+      $settings['contexthelp']['ajax_url'] = url('contexthelp/retrieve');
+    }
+    if (!variable_get('contexthelp_disable_faq', false)) {
+      $settings['contexthelp']['faq_url'] = url('contexthelp/faq/retrieve');
+    }
+    // Setting the current url so we can make requests with it if required
+    $url = _contexthelp_get_url();
+    $settings['contexthelp']['curl'] = $url;
+    if (is_numeric(contexthelp_get_help($url))) {
+      $settings['contexthelp']['currentpagehelp'] = 1;
+    }
+    else {
+      // If the administrator has said then we do not show the button on pages with no help
+      if (variable_get('contexthelp_disable_help_button', false)) {
+        $settings['contexthelp']['hide_help_button'] = 1;
+      }
+    }
+    // Check if the administrator wishes the help button disabled on specific pages
+    if (variable_get('contexthelp_disable_on_specific_pages', false)) {
+      $mappings = variable_get('contexthelp_url_mappings', array());
+      if (is_array($mappings) && isset($mappings[$url])) {
+        $settings['contexthelp']['hide_help_button'] = 1;
+      }
+    }
+    drupal_add_js($settings, 'setting');
+  }
+}
+
+/**
+ * Implementation of hook_perm().
+ */
+function contexthelp_perm() {
+  return array('administer context help', 'context help view');
+}
+
+/**
+ * Implementation of hook_views_api()
+ */
+function contexthelp_views_api() {
+  return array(
+    'api' => 2,
+    'path' => CONTEXTHELP_PATH,
+  );
+}
+
+/**
+ * Implementation of hook_menu()
+ */
+function contexthelp_menu() {
+  $items['admin/settings/contexthelp'] = array(
+    'title' => 'Context Help',
+    'description' => 'Configure contexthelp settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('contexthelp_admin_settings'),
+    'access arguments' => array('administer context help'),
+    'file' => 'contexthelp.admin.inc'
+  );
+  $items['admin/contexthelp'] = array(
+    'title' => 'Context Help',
+    'description' => 'Import help into the Context Help Module',
+    'access arguments' => array('administer context help'),
+    'page callback' => 'system_admin_menu_block_page',
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+  $items['admin/contexthelp/import'] = array(
+    'title' => 'Context Help Import',
+    'description' => 'Import help into the Context Help Module',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('contexthelp_import_help_form'),
+    'access arguments' => array('administer context help'),
+    'file' => 'contexthelp.page.inc'
+  );
+  $items['admin/contexthelp/export'] = array(
+    'title' => 'Context Help Export',
+    'description' => 'Export help from the Context Help Module',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('contexthelp_export_help_form'),
+    'access arguments' => array('administer context help'),
+    'file' => 'contexthelp.page.inc'
+  );
+  $items['admin/contexthelp/url/mappings'] = array(
+    'title' => 'Context Help Url Mappings',
+    'description' => 'Map a list of urls that you do not wish the contexthelp button to be displayed on',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('contexthelp_url_mappings_form'),
+    'access arguments' => array('administer context help'),
+    'file' => 'contexthelp.page.inc'
+  );
+  $items['admin/contexthelp/url/mappings/delete'] = array(
+    'title' => 'Context Help Url Mappings Delete',
+    'description' => 'Delete an existing context help url mapping from the system',
+    'page callback' => 'contexthelp_url_mappings_delete',
+    'access arguments' => array('administer context help'),
+    'type' => MENU_SUGGESTED_ITEM,
+    'file' => 'contexthelp.page.inc'
+  );
+  $items['contexthelp/list'] = array(
+    'title' => 'Context Help List',
+    'description' => 'List all Context Help in the system',
+    'page callback' => 'contexthelp_list_page',
+    'access arguments' => array('context help view'),
+    'type' => MENU_CALLBACK,
+    'file' => 'contexthelp.page.inc'
+  );
+  $items['contexthelp/retrieve'] = array(
+    'title' => 'Ajax Context Help',
+    'description' => 'Ajax Handler for retrieving context information',
+    'page callback' => 'contexthelp_retrieve',
+    'access arguments' => array('context help view'),
+    'type' => MENU_CALLBACK,
+    'file' => 'contexthelp.ajax.inc',
+  );
+  $items['contexthelp/faq/retrieve'] = array(
+    'title' => 'FAQ Context',
+    'description' => 'Retrieve any FAQs from the database',
+    'page callback' => 'contexthelp_faq_retrieve',
+    'access arguments' => array('context help view'),
+    'type' => MENU_CALLBACK,
+    'file' => 'contexthelp.ajax.inc',
+  );
+  return $items;
+}
+
+/**
+ * Implementation of hook_block()
+ */
+function contexthelp_block($op = 'list', $delta = 0, $edit = array()) {
+  switch ($op) {
+    case 'list':
+      $block = array(
+        array('info' => t('Context Help: Help')),
+      );
+      break;
+
+    case 'view':
+      switch ($delta) {
+        case 0:
+          $block['subject'] = t('Context Help');
+          $block['content'] = theme('contexthelp_block');
+          break;
+      }
+      break;
+  }
+  return $block;
+}
+
+/**
+ * Implementation of hook_form_alter()
+ */
+function contexthelp_form_alter(&$form, &$form_state, $form_id) {
+  if (isset($form['type'])) {
+    if (isset($form['type']['#value']) && $form['type']['#value'] .'_node_form' == $form_id && $form['type']['#value'] == variable_get('contexthelp_node_type', 'contexthelp')) {
+      if ($url = $_GET['url']) {
+        // set the field url value if we have a url in the query string
+        $form['field_url'][0]['#default_value']['value'] = $url;
+      }
+    }
+  }
+}
+
+/**
+ * Implementation of hook_theme()
+ */
+function contexthelp_theme() {
+  return array(
+    'contexthelp_block' => array(
+      'file' => 'contexthelp.theme.inc'
+    ),
+    'contexthelp_url_mappings_form' => array(
+      'file' => 'contexthelp.theme.inc',
+      'arguments' => array('form' => NULL),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_footer()
+ */
+function contexthelp_footer($main = 0) {
+  $data = '';
+  // Only Show is the user actually has access to view context help
+  if (user_access('context help view')) {
+    // Put the help button into the system if we do not have the help button in the theme
+    if (!variable_get('contexthelp_help_button_in_theme', false)) {
+      $data .= '<div><a href="#" id="contextual-help-toggle">'. t('Help') .'</a></div>';
+    }
+    $data .= '<div class="context jqmID1" id="contextual-help-dialog" style="z-index: 3000; opacity: 1; display: none;">';
+    $data .= '<a class="jqmClose" id="contextual-help-close" href="#">X</a>';
+    $data .= '<ul id="contextual-help-tabs">';
+    $data .= '<li class="active" id="help-tab-0">';
+    $data .= '<a href="#"><span>'. t('Current Page') .'</span></a>';
+    $data .= '</li>';
+    if (!variable_get('contexthelp_disable_all_help', false)) {
+      $data .= '<li id="help-tab-1">';
+      $data .= '<a href="#"><span>'. t('All Pages') .'</span></a>';
+      $data .= '</li>';
+    }
+    if (!variable_get('contexthelp_disable_faq', false)) {
+      $data .= '<li id="help-tab-2">';
+      $data .= '<a href="#"><span>'. t('FAQ') .'</span></a>';
+      $data .= '</li>';
+    }
+    $data .= '</ul>';
+    $data .= '<div id="contextual-help-content">';
+    $data .= '<div id="help-content-0" style="display: block;">';
+    $data .= theme('contexthelp_block');
+    $data .= '</div>';
+    if (!variable_get('contexthelp_disable_all_help', false)) {
+      $data .= '<div id="help-content-1" style="display: none;">';
+      $data .= t('Loading....');
+      $data .= '</div>';
+    }
+    if (!variable_get('contexthelp_disable_faq', false)) {
+      $data .= '<div id="help-content-2" style="display: none;">';
+      $data .= t('Loading....');
+      $data .= '</div>';
+    }
+    $data .= '</div>';
+    $data .= '</div>';
+  }
+  return $data;
+}
+
+
+/**
+ * Function to take into account locale settings to get the correct context help
+ *
+ * @param $url
+ *      Url we want to get context help for
+ */
+function contexthelp_get_help($url = NULL) {
+  static $data = NULL;
+  // Do not re-parse for the same page since we might call more than once
+  if (!is_null($data) && is_numeric($data)) {
+    return $data;
+  }
+  // Do not process if the Url is empty we have no information for that
+  if (!is_null($url) && drupal_strlen($url) > 0) {
+    $contexthelp_type = variable_get('contexthelp_node_type', 'contexthelp');
+    // If the value is NULL or the String is empty we do not want to process anything
+    if (!is_null($contexthelp_type) && drupal_strlen($contexthelp_type) > 0)  {
+      $query = _contexthelp_build_sql_query($contexthelp_type, $url);
+      if ($query !== FALSE) {
+        $result = db_query($query);
+        // Put as a temporary percaution incase more than one exists in the system (user might create more than one by mistake)
+        while ($row = db_fetch_object($result)) {
+          if (is_numeric($row->nid)) {
+            $data = $row->nid;
+            break;
+          }
+        }
+      }
+    }
+  }
+  return $data;
+}
+
+/**
+ * Get the current locale settings for the user based off three known strategies
+ */
+function _contexthelp_get_user_locale() {
+  global $user, $language;
+
+  if (strcmp($language->language, 'en')) {
+    return $language->language;
+  }
+  // Check the users language settings to determine if we can return that language
+  if (isset($user->language) && !is_null($user->language) && drupal_strlen($user->language)) {
+    return $user->language;
+  }
+
+  // Check if locale module exists and site wide locale has been set
+  if (module_exists('locale')) {
+    global $locale;
+    if (!is_null($locale) && drupal_strlen($locale)) {
+      return $locale;
+    }
+  }
+  // Default to the contexthelp default language if nothing else matches
+  return variable_get('contexthelp_default_locale', $language->language);
+}
+
+/**
+ * Context Help parse url
+ *
+ * @param $language
+ *      Do we want the language back or the url FALSE = url, TRUE = language
+ */
+function _contexthelp_get_url($language = FALSE) {
+  if (!function_exists('locale_language_list')) {
+    return NULL;
+  }
+  // Retrieve the current url from the browser location
+  //$url = ($_GET['q']) ? $_GET['q'] : $_POST['q'];
+  $url = $_REQUEST['q'];
+  $pieces = explode("/", $url);
+  // Checking if the url first portion matches one of the locales we have enabled
+  $current_language = FALSE;
+  $enabled_languages = locale_language_list('native');
+  foreach ($enabled_languages as $k => $v) {
+    if (!strcmp($pieces[0], $k)) {
+      // Matches so set the language so we can handle its return or removal
+      $current_language = TRUE;
+      break;
+    }
+  }
+  // If TRUE we have a match on an enabled locale and the current page language
+  if ($current_language === TRUE) {
+    // If we want the language then return it to the user
+    if ($language === TRUE) {
+      return $pieces[0];
+    }
+    else {
+      // If we did not want the language sanitize the url so we can just get the url back
+      $lang = array_shift($pieces);
+      return implode("/", $pieces);
+    }
+  }
+  // No language was found when requested hence return NULL value
+  if ($language === TRUE) {
+    return NULL;
+  }
+  // Return the Url since it was a normal approach
+  return $url;
+}
+
+/**
+ * Function utilized to build the sql query we will send for the contexthelp current
+ */
+function _contexthelp_build_sql_query($contexthelp_type = NULL, $url = NULL) {
+  $query = FALSE;
+  if (!is_null($url) && drupal_strlen($url) > 0) {
+    $view = views_get_view('contexthelp');
+    // If the view does not exist we need to return false otherwise it will error out
+    if (!is_object($view)) {
+      watchdog('contexthelp', 'View contexthelp does not exist in the system', array(), WATCHDOG_ERROR);
+      return $query;
+    }
+    $view->build();
+    // Verify if the view has a query associated with it if so retrieve the query
+    if (isset($view->build_info['query']) && drupal_strlen($view->build_info['query']) > 0) {
+      // Retrieve the table name where the field url is being stored
+      $field = content_fields('field_url', 'contexthelp');
+      $db_info = content_database_info($field);
+      if (function_exists('content_views_tablename') === FALSE) {
+        module_load_include('inc', 'content', 'includes/views/content.views');
+      }
+      $tablename = content_views_tablename($field);
+      $column_name = 'field_url_value';
+      // We want to verify if the column information is there also if not we will use a default
+      if (isset($db_info['columns']) &&
+          is_array($db_info['columns']) &&
+          isset($db_info['columns']['value']) &&
+          is_array($db_info['columns']['value']) &&
+          isset($db_info['columns']['value']['column']) &&
+          drupal_strlen($db_info['columns']['value']['column']) > 0) {
+        $column_name = $db_info['columns']['value']['column'];
+      }
+      // Retrieving the query that will be build via the view information
+      $query = $view->build_info['query'];
+      // Verify if the query has an order by clause in it or not
+      if (strpos($query, "ORDER BY") !== FALSE) {
+        $data = explode("ORDER BY", $query);
+        $query = $data[0];
+      }
+      // Add our language checking and data field checking for the view note the field is
+      // utilizing LIKE is on the right hand side so we can support wildcards in the system
+      $query .= " AND node.language = '%s' AND '%s' LIKE {%s}.%s";
+      $query = sprintf($query, $contexthelp_type, _contexthelp_get_user_locale(), $url, $tablename, $column_name);
+      // Checking if we actually had to split the array first
+      if (isset($data) && is_array($data)) {
+        $query .= ' ORDER BY '. $data[1];
+      }
+    }
+    else {
+      watchdog('contexthelp', t('_contexthelp_build_sql_query: View Build did not produce an SQL query, verify the view contexthelp exists'), NULL, 'error');
+    }
+  }
+  else {
+    watchdog('contexthelp', t('_contexthelp_build_sql_query: Recevied a null value or empty string for the url'), NULL, 'error');
+  }
+  return $query;
+}

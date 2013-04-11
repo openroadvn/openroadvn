@@ -1,0 +1,227 @@
+<?php
+// $Id$
+
+/**
+  Implementation of hook_form_alter
+*/
+function isa_vf_access_form_alter (&$form, &$form_state, $form_id){
+  if ($form_id == 'theme_editor_editor_form' || $form_id == 'theme_editor_backup_form'){
+    $form['#submit'][] = 'isa_vf_access_flush_cache_submit';
+   }
+}
+
+/**
+ Clear css cache after the css editing
+*/
+function isa_vf_access_flush_cache_submit (&$form, &$form_state){
+  drupal_clear_css_cache ();
+}
+
+
+
+
+
+/**
+ * Implementation of hook_help ()
+ */
+function isa_vf_access_help($path, $arg) {
+  $output = '';
+  switch ($path) {
+    case "admin/help#vf_access":
+      $output = '<p>' . t("Allows access to Virtual forges depending on taxonomy.") . '</p>';
+      break;
+  }
+  return $output;
+}
+
+/**
+ *Implementation of hook_perm ()
+ * @return array
+ */
+function isa_vf_access_perm() {
+  return array (
+    'administer virtual forge',
+    'view/edit virtual forge vocabulary',
+    'edit virtual forge homepage',
+    );
+}
+
+
+/**
+ *
+ * @param <type> $name
+ * @param <type> $default
+ * @return <type>
+ */
+function _variable_get_main_site($name, $default) {
+  $value = db_result(db_query("SELECT value FROM variable WHERE name = '%s'", $name));
+  if ($value != '')
+    return unserialize($value);
+  else
+    return $default;
+}
+
+/**
+ * implementation of hook_node_access_records
+ * this function is called once for each existing node when rebuilding permissions
+ */
+function isa_vf_access_node_access_records($node) {
+  // only grant permissions for the project content type
+  if ($node->type != 'project_project')
+    return;
+
+  // get all terms associated with the node, within the "Virtual forge" vocabulary
+  // you have to get the variable from " variable " and not " {variable} "
+  $vid = _variable_get_main_site('isa_vf_access_vid_virtual_forge', 0);
+  $virtualForge = taxonomy_node_get_terms_by_vocabulary($node, $vid);
+  // only grant permissions if the project has at least one associated term
+  if (count($virtualForge) == 0)
+    return;
+
+  $grants = array ();
+  $grants[] = array (
+    'nid' => $node->nid,
+    'realm' => 'all',
+    'gid' => 0,
+    'grant_view' => TRUE,
+    'grant_update' => FALSE,
+    'grant_delete' => FALSE,
+    'priority' => 0,
+  );
+
+  foreach ($virtualForge as $tid => $value) {
+    $grants[] = array (
+      'nid' => $node->nid,
+      'realm' => 'vf_access',
+      'gid' => $tid,
+      'grant_view' => TRUE,
+      'grant_update' => TRUE,
+      'grant_delete' => TRUE,
+      'priority' => 0,
+    );
+  }
+
+  return $grants;
+}
+
+/**
+ *  Implementation of hook_grants
+ */
+function isa_vf_access_node_grants($account, $op) {
+  // only grant permissions if you are on the main site
+  if (!variable_get('isa_vf_access_enable_grant', 0))
+    return;
+
+
+  // remove grants from all nodes
+  // uncommented + administer : you get all permissions OR "Access denied" on a wrong VF
+  // uncommented              : you get the "view" permission OR "Access denied" on a wrong VF
+  // commented + administer   : you get all permissions OR just the "view" permission on a wrong VF
+  // commented                : you get the "view" permission
+  //$grants['all'] = array (-1);
+
+  if (user_access('administer virtual forge', $account, FALSE))
+    $grants['vf_access'] = array (variable_get('isa_vf_access_tid_virtual_forge', -1));
+
+  return $grants;
+}
+
+/**
+ * Implementation of hook_nodeapi ()
+ */
+function isa_vf_access_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  if ($op == 'delete') {
+    db_query("DELETE FROM {node_access} WHERE nid = {$node->nid};");
+  }
+  if ($op == 'update') {
+    if (!empty($node)) {
+      db_query("DELETE FROM {node_access} where nid = '%d'", $node->nid);
+      node_access_acquire_grants($node);
+    }
+  }
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function isa_vf_access_menu() {
+  // define the menu path for the edition of virtual forge homepage
+  $items['admin/isa/edit_vf_homepage'] = array(
+    'title' => t('Edit virtual forge homepage'),
+    //'description' =>  t(''),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_vf_access_get_edit_homepage'),
+    'access callback' => 'isa_vf_access_edit_homepage',
+    'type' => MENU_LOCAL_TASK,
+  );
+  //define the menu path for the virtual forge homepage
+  $items['vf-homepage'] = array(
+    'title' => t('Home'),
+    'description' => 'Virtual forge homepage',
+    'access arguments' => array('access content'),
+    'page callback' => 'isa_vf_access_get_vf_homepage',
+    'weight' => -100,
+    'type' => MENU_NORMAL_ITEM,
+    'menu_name' => 'menu-vf-primary-links',
+  );
+  return $items;
+}
+
+/**
+ * This function is the access callback for edition of virtual forge homepage
+ *
+ * @return boolean TRUE if users is in virtual forge and
+ * have permission 'edit virtual forge homepage'
+ */
+function isa_vf_access_edit_homepage (){
+  if (isa_toolbox_is_in_virtual_forge()){
+    return user_access ('edit virtual forge homepage');
+  }else{
+    return FALSE;
+  }
+}
+
+/**
+ * This function create the homepage for virtual forges (use variable 'virtual_forge_homepage')
+ *
+ * @return string content of virtual forge homepage
+ */
+function isa_vf_access_get_vf_homepage () {
+  if (isa_toolbox_is_in_virtual_forge()) {
+      $vf_homepage_text = "<div id='vf-homepage'>";
+    if (user_access ('edit virtual forge homepage')) {
+      $vf_homepage_text .= "<div class='vf-homepage-edit-link'>";
+      $vf_homepage_text .= l('Edit homepage', 'admin/isa/edit_vf_homepage');
+      $vf_homepage_text .= "</div>";
+    }
+    $vf_homepage_text .= "<div class='vf-homepahe-text'>";
+    if (! variable_get("virtual_forge_homepage", NULL)) {
+      $vf_tid = isa_toolbox_is_in_virtual_forge();
+      $term = taxonomy_get_term($vf_tid);   
+      $vf_homepage_text .= '<h3>Welcome to the virtual forge ' . $term->name .'</h3>'; 
+    }else {     
+      $vf_homepage_text .= variable_get("virtual_forge_homepage", NULL);   
+    }
+    $vf_homepage_text .= "</div>";
+    $vf_homepage_text .= '</div>';
+    return $vf_homepage_text;
+  }
+}
+
+/**
+ * This function create the form page for edit virtual forge homepage
+ *
+ * @return string form page for edit virtual forge homepage
+ */
+function isa_vf_access_get_edit_homepage () {
+  drupal_set_title(t('Edit virtual forge homepage'));
+  $form['virtual_forge_homepage'] = array(
+    '#type' => 'textarea',
+    //'#title' => t('Virtual forge homepage'),
+    '#default_value' => variable_get("virtual_forge_homepage", $basic_text),
+    '#description' => t('Define the text for the virtual forge homepage')
+  );
+  $form['#redirect'] = variable_get ('site_frontpage',NULL);
+  return system_settings_form($form);
+}
+

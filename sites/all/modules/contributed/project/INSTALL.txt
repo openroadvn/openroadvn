@@ -1,0 +1,36 @@
+Installation
+------------
+
+1. Place these files in modules/project:
+     project.module
+     project.install
+     project.css
+     project.inc
+
+2. Enable the project module under administer >> modules
+
+3. Grant the proper access to users under administer >> access control
+
+4: If you wish to enable issue tracking for projects, you should
+   install, enable, and configure the project_issue module
+   (http://drupal.org/project/project_issue).
+
+
+Upgrading
+---------
+
+1. Make sure you backup your database!
+
+2. Copy new files to modules/project.
+
+3. Login as the site administrator (user #1) and run the update.php script.
+
+4. If you have previously enabled issue tracking for any of the
+   project nodes on your site, you *must* install the project_issue
+   module (http://drupal.org/project/project_issue). When you run the
+   update.php script, project_update_4() will reorganize the tables in
+   your database to prepare your data for use with the project_issue
+   module.  See modules/project_issue/INSTALL.txt for more information.
+
+$Id: INSTALL.txt,v 1.9 2006/12/18 09:02:39 dww Exp $
+$Name: DRUPAL-6--1-0-ALPHA4 $

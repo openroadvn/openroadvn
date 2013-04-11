@@ -1,0 +1,228 @@
+# LANGUAGE translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  comment.inc,v 1.65 2006/04/24 18:34:45 dww
+#  release.inc,v 1.70 2006/04/22 21:09:40 dww
+#  issue.inc,v 1.169 2006/04/28 15:40:26 dww
+#  project.module,v 1.238 2006/04/22 16:44:46 dww
+#  mail.inc,v 1.60 2006/04/22 21:14:57 dww
+#  project.inc,v 1.75 2006/04/22 16:44:46 dww
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: German translation for project module\n"
+"POT-Creation-Date: 2009-07-18 00:17+0200\n"
+"PO-Revision-Date: 2009-07-18 00:39+0100\n"
+"Last-Translator: Alexander Haß\n"
+"Language-Team: Alexander Hass\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n!=1)\n"
+"X-Poedit-Language: German\n"
+"X-Poedit-Country: GERMANY\n"
+"X-Poedit-SourceCharset: utf-8\n"
+
+#: release/package-release-nodes.php:183
+msgid "tags"
+msgstr "Tags"
+
+#: release/package-release-nodes.php:190
+msgid "branches"
+msgstr "Zweige"
+
+#: release/package-release-nodes.php:195;284;344;580;668;859
+msgid "view"
+msgstr "Anzeigen"
+
+#: release/package-release-nodes.php:859
+msgid "package_security"
+msgstr "package_security"
+
+#: release/package-release-nodes.php:859
+#, fuzzy
+msgid "Not auto-publishing security update release."
+msgstr "Veröffentlichungen von Sicherheitsupdates nicht automatisch publizieren."
+
+#: release/project_release.module:21
+msgid "The version format string can only contain letters, numbers, and the characters . _ and - (in addition to the special characters used for identifying variables: % ! and #)."
+msgstr "Die Formatierungszeichenkette für die Version kann nur Buchstaben, Zahlen und die Zeichen . _ und - enthalten (zusätzlich zu den besonderen Zeichen zur Erkennung von Variablen: % ! und +)."
+
+#: release/project_release.module:22
+msgid "Available variables are: %api, %major, %minor, %patch, %extra. The percent sign ('%') at the front of the variable name indicates that a period ('.') should be inserted as a delimiter before the value of the variable. The '%' can be replaced with a hash mark ('#') to use a hyphen ('-') delimiter, or with an exclaimation point ('!') to have the value printed without a delimiter. Any variable in the format string that has no value will be removed entirely from the final string."
+msgstr ""
+
+#: release/project_release.module:132
+msgid "A release of a project with a specific version number."
+msgstr "Eine Veröffentlichung von einem Projekt mit einer besonderen Versionsnummer."
+
+#: release/project_release.module:407
+msgid "Nightly development snapshot from CVS branch: @tag"
+msgstr "Nächtliche Momentaufnahme des Entwicklungsstandes vom CVS Zweig: @tag"
+
+#: release/project_release.module:410
+msgid "Official release from CVS tag: @tag"
+msgstr "Offizielle Veröffentlichung von CVS Kennzeichnung: @tag"
+
+#: release/project_release.module:414
+msgid "First released: !created"
+msgstr "Erste Veröffentlichung: !created"
+
+#: release/project_release.module:434
+msgid "View usage statistics for this release"
+msgstr ""
+
+#: release/project_release.module:450
+#, fuzzy
+msgid "Packaging error messages"
+msgstr "Fehlermeldungen beim Zusammenpacken"
+
+#: release/project_release.module:469
+msgid "Download: !file"
+msgstr "Dateidownload: !file"
+
+#: release/project_release.module:472
+msgid "File: @filepath"
+msgstr "Datei: @filepath"
+
+#: release/project_release.module:474
+msgid "Size: !size"
+msgstr "Größe: !size"
+
+#: release/project_release.module:475
+msgid "md5_file hash: !filehash"
+msgstr "md5_file Hash: !filehash"
+
+#: release/project_release.module:476
+msgid "Last updated: !changed"
+msgstr "Zuletzt aktualisiert: !changed"
+
+#: release/project_release.module:599
+msgid "This string is also used to generate the name of releases associated with this project."
+msgstr "Diese Zeichenkette wird auch verwendet, um den Namen von mit dem Projekt verknüpften Veröffentlichungen zu erstellen."
+
+#: release/project_release.module:872
+msgid "Development snapshots"
+msgstr "Entwicklungsmomentaufnahmen"
+
+#: release/project_release.module:893
+msgid "View all releases"
+msgstr "Alle Veröffentlichungen anzeigen"
+
+#: release/project_release.module:893
+msgid "RSS feed of all releases"
+msgstr "RSS-Newsfeed aller Veröffentlichungen"
+
+#: release/project_release.module:898
+msgid "Add new release"
+msgstr "Neue Veröffentlichung hinzufügen"
+
+#: release/project_release.module:899
+msgid "Administer releases"
+msgstr "Veröffentlichungen verwalten"
+
+#: release/project_release.module:1088
+msgid "Date"
+msgstr "Datum"
+
+#: release/project_release.module:1094
+msgid "Size"
+msgstr "Größe"
+
+#: release/project_release.module:1099
+msgid "Links"
+msgstr "Verweise"
+
+#: release/project_release.module:1103
+msgid "Status"
+msgstr "Status"
+
+#: release/project_release.module:1141
+msgid "Download"
+msgstr "Herunterladen"
+
+#: release/project_release.module:1149
+msgid "Edit"
+msgstr "Bearbeiten"
+
+#: release/project_release.module:1227
+msgid "Recommended for %api_term_name"
+msgstr "Empfohlen für %api_term_name"
+
+#: release/project_release.module:1229
+msgid "This is currently the recommended release for @api_term_name."
+msgstr "Dies ist die derzeit empfohlene Veröffentlichung für @api_term_name."
+
+#: release/project_release.module:1239
+msgid "Supported for %api_term_name"
+msgstr "Unterstützt für %api_term_name"
+
+#: release/project_release.module:1241
+msgid "This release is supported but is not currently the recommended release for @api_term_name."
+msgstr "Diese Veröffentlichung ist unterstützt, aber derzeit nicht die empfohlene Veröffentlichung für @api_term_name."
+
+#: release/project_release.module:1251
+#, fuzzy
+msgid "Development snapshot"
+msgstr "Entwicklungsmomentaufnahme"
+
+#: release/project_release.module:1253
+msgid "Development snapshots are automatically regenerated and their contents can frequently change, so they are not recommended for production use."
+msgstr "Entwicklungsschnappschüsse werden automatisch erzeugt. Da sich die Inhalte häufig ändern können sind diese nicht für den Produktionsbetrieb empfohlen."
+
+#: release/project_release.module:1263
+msgid "Unsupported"
+msgstr "Nicht unterstützt"
+
+#: release/project_release.module:1265
+msgid "This release is not supported and may no longer work."
+msgstr "Diese Veröffentlichung ist nicht mehr "
+
+#: release/project_release.module:1300
+msgid "Project release API compatibility"
+msgstr "API Kompatibilität der Projektveröffentlichungen"
+
+#: release/project_release.module:1434
+msgid "Specified argument (%project) is not a valid project ID number."
+msgstr ""
+
+#: release/project_release.module:1570
+msgid "The Project release module makes special use of the taxonomy (category) system. A special vocabulary, %vocabulary_name, has been created automatically."
+msgstr ""
+
+#: release/project_release.module:1571
+msgid "To categorize project releases by their compatibility with a version of some outside software (eg. a library or API of some sort), add at least one term to this vocabulary. For example, you might add the following terms: \"5.x\", \"6.x\", \"7.x\"."
+msgstr ""
+
+#: release/project_release.module:1572
+msgid "For more information, please see !url."
+msgstr ""
+
+#: release/project_release.module:1574
+msgid "Use the <a href=\"@taxonomy-admin\">vocabulary admininistration page</a> to view and add terms."
+msgstr ""
+
+#: release/project_release.module:53
+msgid "Configure the default version string for releases and other settings for the Project release module."
+msgstr "Konfiguration der Standard-Zeichenkette zur Versionsformatierung von Veröffentlichungen und weitere Einstellungen des Projektveröffentlichungsmodul."
+
+#: release/project_release.module:54
+msgid "Project release settings"
+msgstr "Einstellungen für Projektveröffentlichungen"
+
+#: release/project_release.module:0
+msgid "project_release"
+msgstr "project_release"
+
+#: release/project_release.install:355
+msgid "Converted release file attachments for @count releases"
+msgstr ""
+
+#: release/project_release.info:0
+msgid "Project releases"
+msgstr "Projektveröffentlichungen"
+
+#: release/project_release.info:0
+msgid "Provides a release node type to represent releases of projects."
+msgstr "Stellt einen Inhaltstyp für Veröffentlichungen bereit, um Veröffentlichungen von Projekten darzustellen."
+

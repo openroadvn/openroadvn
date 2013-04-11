@@ -1,0 +1,47 @@
+<?php
+/* 
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
+
+function isa_workflow_buttons_install (){
+
+$success = drupal_install_schema('isa_workflow_buttons');
+  if (empty($success[0]['success'])) {
+    drupal_set_message(st('The installation of workflow buttons module failed.'), 'error');
+  }
+}
+
+function isa_workflow_buttons_uninstall (){
+drupal_uninstall_schema('isa_workflow_buttons');
+}
+/**
+ * Implementation of hook_schema().
+ */
+function isa_workflow_buttons_schema() {
+  $schema = array();
+
+  $schema['workflow_buttons'] = array(
+    'fields' => array(
+      'sid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'wid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'button_name' => array(
+      'type' => 'varchar',
+      'length' => '200',
+      'not null' => TRUE,
+    ),
+    ),
+    'primary key' => array('sid'),
+  );
+
+  return $schema;
+}

@@ -1,0 +1,33 @@
+# $Id: legacy_paths.pot,v 1.1 2009/07/17 22:01:22 hass Exp $
+#
+# LANGUAGE translation of Drupal (legacy_paths)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  project_legacy_paths.module,v 1.1 2009/01/12 22:57:50 dww
+#  project_legacy_paths.info,v 1.1 2009/01/12 22:57:50 dww
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2009-07-17 23:55+0200\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: legacy_paths/project_legacy_paths.module:0
+msgid "project_legacy_paths"
+msgstr ""
+
+#: legacy_paths/project_legacy_paths.info:0
+msgid "Project Legacy Paths"
+msgstr ""
+
+#: legacy_paths/project_legacy_paths.info:0
+msgid "Provides redirection from project browsing paths in the Drupal 5 version of the project module to equivalent paths in the Drupal 6 version."
+msgstr ""
+

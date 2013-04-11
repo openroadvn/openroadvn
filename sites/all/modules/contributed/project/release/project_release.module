@@ -1,0 +1,2127 @@
+<?php
+// $Id: project_release.module,v 1.152 2010/01/30 02:43:24 dww Exp $
+
+define('PROJECT_RELEASE_DEFAULT_VERSION_FORMAT', '!major%minor%patch#extra');
+define('PROJECT_RELEASE_FILE_EXTENSIONS', 'zip gz tar bz2 rar tgz tar.gz dmg rpm deb');
+
+/**
+ * Constants for the possible values of {project_release_nodes}.update_status.
+ */
+define('PROJECT_RELEASE_UPDATE_STATUS_CURRENT', 0);
+define('PROJECT_RELEASE_UPDATE_STATUS_NOT_CURRENT', 1);
+define('PROJECT_RELEASE_UPDATE_STATUS_NOT_SECURE', 2);
+
+/**
+ * @defgroup project_release_core Core Drupal hooks
+ */
+
+/**
+ * Implementation of hook_init().
+ */
+function project_release_init() {
+  drupal_add_css(drupal_get_path('module', 'project_release') .'/project_release.css');
+  project_release_get_api_taxonomy();
+
+  // These constants are defined here since they use t() and the
+  // global $locale variable needs to be initialized before calling
+  // t() or you suffer a big performance hit.
+  define('PROJECT_RELEASE_VERSION_FORMAT_VALID_MSG', t('The version format string can only contain letters, numbers, and the characters . _ and - (in addition to the special characters used for identifying variables: % ! and #).'));
+  define('PROJECT_RELEASE_VERSION_FORMAT_HELP', t("Available variables are: %api, %major, %minor, %patch, %extra. The percent sign ('%') at the front of the variable name indicates that a period ('.') should be inserted as a delimiter before the value of the variable. The '%' can be replaced with a hash mark ('#') to use a hyphen ('-') delimiter, or with an exclaimation point ('!') to have the value printed without a delimiter. Any variable in the format string that has no value will be removed entirely from the final string.") .' '. PROJECT_RELEASE_VERSION_FORMAT_VALID_MSG);
+}
+
+/**
+ * Implementation of hook_menu()
+ * @ingroup project_release_core
+ */
+function project_release_menu() {
+  $items = array();
+
+  $items['node/%project_node/edit/releases'] = array(
+    'title' => 'Releases',
+    'page callback' => 'project_release_project_edit_releases',
+    'page arguments' => array(1),
+    'access callback' => 'node_access',
+    'access arguments' => array('update', 1),
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'includes/project_edit_releases.inc',
+  );
+
+  $items['node/add/project-release/%'] = array(
+    'page callback' => 'node_add',
+    'page arguments' => array('project-release'),
+    'access callback' => 'node_access',
+    'access arguments' => array('create', 'project_release'),
+    'file' => 'node.pages.inc',
+    'file path' => drupal_get_path('module', 'node'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['admin/project/project-release-settings'] = array(
+    'description' => 'Configure the default version string for releases and other settings for the Project release module.',
+    'title' => 'Project release settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('project_release_settings_form'),
+    'access arguments' => array('administer projects'),
+    'weight' => 1,
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'includes/admin.settings.inc',
+  );
+
+  // Redirect node/add/project_release/* to node/add/project-release.
+  $items['node/add/project_release'] = array(
+    'page callback' => 'project_release_add_redirect_page',
+    'access callback' => 'node_access',
+    'access arguments' => array('create', 'project_release'),
+    'type' => MENU_CALLBACK,
+    'file' => 'includes/release_node_form.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implementation of hook_menu_alter().
+ */
+function project_release_menu_alter(&$callbacks) {
+  $callbacks['node/add/project-release']['page callback'] = 'drupal_get_form';
+  $callbacks['node/add/project-release']['page arguments'] = array('project_release_pick_project_form');
+  $callbacks['node/add/project-release']['file'] = 'release_node_form.inc';
+  $callbacks['node/add/project-release']['file path'] = drupal_get_path('module', 'project_release') . '/includes';
+}
+
+/**
+ * @defgroup project_release_node Drupal node-type related hooks
+ */
+
+/**
+ * Implementation of hook_access().
+ * @ingroup project_release_node
+ *
+ * TODO: Maybe we should add new permissions for accessing release
+ * nodes, but for now, we're just using the existing project perms.
+ */
+function project_release_access($op, $node, $account) {
+  switch ($op) {
+    case 'view':
+      // We want to use the identical logic for viewing projects,
+      // so we call that method directly.
+      return project_project_access($op, $node, $account);
+    case 'create':
+      // Due to how node_menu() works, we have to allow anyone with
+      // permission to maintain a project to be able to create a
+      // release node, or else you can have a faulty entry added to
+      // the {cache_menu} table that thinks you're not allowed to
+      // create *any* releases. So, we are more relaxed here, and
+      // enforce more closely in project_release_form(). As with the
+      // 'view' case above, we want the identical logic as project
+      // nodes, so we call that hook, instead of duplicating code.
+      return project_project_access($op, $node, $account);
+    case 'update':
+      // We can't just use project_project_access() here, since we
+      // need to check access to the project itself, not the release
+      // node, so we use the helper method and pass the project id.
+      return project_check_admin_access($node->project_release['pid']);
+    case 'delete':
+      // No one should ever delete a release node, only unpublish it.
+      return FALSE;
+  }
+}
+
+/**
+ * Implementation of hook_node_info().
+ * @ingroup project_release_node
+ */
+function project_release_node_info() {
+  return array(
+    'project_release' => array(
+      'name' => t('Project release'),
+      'module' => 'project_release',
+      'description' => t('A release of a project with a specific version number.'),
+     ),
+  );
+}
+
+/**
+ * Implement of hook_form() for project_release nodes.
+ */
+function project_release_form(&$release, &$form_state) {
+  module_load_include('inc', 'project_release', 'includes/release_node_form');
+  return _project_release_form($release, $form_state);
+}
+
+/**
+ * Validation callback for project release node forms.
+ *
+ * @see _project_release_node_form_validate()
+ */
+function project_release_node_form_validate(&$form, &$form_state) {
+  module_load_include('inc', 'project_release', 'includes/release_node_form');
+  return _project_release_node_form_validate($form, $form_state);
+}
+
+
+/**
+ * Implementation of hook_load().
+ * @ingroup project_release_node
+ */
+function project_release_load($node) {
+  $additions = db_fetch_array(db_query("SELECT * FROM {project_release_nodes} WHERE nid = %d", $node->nid));
+  // Add in file info.
+  $file_info = db_query("SELECT f.*, prf.filehash FROM {project_release_file} prf INNER JOIN {files} f ON prf.fid = f.fid WHERE prf.nid = %d", $node->nid);
+  $files = array();
+  while ($file = db_fetch_object($file_info)) {
+    $files[$file->fid] = $file;
+  }
+  $additions['files'] = $files;
+
+  $release = new stdClass;
+  $release->project_release = $additions;
+  return $release;
+}
+
+/**
+ * Implementation of hook_insert().
+ *
+ * @param $node
+ *   Object containing form values from the project_release node form.  Even
+ *   though this is NOT a fully loaded $node object, the release-related
+ *   values are in the $node->project_release array due to manual #tree and
+ *   #parents hacking in project_release_form().
+ *
+ * @ingroup project_release_node
+ */
+function project_release_insert($node) {
+  module_load_include('inc', 'project_release', 'includes/release_node_form');
+  project_release_db_save($node, true);
+}
+
+/**
+ * Implementation of hook_update().
+ *
+ * @param $node
+ *   Object containing form values from the project_release node form.  Even
+ *   though this is NOT a fully loaded $node object, the release-related
+ *   values are in the $node->project_release array due to manual #tree and
+ *   #parents hacking in project_release_form().
+ *
+ * @ingroup project_release_node
+ */
+function project_release_update($node) {
+  module_load_include('inc', 'project_release', 'includes/release_node_form');
+  project_release_db_save($node, false);
+}
+
+/**
+ * Verifies the data for supported release versions, and updates if necessary.
+ *
+ * @param $pid
+ *   The project ID.
+ * @param $tid
+ *   The API compatibility term ID.
+ * @param $major
+ *   The major version of the new/modified/deleted release.
+ * @param $delete
+ *   Boolean to indicate if we're deleting a release of this major or not.
+ *
+ * @return
+ *   TRUE if we updated a record in {project_release_supported_versions},
+ *   otherwise FALSE (e.g. if there were no published releases on the
+ *   requested branch).
+ */
+function project_release_check_supported_versions($pid, $tid, $major, $delete) {
+  // Remember if we updated {project_release_supported_versions} so we can
+  // return the value to our caller.
+  $did_update = FALSE;
+
+  // If we're being called as a release node is being edited and saved, and
+  // the site we're running on is using DB replication, we need to make sure
+  // we're talking to the primary DB so that all of this works.
+  if (function_exists('db_set_ignore_slave')) {
+    db_set_ignore_slave();
+  }
+
+  // Regardless of if we're deleting, adding, or editing, we need to know the
+  // latest and recommended releases (if any) from the given branch. If
+  // there's no published release, these values will be 0.
+  list($latest_release, $recommended_release, $latest_security_release) = project_release_find_latest_releases($pid, $tid, $major);
+
+  if ($delete) {
+    // Make sure this isn't the last release node for the given major.
+    if (!empty($latest_release)) {
+      // Since the node we just deleted might have been the latest or
+      // recommended on the branch, update our record with the real values.
+      db_query("UPDATE {project_release_supported_versions} SET recommended_release = %d, latest_release = %d, latest_security_release = %d WHERE nid = %d AND tid = %d AND major = %d", $recommended_release, $latest_release, $latest_security_release, $pid, $tid, $major);
+      $did_update = TRUE;
+    }
+    else {
+      // No latest release -- remove the bogus record for this branch.
+      db_query("DELETE FROM {project_release_supported_versions} WHERE nid = %d AND tid = %d AND major = %d", $pid, $tid, $major);
+
+      $num_recommended = db_result(db_query("SELECT COUNT(*) FROM {project_release_supported_versions} WHERE nid = %d AND tid = %d AND supported = %d AND recommended = %d", $pid, $tid, 1, 1));
+      if ($num_recommended > 1) {
+        // Something seriously bogus, clear out the values and start over.
+        db_query("UPDATE {project_release_supported_versions} SET recommended = %d WHERE nid = %d AND tid = %d", 0, $pid, $tid);
+        $num_recommended = 0;
+      }
+    }
+  }
+  else {
+    // Adding or editing a release.
+    if (!empty($latest_release)) {
+      // We have at least 1 published release, so make sure we have an entry
+      // for this major version in {project_release_supported_versions}.
+      $current_branches = db_query("SELECT major FROM {project_release_supported_versions} WHERE nid = %d AND tid = %d", $pid, $tid);
+      $have_current_branch = FALSE;
+      $num_branches = 0;
+      while (($branch = db_fetch_object($current_branches)) !== FALSE) {
+        $num_branches++;
+        if ($branch->major == $major) {
+          $have_current_branch = TRUE;
+          break;
+        }
+      }
+      if ($num_branches == 0 || !$have_current_branch) {
+        // First entry for this API tid/major version pair, so add a new
+        // record to the table as supported but not recommended.
+        db_query("INSERT INTO {project_release_supported_versions} (nid, tid, major, supported, recommended, snapshot, recommended_release, latest_release, latest_security_release) VALUES (%d, %d, %d, %d, %d, %d, %d, %d, %d)", $pid, $tid, $major, 1, 0, 0, $recommended_release, $latest_release, $latest_security_release);
+      }
+      else {
+        // We already have this branch in the table, but the latest_release
+        // and recommended_release fields might be stale based on whatever
+        // node was just added or edited.
+        db_query("UPDATE {project_release_supported_versions} SET recommended_release = %d, latest_release = %d, latest_security_release = %d WHERE nid = %d AND tid = %d AND major = %d", $recommended_release, $latest_release, $latest_security_release, $pid, $tid, $major);
+      }
+      $did_update = TRUE;
+    }
+  }
+
+  // Regardless of insert/edit/delete, we want to go through and recompute
+  // {project_release_nodes}.update_status for all records on this branch.
+  // Note: we end up doing the same query in here that we performed in
+  // project_release_find_latest_releases(), we just need to process the
+  // results differently. However, to keep the code sane, we invoke the query
+  // again. If this becomes a performance problem, we can always refactor.
+  project_release_compute_update_status($pid, $tid, $major);
+
+  // Either way, clear the cache for the release table, since what we want to
+  // display might have changed, too.
+  $cid = 'table:'. $pid .':';
+  cache_clear_all($cid, 'cache_project_release', TRUE);
+
+  return $did_update;
+}
+
+/**
+ * Compute the {project_release_nodes}.update_status values for a given branch.
+ *
+ * For any given release node, there are three possible status values for if
+ * if the release needs an update or not:
+ * - 'current' (PROJECT_RELEASE_UPDATE_STATUS_CURRENT): It's the currently
+ *   recommended release (without extra), or the latest possible release
+ *   (including betas, rcs, etc). There is no need to upgrade this release at
+ *   this time, it's the most up-to-date available.
+ * - 'not-current' (PROJECT_RELEASE_UPDATE_STATUS_NOT_CURRENT): Any release
+ *   older than the recommended release, or any older release with extra from
+ *   the same major/minor/patch as the latest release.
+ * - 'not-secure' (PROJECT_RELEASE_UPDATE_STATUS_NOT_SECURE): Any release
+ *   older than the latest security update on this branch is considered not
+ *   secure. Releases are only marked 'not-secure' on sites that define the
+ *   'project_release_security_update_tid' variable.
+ *
+ *  For example, if 1.2.2 is the recommended release, 1.2.1 was a security
+ *  update, and 1.2.2-beta2 is the latest release, here would be the following
+ *  update status values for various releases:
+ *  - 1.2.2-beta2: 'current'     (since it's the latest release)
+ *  - 1.2.2-beta1: 'not-current' (since beta2 is available)
+ *  - 1.2.2: 'current'           (recommended release, latest without "extra")
+ *  - 1.2.2-rc1: 'not-current'   (since 1.2.2 official is out)
+ *  - 1.2.1: 'not-current'
+ *  - 1.2.1-beta1: 'not-secure'  (since 1.2.1 official was a security update)
+ *  - 1.2.0: 'not-secure'
+ *
+ * This status is recorded in the {project_release_nodes}.update_status column
+ * in the database. Whenever a release is created, updated, or deleted, we
+ * need to inspect all the other releases on the same branch to potentially
+ * modify the update_status column as needed.
+ *
+ * This function walks through all the records in the {project_release_nodes}
+ * table matching the given branch (API compatibility term ID and major
+ * version) for a specified project in version order (as determined by
+ * project_release_query_releases_by_branch() which sorts by version_minor,
+ * version_patch, version_extra_weight and finally version_extra), and
+ * compares them with that branch's latest release, recommended release, and
+ * latest security release to compute their update status. If the release is
+ * the latest or recommended, it's 'current'. Otherwise, it's 'not-current'
+ * if we haven't passed a security update yet, or 'not-secure' once we find a
+ * security update.
+ *
+ * @param $pid
+ *   The project ID.
+ * @param $api_tid
+ *   The API compatibility term ID.
+ * @param $major
+ *   The major version of the new/modified/deleted release.
+ *
+ * @return
+ *   Void. This function directly updates the {project_release_nodes} table
+ *   with the appropriate values.
+ *
+ * @see project_release_check_supported_versions()
+ * @see project_release_query_releases_by_branch()
+ * @see project_release_release_nodeapi()
+ */
+function project_release_compute_update_status($pid, $api_tid, $major) {
+  $latest_release = $recommended_release = $latest_security_release = 0;  
+  $nid_update_map = array();
+  $query = project_release_query_releases_by_branch($pid, $api_tid, $major);
+  while ($release = db_fetch_object($query)) {
+    // Clear out the status so we always start fresh with each release.
+    unset($update_status);
+    if (empty($latest_release)) {
+      $latest_release = $release->nid;
+      // If this is the latest release, it's current.
+      $update_status = PROJECT_RELEASE_UPDATE_STATUS_CURRENT;
+    }
+    if (empty($recommended_release) && empty($release->version_extra)) {
+      $recommended_release = $release->nid;
+      // If this is the recommended release, it's current.
+      $update_status = PROJECT_RELEASE_UPDATE_STATUS_CURRENT;
+    }
+    if (empty($latest_security_release) && !empty($release->security_update)) {
+      $latest_security_release = $release->nid;
+    }
+
+    // Based on what we've already seen, figure out the status. The only
+    // possible releases that can be "CURRENT" are the latest and recommended
+    // releases, and we already set the status for those. So, if we're here,
+    // we know it's not current, we just need to know if it's also not secure.
+    if (!isset($update_status)) {
+      // If we haven't found a security release yet, or the release we're on
+      // is the latest security update, this is just 'not_current'.
+      if (empty($latest_security_release) || $latest_security_release == $release->nid) {
+        $update_status = PROJECT_RELEASE_UPDATE_STATUS_NOT_CURRENT;
+      }
+      // Otherwise, we're past the latest security release, this is insecure.
+      else {
+        $update_status = PROJECT_RELEASE_UPDATE_STATUS_NOT_SECURE;
+      }
+    }
+
+    // If the status is different than what we have in the DB, remember that
+    // we need to update this nid in the DB.
+    if ($update_status != $release->update_status) {
+      $nid_update_map[$update_status][] = $release->nid;
+    }
+  }
+
+  if (!empty($nid_update_map)) {
+    foreach ($nid_update_map as $update_status => $nids) {
+      if (!empty($nids)) {
+        $placeholders = db_placeholders($nids);
+        db_query("UPDATE {project_release_nodes} SET update_status = %d WHERE nid IN ($placeholders)", array_merge(array($update_status), $nids));
+        if ($update_status == PROJECT_RELEASE_UPDATE_STATUS_NOT_SECURE && module_exists('project_package')) {
+          project_package_check_update_status($nids);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implementation of hook_delete().
+ * @ingroup project_release_node
+ */
+function project_release_delete($node) {
+  if (!empty($node->project_release['files'])) {
+    foreach ($node->project_release['files'] as $fid => $file) {
+      project_release_file_delete($file);
+    }
+  }
+  db_query("DELETE FROM {project_release_package_errors} WHERE nid = %d", $node->nid);
+  db_query("DELETE FROM {project_release_nodes} WHERE nid = %d", $node->nid);
+}
+
+/**
+ * Deletes release files.
+ *
+ * @param $file
+ *   The file object to delete.
+ */
+function project_release_file_delete($file) {
+  db_query("DELETE FROM {files} WHERE fid = %d", $file->fid);
+  db_query("DELETE FROM {project_release_file} WHERE fid = %d", $file->fid);
+  file_delete(file_create_path($file->filepath));
+}
+
+/**
+ * @defgroup project_release_api Project release functions that other
+ * modules might want to use
+ */
+
+/**
+ * Returns the version format string for a given project
+ * @ingroup project_release_api
+ */
+function project_release_get_version_format($project) {
+  if (!empty($project->project_release['version_format'])) {
+    return $project->project_release['version_format'];
+  }
+
+  $db_format = db_result(db_query("SELECT version_format FROM {project_release_projects} WHERE nid = %d", $project->nid));
+  if (!empty($db_format)) {
+    return $db_format;
+  }
+
+  return variable_get('project_release_default_version_format', PROJECT_RELEASE_DEFAULT_VERSION_FORMAT);
+}
+
+/**
+ * Validates a version format string. Only alphanumeric characters and
+ * [-_.] are allowed. Calls form_set_error() on error, else returns.
+ * @param $form_values Array of form values passed to validate hook.
+ * @param $element The name of the form element for the format string.
+ * @ingroup project_release_internal
+ */
+function _project_release_validate_format_string($form_values, $element) {
+  if (!preg_match('/^[a-zA-Z0-9_\-.!%#]+$/', $form_values[$element])) {
+    form_set_error($element, PROJECT_RELEASE_VERSION_FORMAT_VALID_MSG);
+  }
+}
+
+/**
+ * Returns the formatted version string for a given version object.
+ *
+ * @param $version
+ *   Object containing the separate version-related fields, such as
+ *   version_major, version_minor, etc.
+ * @param $project
+ *   Optional project node that the version corresponds with.  If not defined,
+ *   the version object should at least include a "pid" field.
+ *
+ * @return
+ *   The formatted version string for the given version and project info.
+ *
+ * @ingroup project_release_api
+ */
+function project_release_get_version($version, $project = NULL) {
+  if (isset($project)) {
+    $node = $project;
+  }
+  else {
+    $node->nid = $version->pid;
+  }
+  $variables = array();
+  foreach (array('major', 'minor', 'patch', 'extra') as $field) {
+    $var = "version_$field";
+    if (isset($version->$var) && $version->$var !== '') {
+      $variables["!$field"] = $version->$var;
+      $variables["%$field"] = '.'. $version->$var;
+      $variables["#$field"] = '-'. $version->$var;
+    }
+    else {
+      $variables["!$field"] = '';
+      $variables["%$field"] = '';
+      $variables["#$field"] = '';
+    }
+  }
+  $vid = _project_release_get_api_vid();
+  if (project_release_get_api_taxonomy() && isset($version->version_api_tid)) {
+    $term = taxonomy_get_term($version->version_api_tid);
+    $variables["!api"] = $term->name;
+    $variables["%api"] = '.'. $term->name;
+    $variables["#api"] = '-'. $term->name;
+  }
+  else {
+    $variables["!api"] = '';
+    $variables["%api"] = '';
+    $variables["#api"] = '';
+  }
+  $version_format = project_release_get_version_format($node);
+  return strtr($version_format, $variables);
+}
+
+/**
+ * Implementation of hook_view().
+ * @ingroup project_release_node
+ */
+function project_release_view($node, $teaser = FALSE, $page = FALSE) {
+  $node = node_prepare($node, $teaser);
+  $project = node_load($node->project_release['pid']);
+
+  if ($page) {
+    // Breadcrumb navigation
+    $breadcrumb[] = l($project->title, 'node/'. $project->nid);
+    $breadcrumb[] = l(t('Releases'), 'node/'. $project->nid .'/release');
+    project_project_set_breadcrumb($project, $breadcrumb);
+  }
+
+  $output = '';
+  $max_file_timestamp = 0;
+  if (!empty($node->project_release['files'])) {
+    $view_info = variable_get('project_release_files_view', 'project_release_files:default');
+    list($view_name, $display_name) = split(':', $view_info);
+    $output .= views_embed_view($view_name, $display_name, $node->nid);
+    foreach ($node->project_release['files'] as $file) {
+      $max_file_timestamp = max($max_file_timestamp, $file->timestamp);
+    }
+    $node->content['release_file_info'] = array(
+      '#value' => '<div class="project-release-files">'. $output .'</div>',
+      '#weight' => -4,
+    );
+  }
+
+  $output = '';
+  if (project_use_cvs($project) && isset($node->project_release['tag'])) {
+    if (!empty($node->project_release['rebuild'])) {
+      $output .= t('Nightly development snapshot from CVS branch: @tag', array('@tag' => $node->project_release['tag'])) .'<br />';
+    }
+    else {
+      $output .= t('Official release from CVS tag: @tag', array('@tag' => $node->project_release['tag'])) .'<br />';
+    }
+  }
+
+  if (!empty($max_file_timestamp)) {
+    $output .= '<div class="last-updated">' . t('Last updated: !changed', array('!changed' => format_date($max_file_timestamp))) . '</div>';
+  }
+
+  if (module_exists('project_usage') && user_access('view project usage')) {
+    $output .= '<div class="usage-statistics-link">'. l(t('View usage statistics for this release'), 'project/usage/'. $node->nid) .'</div>';
+  }
+  $node->content['release_info'] = array(
+    '#value' => '<div class="project-release-info">'. $output .'</div>',
+    '#weight' => -3,
+  );
+
+  if (module_exists('project_package')) {
+    $output = '';
+    if (!empty($node->project_package['count'])) {
+      $view_info = variable_get('project_package_release_items_view', 'project_package_items:default');
+      list($view_name, $display_name) = split(':', $view_info);
+      $output .= '<h3>' . t('In this package') . '</h3>';
+      $output .= views_embed_view($view_name, $display_name, $node->nid);
+    }
+    if (!empty($output)) {
+      $node->content['release_package_items'] = array(
+        '#value' => '<div class="project-release-package-items">'. $output .'</div>',
+        '#weight' => -2,
+      );
+    }
+  }
+
+  // Display packaging errors to admins.
+  if (project_check_admin_access($node->project_release['pid'])) {
+    $rows = array();
+    $result = db_query('SELECT * FROM {project_release_package_errors} WHERE nid = %d', $node->nid);
+    $error = db_fetch_object($result);
+    if (!empty($error)) {
+      $rows = unserialize($error->messages);
+      if (!empty($rows)) {
+        $node->content['release_errors'] = array(
+          '#value' => theme('item_list', $rows, t('Packaging error messages')),
+          '#weight' => -1,
+          '#prefix' => '<div class="messages error">',
+          '#suffix' => '</div>',
+        );
+      }
+    }
+  }
+
+  return $node;
+}
+
+function project_release_load_file($fid) {
+  return db_fetch_object(db_query("SELECT f.*, prf.filehash FROM {project_release_file} prf INNER JOIN {files} f ON prf.fid = f.fid WHERE f.fid = %d", $fid));
+}
+
+function theme_project_release_download_file($file, $download_link = TRUE) {
+  $output = '';
+  if ($download_link) {
+    $output .= '<small>'. t('Download: !file', array('!file' => theme('project_release_download_link', $file->filepath))) .'</small><br />';
+  }
+  else {
+    $output .= '<small>'. t('File: @filepath', array('@filepath' => $file->filepath)) .'</small><br />';
+  }
+  $output .= '<small>'. t('Size: !size', array('!size' => format_size($file->filesize))) .'</small><br />';
+  $output .= '<small>'. t('md5_file hash: !filehash', array('!filehash' => $file->filehash)) .'</small><br />';
+  $output .= '<small>'. t('Last updated: !changed', array('!changed' => format_date($file->timestamp))) .'</small><br />';
+  return $output;
+}
+
+/*
+ @TODO: This function is used by project_issue, so we need to keep it here,
+ even though we're now creating the list of releases at node/XXX/release using
+ the views module. however, it might be nice if we could replace this function
+ with views as well just to use views's query builder.  Maybe that's a bad
+ idea in terms of performance, however.
+*/
+/**
+ * Get an array of release nodes
+ * @ingroup project_release_api
+ *
+ * @param $project
+ *   The project node object.
+ * @param $nodes
+ *   If set, an array of release nodes will be returned.
+ *   Otherwise only the version field will be returned in the array value.
+ * @param $sort_by
+ *   This can be 'date' or 'version' and determines how the releases
+ *   returned are to be sorted.
+ * @param $filter_by
+ *   This can be 'all' to include all releases or 'files' to return
+ *   only releases which have a file attached.
+ * @param $rids
+ *   This is a special parameter that can be used to allow one or more
+ *   releases to be returned even if the node itself is unpublished.
+ *   This is useful when this function is called by the project_issue
+ *   module to allow a user to keep the version of an issue unchanged
+ *   even if the release represented by the version is now unpublished.
+  * @return
+ *   An array of releases.  The keys are the release node nids.  The values
+ *   will either be release objects or release version strings, depending
+ *   on the value of the $nodes parameter.
+ */
+function project_release_get_releases($project, $nodes = TRUE, $sort_by = 'version', $filter_by = 'all', $rids = array()) {
+  if ($sort_by == 'date') {
+    $order_by = 'n.created';
+  }
+  else {
+    $order_by = 'r.version';
+  }
+  $where = '';
+  $join = '';
+  $args = array($project->nid);
+  if (!project_check_admin_access($project)) {
+    if (!empty($rids)) {
+      $where = "AND (n.status = %d OR n.nid IN (". db_placeholders($rids) ."))";
+      $args[] = 1;
+      foreach ($rids as $rid) {
+        $args[] = $rid;
+      }
+    }
+    else {
+      $where = 'AND (n.status = %d)';
+      $args[] = 1;
+    }
+    if ($filter_by == 'files') {
+      $join .= "INNER JOIN {project_release_file} prf ON n.nid = prf.nid";
+    }
+  }
+
+  $result = db_query(db_rewrite_sql("SELECT n.nid, r.* FROM {node} n INNER JOIN {project_release_nodes} r $join ON r.nid = n.nid WHERE (r.pid = %d) $where ORDER BY $order_by DESC"), $args);
+  $releases = array();
+  while ($obj = db_fetch_object($result)) {
+    if ($nodes) {
+      $releases[$obj->nid] = node_load($obj->nid);
+    }
+    else {
+      $releases[$obj->nid] = $obj->version;
+    }
+  }
+  return $releases;
+}
+
+
+/**
+ * @defgroup project_release_callback Menu callback functions
+ */
+
+/**
+ * Returns a listing of all active project release compatibility terms
+ * in the system.
+ * @ingroup project_release_api
+ */
+function project_release_compatibility_list() {
+  static $terms = array();
+  if (empty($terms) && $tree = project_release_get_api_taxonomy()) {
+    $tids = variable_get('project_release_active_compatibility_tids', array());
+    foreach ($tree as $term) {
+      if (($tids && !empty($tids[$term->tid])) || !$tids) {
+        $terms[$term->tid] = $term->name;
+      }
+    }
+  }
+  return $terms;
+}
+
+/**
+ * @defgroup project_release_fapi Form API hooks
+ */
+
+/**
+ * Implementation of hook_form_alter().
+ * @ingroup project_release_fapi
+ */
+function project_release_form_alter(&$form, &$form_state, $form_id) {
+  if ($form_id == 'project_project_node_form') {
+    return project_release_alter_project_form($form, $form_state);
+  }
+  if ($form_id == 'project_release_node_form') {
+    return project_release_alter_release_form($form, $form_state);
+  }
+}
+
+/**
+ * Alters the project_project node form to add release settings.
+ * @ingroup project_release_fapi
+ * @see project_release_form_alter
+ */
+function project_release_alter_project_form(&$form) {
+  if (!empty($form['project_node']['project']['uri']['#description'])) {
+    $form['project_node']['project']['uri']['#description'] .= ' ' . t('This string is also used to generate the name of releases associated with this project.');
+  }
+  else {
+    $form['project_node']['project']['uri']['#description'] = t('This string is used to generate the name of releases associated with this project.');
+  }
+}
+
+/**
+ * Alters the project_release node form to handle the API taxonomy.
+ * If the vocabulary is empty, this removes the form elements.
+ * @ingroup project_release_fapi
+ * @see project_release_form_alter
+ */
+function project_release_alter_release_form(&$form, &$form_state) {
+  global $user;
+  $node = $form['#node'];
+  $tid = '';
+  if (!empty($node->project_release['version_api_tid'])) {
+    $tid = $node->project_release['version_api_tid'];
+  }
+  $vid = _project_release_get_api_vid();
+  if (!project_release_get_api_taxonomy() && isset($form['taxonomy'][$vid])) {
+    unset($form['taxonomy'][$vid]);
+  }
+  else {
+    if (!user_access('administer projects')) {
+      // The user doesn't have 'administer projects' permission, so
+      // we restrict their options for the compatibility taxonomy.
+      if (!empty($tid)) {
+        // If we already have the term, we want to force it to stay.
+        $indexes = form_get_options($form['taxonomy'][$vid], $tid);
+        if ($indexes !== FALSE) {
+          foreach ($indexes as $index) {
+            $options[] = $form['taxonomy'][$vid]['#options'][$index];
+          }
+        }
+        $form['taxonomy'][$vid]['#default_value'] = $tid;
+      }
+      elseif ($tids = variable_get('project_release_active_compatibility_tids', array())) {
+        // We don't have the term since we're adding a new release.
+        // Restrict to the active terms (if any).
+        foreach (array_filter($tids) as $tid) {
+          $indexes = form_get_options($form['taxonomy'][$vid], $tid);
+
+          if ($indexes !== FALSE) {
+            foreach ($indexes as $index) {
+              $options[$index] = $form['taxonomy'][$vid]['#options'][$index];
+            }
+          }
+        }
+      }
+      if (!empty($options)) {
+        $form['taxonomy'][$vid]['#options'] = $options;
+      }
+      else {
+        unset($form['taxonomy'][$vid]);
+      }
+      // If they're not project admins, remove the delete button (if any).
+      unset($form['delete']);
+    }
+  }
+  // If there are no children elements, we should unset the entire
+  // thing so we don't end up with an empty fieldset.
+  if (isset($form['taxonomy']) && !element_children($form['taxonomy'])) {
+    unset($form['taxonomy']);
+  }
+
+  $form['buttons']['submit']['#submit'][] = 'project_release_node_submit';
+}
+
+
+/**
+ * @defgroup project_release_nodeapi Node API hooks
+ */
+
+/**
+ * hook_nodeapi() implementation. This just decides what type of node
+ * is being passed, and calls the appropriate type-specific hook.
+ * @ingroup project_release_nodeapi
+ * @see project_release_project_nodeapi().
+ */
+function project_release_nodeapi(&$node, $op, $arg) {
+  switch ($node->type) {
+    case 'project_project':
+      project_release_project_nodeapi($node, $op, $arg);
+      break;
+    case 'project_release':
+      project_release_release_nodeapi($node, $op, $arg);
+      break;
+  }
+}
+
+/**
+ * hook_nodeapi implementation specific to "project_project" nodes
+ * (from the project.module)
+ * @ingroup project_release_nodeapi
+ * @see project_release_nodeapi().
+ */
+function project_release_project_nodeapi(&$node, $op, $arg) {
+  switch ($op) {
+    case 'load':
+      project_release_project_nodeapi_load($node);
+      break;
+
+    case 'insert':
+      project_release_project_nodeapi_insert($node);
+      break;
+
+    case 'delete':
+      project_release_project_nodeapi_delete($node);
+  }
+}
+
+/**
+ * Loads project_release fields into the project node object.
+ */
+function project_release_project_nodeapi_load(&$node) {
+  $project = db_fetch_object(db_query('SELECT * FROM {project_release_projects} WHERE nid = %d', $node->nid));
+  if (!empty($project)) {
+    $fields = array('releases', 'version_format');
+    foreach ($fields as $field) {
+      $node->project_release[$field] = $project->$field;
+    }
+    $wants_snapshots = db_result(db_query('SELECT tid FROM {project_release_supported_versions} WHERE nid = %d AND snapshot = %d LIMIT %d', $node->nid, 1, 1));
+    if (isset($wants_snapshots)) {
+      $node->project_release['project_release_show_snapshots'] = TRUE;
+    }
+  }
+}
+
+/**
+ * Insert release information about a project node.
+ */
+function project_release_project_nodeapi_insert(&$node) {
+  db_query("INSERT INTO {project_release_projects} (nid, releases, version_format) VALUES (%d, %d, '%s')", $node->nid, 1, '');
+}
+
+/**
+ * Deletes release information when a project is deleted.
+ */
+function project_release_project_nodeapi_delete(&$node) {
+  // TODO: unpublish (delete?) all release nodes associated with
+  // this project, too.
+  db_query('DELETE FROM {project_release_projects} WHERE nid = %d', $node->nid);
+
+}
+
+/**
+ * hook_nodeapi implementation specific to "project_release" nodes.
+ *
+ * We use hook_nodeapi() for our own node type to trigger some code that has
+ * to happen after taxonomy_nodeapi() runs.  project_release already has to be
+ * weighted heavier than taxonomy for other things to work.
+ *
+ * @ingroup project_release_nodeapi
+ * @see project_release_nodeapi().
+ */
+function project_release_release_nodeapi(&$node, $op, $arg) {
+  switch ($op) {
+    case 'insert':
+    case 'update':
+    case 'delete':
+      // Since release nodes can be unpublished, we need to make sure that the
+      // recommended branch information is still up to date.
+      if (module_exists('taxonomy')) {
+        if (isset($node->project_release['version_api_tid'])) {
+          $tid = $node->project_release['version_api_tid'];
+        }
+        else {
+          $vid = _project_release_get_api_vid();
+          if (isset($node->taxonomy[$vid])) {
+            $tid = $node->taxonomy[$vid];
+          }
+        }
+        if (isset($tid)) {
+          project_release_check_supported_versions($node->project_release['pid'], $tid, $node->project_release['version_major'], ($op == 'delete' ? TRUE : FALSE));
+        }
+      }
+      break;
+
+    case 'rss item':
+      // Prepend the table of release info whenever a release is in a feed.
+      if (isset($node->body)) {
+        $node->body = $node->content['release_info']['#value'] . $node->body;
+      }
+      if (isset($node->teaser)) {
+        $node->teaser = $node->content['release_info']['#value'] . $node->teaser;
+      }
+      // If the release node has a file, include an enclosure attribute for it.
+      if (!empty($node->project_release['files'])) {
+        // RSS will only take the first file.
+        $file = reset($node->project_release['files']);
+        $file_link = theme('project_release_download_link', $file->filepath, NULL, TRUE);
+        return array(
+          array(
+            'key' => 'enclosure',
+            'attributes' => array(
+              'url' => $file_link['href'],
+              'length' => $file->filesize,
+              'type' => 'application/octet-stream',
+            )
+          )
+        );
+      }
+      break;
+  }
+}
+
+/**
+ * Fetch information about the current releases for a given project.
+ *
+ * This just queries the {project_release_supported_versions} table for either
+ * the latest release or the recommended release, and retrieves data about
+ * that release from the {node} and {project_release_nodes} tables. To
+ * actually recompute the latest and recommended releases for a given branch,
+ * you must use project_release_find_latest_releases().
+ *
+ * @param $project_nid
+ *   The nid of the project to find the current release for.
+ * @param $api_tid
+ *   The API compatibility term ID you want to search.
+ * @param $recommended_major
+ *   An optional major version to search. If not specified, the current
+ *   recommended branch from {project_release_supported_versions} is used.
+ * @param $type
+ *   String for what kind of release to get ('recommended' or 'latest').
+ *
+ * @return
+ *   An object containing all the fields from {project_release_nodes}, along
+ *   with {node}.title and {node}.created, for the appropriate release; or
+ *   FALSE if no published releases exists that the caller can access on the
+ *   requested branch of the desired project.
+ */
+function project_release_get_current_recommended($project_nid, $api_tid, $recommended_major = NULL, $type = 'recommended') {
+  // Compute the appropriate JOIN ON clauses based on the arguments.
+  $prsv_joins[] = 'n.nid = ' . ($type == 'recommended' ? 'prsv.recommended_release' : 'prsv.latest_release');
+  $prsv_joins[] = 'prsv.nid = %d';
+  $join_params[] = $project_nid;
+  $prsv_joins[] = 'prsv.tid = %d';
+  $join_params[] = $api_tid;
+  if (!isset($recommended_major)) {
+    $prsv_joins[] = 'prsv.recommended = %d';
+    $join_params[] = 1;
+  }
+  else {
+    $prsv_joins[] = 'prsv.major = %d';
+    $join_params[] = $recommended_major;
+  }
+  // Build the actual JOIN ON string by AND'ing all the clauses together.
+  $prsv_join = implode(' AND ', $prsv_joins);
+  $result = db_query(db_rewrite_sql(
+    "SELECT n.nid, n.title, n.created, r.* FROM {node} n ".
+    "INNER JOIN {project_release_nodes} r ON r.nid = n.nid ".
+    "INNER JOIN {project_release_supported_versions} prsv ON $prsv_join "),
+    $join_params);
+  return db_fetch_object($result);
+}
+
+/**
+ * Finds the latest and recommended releases for a given project and branch.
+ *
+ * The "latest" release just means the published release node with the highest
+ * version string. The "recommended" release is the published release node
+ * with the highest version string that doesn't have a "version_extra" field
+ * (e.g. "beta1"). If all releases on the given branch have "extra", then the
+ * recommended release will be the same as the latest release.
+ * 
+ * @param $project_nid
+ *   The node ID of the project to find the latest and recommended releases of.
+ * @param $api_tid
+ *   The API compatibility term ID to search.
+ * @param $major
+ *   The {project_release_nodes}.version_major field of the branch to search.
+ * @param $access
+ *   Optional boolean to indicate if node access checks should be enforced.
+ *   Defaults to FALSE since the caller might not actually have access to all
+ *   the releases or projects. However, this function usually has to compute
+ *   the accurate values regardless of access, and consumers of this data are
+ *   responsible for ensuring access.
+ *
+ * @return
+ *  An array containing the node ID (nid) of the latest and recommended
+ *  releases, and latest security update (if any) from the given branch.
+ *
+ * @see project_release_query_releases_by_branch()
+ */
+function project_release_find_latest_releases($project_nid, $api_tid, $major, $access = FALSE) {
+  $latest_release = $recommended_release = $latest_security_release = 0;
+
+  $query = project_release_query_releases_by_branch($project_nid, $api_tid, $major, $access);
+  while ($release = db_fetch_object($query)) {
+    if (empty($latest_release)) {
+      $latest_release = $release->nid;
+    }
+    if (empty($recommended_release) && empty($release->version_extra)) {
+      $recommended_release = $release->nid;
+    }
+    if (empty($latest_security_release) && !empty($release->security_update)) {
+      $latest_security_release = $release->nid;
+    }
+
+    // If we've found everything we're looking for, break out of the loop and
+    // stop inspecting release from this branch. $latest_release can't
+    // possibly be empty here, so don't bother testing for it.
+    if (!empty($recommended_release) && !empty($latest_security_release)) {
+      break;
+    }
+  }
+
+  // If we found no releases without extra (e.g. a new branch that only has
+  // betas), just call the latest release the recommended one).
+  if (empty($recommended_release)) {
+    $recommended_release = $latest_release;
+  }
+
+  return array(
+    $latest_release,
+    $recommended_release,
+    $latest_security_release,
+  );
+}
+
+/**
+ * Build a query for releases on a given branch, ordered by version.
+ *
+ * @param $project_nid
+ *   The project node ID.
+ * @param $api_tid
+ *   The API compatibility term ID.
+ * @param $major
+ *   The major version that defines the branch for the project and API term.
+ * @param $access
+ *   Optional boolean to indicate if node access checks should be enforced.
+ *   Defaults to FALSE since the caller might not actually have access to all
+ *   the releases or projects. However, this function usually has to compute
+ *   the accurate values regardless of access, and consumers of this data are
+ *   responsible for ensuring access.
+ *
+ * @return
+ *   A database query result resource, as returned by db_query().
+ *
+ * @see db_query()
+ * @see project_release_find_latest_releases()
+ */
+function project_release_query_releases_by_branch($project_nid, $api_tid, $major, $access = FALSE) {
+  $wheres = $params = $order_bys = array();
+
+  $wheres[] = '(r.pid = %d)';
+  $params[] = $project_nid;
+
+  $wheres[] = '(r.version_api_tid = %d)';
+  $params[] = $api_tid;
+
+  $wheres[] = '(r.version_major = %d)';
+  $params[] = $major;
+
+  $wheres[] = '(n.status = %d)';
+  $params[] = 1;
+
+  $where = 'WHERE ' . implode(' AND ', $wheres);
+
+  // We always want the dev snapshots to show up last.
+  $order_bys[] = 'r.rebuild';
+  // Sort by the obvious integer values along the branch (minor and patch).
+  $order_bys[] = 'r.version_minor DESC';
+  $order_bys[] = 'r.version_patch DESC';
+  // To reliably sort release with version_extra, use version_extra_weight.
+  $order_bys[] = 'r.version_extra_weight DESC';
+  // Within releases of the same version_extra_weight (e.g. rc1 vs. rc2),
+  // sort by version_extra_delta.
+  $order_bys[] = 'r.version_extra_delta DESC';
+  // Within releases of the same version_extra_weight and version_extra_delta,
+  // sort alphabetically. This shouldn't normally happen, but just in case you
+  // have multiple releases with the same delta (e.g. "alpha-one", "alpha-two"
+  // etc), at least you'll get deterministic results.
+  $order_bys[] = 'r.version_extra DESC';
+
+  $order_by = 'ORDER BY '. implode(', ', $order_bys);
+
+  $sql = "SELECT n.nid, n.title, n.created, r.* FROM {node} n ".
+    "INNER JOIN {project_release_nodes} r ON r.nid = n.nid ".
+    "$where $order_by";
+
+  // Only enforce node access via db_rewrite_sql() if the caller specifically
+  // requested that behavior.
+  if ($access) {
+    $sql = db_rewrite_sql($sql);
+  }
+
+  return db_query($sql, $params);
+}
+
+/**
+ * Theme the appropriate release download table for a project node.
+ */
+function theme_project_release_project_download_table($node) {
+  if (empty($node->project_release['releases'])) {
+    return;
+  }
+  $output = '<h3 id="downloads">'. t('Downloads') .'</h3>';
+  $view_args = array($node->nid);
+  $displays = array(
+    'attachment_1' => array(
+      'class' => 'ok',
+      'header' => t('Recommended releases'),
+    ),
+    'attachment_2' => array(
+      'class' => 'warning',
+      'header' => t('Other releases'),
+    ),
+    'attachment_3' => array(
+      'class' => 'error',
+      'header' => t('Development releases'),
+    ),
+  );
+  $number_of_tables = 0;
+  $views_output = array();
+  foreach ($displays as $display => $info) {
+    $view = views_get_view('project_release_download_table');
+    $view_output = $view->preview($display, $view_args);
+    if (!empty($view->result)) {
+      $views_output[$display] = $view_output;
+      $number_of_tables++;
+    }
+  }
+
+  if ($number_of_tables > 0) {
+    foreach ($displays as $display => $info) {
+      if (!empty($views_output[$display])) {
+        $classes = 'download-table download-table-' . $info['class'];
+        $output .= '<div class="' . $classes . '">';
+        if ($number_of_tables > 1) {
+          $output .= '<h4>' . $info['header'] . "</h4>\n";
+        }
+        $output .= $views_output[$display];
+        $output .= "</div> <!-- .download-table -->\n";
+      }
+    }
+  }
+
+  return $output;
+}
+
+/**
+ * Implemenation of hook_project_page_link_alter().
+ *
+ * Note:  This is *not* an implementation of hook_link_alter().
+ */
+function project_release_project_page_link_alter(&$links, $node) {
+  if (empty($node->project_release['releases'])) {
+    return;
+  }
+  $links['project_release'] = array(
+    // NOTE:  The 'name' element of this array is not defined here because
+    // it's actually printed as part of the output of the
+    // theme_project_release_project_download_table() function above.
+    'weight' => 2,
+    'clear' => TRUE,
+    'links' => array(
+      'view_all_releases' => l(t('View all releases'), 'node/'. $node->nid .'/release') . theme('project_feed_icon', url('node/'. $node->nid .'/release/feed'), t('RSS feed of all releases'))
+    ),
+  );
+
+  if (project_check_admin_access($node->nid)) {
+    $links['project_release']['links']['add_new_release'] = l(t('Add new release'), 'node/add/project_release/'. $node->nid);
+    $links['project_release']['links']['administer_releases'] = l(t('Administer releases'), 'node/'. $node->nid .'/edit/releases');
+  }
+}
+
+/**
+ * Theme function that calls project_release_table().
+ *
+ * The main purpose of this theme wrapper function is to make it easier
+ * to display a different kind of table (for example, $tabel_type=all)
+ * from the project_page_overview() function in project.module.
+ *
+ * The parameters are described at project_release_table().
+ *
+ * @see project_page_overview()
+ * @see project_release_table()
+ */
+function theme_project_release_table_overview($project, $table_type, $release_type, $title, $print_size) {
+  return project_release_table($project, $table_type, $release_type, $title, $print_size);
+}
+
+/**
+ * Generate a table of releases for a given project.
+ *
+ * @param $project
+ *   The project object (as returned by node_load(), for example).
+ *
+ * @param $table_type
+ *   Indicates what kind of table should be generated. Possible options:
+ *    'recommended': Only show the current recommended versions.
+ *    'supported': Only show the latest release from each supported branch.
+ *    'all': Include all releases.
+ *
+ * @param $release_type
+ *   Filter what kinds of releases are visible in the table. Possible options:
+ *    'official': Only include offical releases.
+ *    'snapshot': Only include development snapshots.
+ *    'all': Include all releases.
+ *
+ * @param $title
+ *   The title of the first column in the table. Defaults to "Version" if NULL.
+ *
+ * @param $print_size
+ *   Should the table include the filesize of each release?
+ *
+ * @param $check_edit
+ *   Should the table check for and include edit links to user with access?
+ */
+function project_release_table($project, $table_type = 'recommended', $release_type = 'all', $title = NULL, $print_size = TRUE, $check_edit = TRUE) {
+  if (empty($title)) {
+    $title = t('Version');
+  }
+
+  // Can the current user edit releases for this project?
+  $can_edit = $check_edit ? node_access('update', $project) : FALSE;
+
+  // Generate the cache ID.
+  $cid = 'table:'. $project->nid .':'. $table_type .':'. $release_type .':'. $title .':'. (int)$print_size .':'. (int)$can_edit;
+  if ($cached = cache_get($cid, 'cache_project_release')) {
+    return $cached->data;
+  }
+
+  $selects = array();
+  $join = $where = $order_by = '';
+  $args = array();
+  $tids = project_release_compatibility_list();
+  if (!empty($tids)) {
+    $join = ' INNER JOIN {term_node} tn ON n.nid = tn.nid AND tn.tid in ('
+      . db_placeholders($tids) .') '
+      .' INNER JOIN {term_data} td ON td.tid = tn.tid ';
+    $args = array_keys($tids);
+    $selects[] = 'tn.tid';
+    $selects[] = 'td.name as api_term_name';
+    $orderby[] = 'td.weight';
+    $orderby[] = 'td.name';
+  }
+
+  if ($tids) {
+    $selects[] = 'prsv.supported';
+    $selects[] = 'prsv.recommended';
+    $selects[] = 'prsv.snapshot';
+    $join .= ' INNER JOIN {project_release_supported_versions} prsv ON prsv.nid = r.pid AND prsv.tid = tn.tid AND prsv.major = r.version_major ';
+    if ($table_type == 'recommended') {
+      $join .= 'AND prsv.recommended = %d ';
+      $args[] = 1;
+    }
+    elseif ($table_type == 'supported') {
+      $join .= 'AND prsv.supported = %d ';
+      $args[] = 1;
+    }
+  }
+  else {
+    // TODO: someday (never?) when project_release doesn't require taxonomy.
+  }
+  $args[] = $project->nid;  // Account for r.pid.
+  $args[] = 1;  // Account for n.status = 1.
+
+  switch ($release_type) {
+    case 'official':
+      $where = 'AND r.rebuild <> %d';
+      $args[] = 1;
+      break;
+
+    case 'snapshot':
+      // For snapshot tables, restrict to snapshot nodes from branches where
+      // the maintainer wants the snapshot visible.
+      $where = 'AND r.rebuild = %d';
+      $args[] = 1;
+      if ($tids) {
+        $where .= ' AND prsv.snapshot = %d';
+        $args[] = 1;
+      }
+      break;
+
+    case 'all':
+      // If we're generating the default releases table, we want the
+      // dev snapshots to be last in the query results, so that we
+      // only show them if there's nothing else.
+      if ($table_type == 'recommended') {
+        $orderby[] = 'r.rebuild ASC';
+      }
+      break;
+  }
+
+  $orderby[] = 'r.version_major DESC';
+  $orderby[] = 'r.version_minor DESC';
+  $orderby[] = 'r.version_patch DESC';
+  $orderby[] = 'f.timestamp DESC';
+
+  $order_by = !empty($orderby) ? (' ORDER BY '. implode(', ', $orderby)) : '';
+  $select = !empty($selects) ? (implode(', ', $selects) .',') : '';
+
+  // TODO: we MUST rewrite this query when multiple files attachments
+  // per release node lands, as it will return a non-unique result set.
+  $result = db_query(db_rewrite_sql(
+    "SELECT n.nid, n.created, f.filename, f.filepath, f.timestamp, ".
+    "f.filesize, $select r.* FROM {node} n ".
+    "INNER JOIN {project_release_nodes} r ON r.nid = n.nid ".
+    "INNER JOIN {project_release_file} prf ON n.nid = prf.nid ".
+    "INNER JOIN {files} f ON prf.fid = f.fid$join ".
+    "WHERE (r.pid = %d) AND (n.status = %d) $where $order_by"),
+    $args);
+
+  $rows = array();  // Rows for the download table.
+  $seen = array();  // Keeps track of which versions we already saw.
+  while ($release = db_fetch_object($result)) {
+    $tid = $release->tid;
+    $major = $release->version_major;
+    $recommended = false;
+    if ($table_type == 'supported') {
+      // Supported version can be multiple majors per tid.
+      if (empty($seen[$tid])) {
+        $seen[$tid] = array();
+      }
+      if (empty($seen[$tid][$major])) {
+        $seen[$tid][$major] = 1;
+        if ($release->recommended) {
+          $recommended = true;
+        }
+      }
+      else {
+        // We already know the supported release for this tid/major, go on.
+        continue;
+      }
+    }
+    else {
+      if (empty($seen[$tid])) {
+        // Only one major per tid, so the row lives here.
+        $seen[$tid] = 1;
+        if ($release->recommended) {
+          $recommended = true;
+        }
+      }
+      elseif ($table_type == 'recommended') {
+        // We already know the recommended release for this tid and that's all
+        // we want in the table, so skip this release.
+        continue;
+      }
+    }
+    // If we're still here, we need to add the row to the table.
+    $rows[] = theme('project_release_download_table_row', $release, $recommended, $can_edit, $print_size);
+  }
+
+  $header = array(
+    array(
+      'class' => 'release-title',
+      'data' => $title,
+    ),
+    array(
+      'class' => 'release-date',
+      'data' => t('Date'),
+    ),
+  );
+  if ($print_size) {
+    $header[] = array(
+      'class' => 'release-size',
+      'data' => t('Size'),
+    );
+  }
+  $header[] = array(
+    'class' => 'release-links',
+    'data' => t('Links'),
+  );
+  $header[] = array(
+    'class' => 'release-status',
+    'data' => t('Status'),
+    'colspan' => 2,
+  );
+
+  $output = '';
+  if (!empty($rows)) {
+    $output = theme('table', $header, $rows, array('class' => 'releases'));
+  }
+  // Default cache time is 12 hours - will be cleared by the packaging script
+  cache_set($cid, $output, 'cache_project_release', time() + 43200);
+  return $output;
+}
+
+/**
+ * Helper function to return an individual row for the download table.
+ *
+ * @param $release
+ *   The release object queried from the database. Since this is NOT a
+ *   fully-loaded $node object, so the release-related fields are not in a
+ *   'project_release' sub-array.
+ * @param $recommended
+ *   Boolean indicating if this release is the currently recommended one.
+ * @param $can_edit
+ *   Boolean indicating if the current user can edit the release.
+ * @param $print_size
+ *   Boolean indicating if the size of the download should be printed.
+ */
+function theme_project_release_download_table_row($release, $recommended = false, $can_edit = false, $print_size = true) {
+  static $icons = array();
+  if (empty($icons)) {
+    $icons = array(
+      'ok' => 'misc/watchdog-ok.png',
+      'warning' => 'misc/watchdog-warning.png',
+      'error' => 'misc/watchdog-error.png',
+    );
+  }
+  $links = array();
+  if (!empty($release->filepath)) {
+    $links['project_release_download'] = theme('project_release_download_link', $release->filepath, t('Download'), TRUE);
+  }
+  $links['project_release_notes'] = array(
+    'title' => t('Release notes'),
+    'href' => "node/$release->nid",
+  );
+  if ($can_edit) {
+    $links['project_release_edit'] = array(
+      'title' => t('Edit'),
+      'href' => "node/$release->nid/edit",
+    );
+  }
+  // Figure out the class for the table row
+  $row_class = $release->rebuild ? 'release-dev' : 'release';
+  // Now, set the row color and help text, based on the release attributes.
+  if (!$release->supported) {
+    $text = theme('project_release_download_text_unsupported', $release, 'summary');
+    $message = theme('project_release_download_text_unsupported', $release, 'message');
+    $classification = 'error';
+  }
+  elseif ($release->rebuild) {
+    $reason = theme('project_release_download_text_snapshot', $release, 'summary');
+    $message = theme('project_release_download_text_snapshot', $release, 'message');
+    $classification = 'error';
+  }
+  elseif ($recommended) {
+    $reason = theme('project_release_download_text_recommended', $release, 'summary');
+    $message = theme('project_release_download_text_recommended', $release, 'message');
+    $classification = 'ok';
+  }
+  else {
+    // Supported, but not recommened, official release.
+    $reason = theme('project_release_download_text_supported', $release, 'summary');
+    $message = theme('project_release_download_text_supported', $release, 'message');
+    $classification = 'warning';
+  }
+
+  $row = array(
+    // class of <tr>
+    'class' => $row_class .' '. $classification,
+    'data' => array(
+      array(
+        'class' => 'release-title',
+        'data' => l($release->version, "node/$release->nid"),
+      ),
+      array(
+        'class' => 'release-date',
+        'data' => !empty($release->filepath) ? format_date($release->timestamp, 'custom', 'Y-M-d') : format_date($release->created, 'custom', 'Y-M-d'),
+      ),
+    ),
+  );
+  if ($print_size) {
+    $row['data'][] = array(
+      'class' => 'release-size',
+      'data' => !empty($release->filepath) ? format_size($release->filesize) : t('n/a'),
+      );
+  }
+  $row['data'][] = array(
+    'class' => 'release-links',
+    'data' => theme('links', $links),
+  );
+  $row['data'][] = array(
+    'class' => 'release-reason',
+    'data' => $reason,
+  );
+  $row['data'][] = array(
+    'class' => 'release-icon',
+    'data' => theme('image', $icons[$classification], $message, $message),
+  );
+  return $row;
+}
+
+/**
+ * Return the message text for recommended releases in the download table.
+ *
+ * @param $release
+ *   The release object queried from the database. Since this is NOT a
+ *   fully-loaded $node object, so the release-related fields are not in a
+ *   'project_release' sub-array.
+ * @param $text_type
+ *   What kind of text to render.  Can be either 'summary' for the summary
+ *   text to include directly on the project node, or 'message' for the text
+ *   to put in the title and alt attributes of the icon.
+ */
+function theme_project_release_download_text_recommended($release, $text_type) {
+  if ($text_type == 'summary') {
+    return t('Recommended for %api_term_name', array('%api_term_name' => $release->api_term_name));
+  }
+  return t('This is currently the recommended release for @api_term_name.', array('@api_term_name' => $release->api_term_name));
+}
+
+/**
+ * Return the message text for supported releases in the download table.
+ *
+ * @see theme_project_release_download_text_recommended
+ */
+function theme_project_release_download_text_supported($release, $text_type) {
+  if ($text_type == 'summary') {
+    return t('Supported for %api_term_name', array('%api_term_name' => $release->api_term_name));
+  }
+  return t('This release is supported but is not currently the recommended release for @api_term_name.', array('@api_term_name' => $release->api_term_name));
+}
+
+/**
+ * Return the message text for snapshot releases in the download table.
+ *
+ * @see theme_project_release_download_text_recommended
+ */
+function theme_project_release_download_text_snapshot($release, $text_type) {
+  if ($text_type == 'summary') {
+    return t('Development snapshot');
+  }
+  return t('Development snapshots are automatically regenerated and their contents can frequently change, so they are not recommended for production use.');
+}
+
+/**
+ * Return the message text for snapshot releases in the download table.
+ *
+ * @see theme_project_release_download_text_recommended
+ */
+function theme_project_release_download_text_unsupported($release, $text_type) {
+  if ($text_type == 'summary') {
+    return t('Unsupported');
+  }
+  return t('This release is not supported and may no longer work.');
+}
+
+/**
+ * Implementation of hook_taxonomy().
+ */
+function project_release_taxonomy($op, $type, $array = NULL) {
+  if ($op == 'delete' && $type == 'vocabulary') {
+    if ($array['vid'] == _project_release_get_api_vid()) {
+      variable_del('project_release_api_vocabulary');
+    }
+    elseif ($array['vid'] == _project_release_get_release_type_vid()) {
+      variable_del('project_release_release_type_vid');
+    }
+  }
+  elseif ($type == 'term' && $array['vid'] == _project_release_get_api_vid()) {
+    menu_rebuild();
+  }
+}
+
+/**
+ * If taxonomy is enabled, returns the taxonomy tree for the
+ * API compatibility vocabulary, otherwise, it returns false.
+ */
+function project_release_get_api_taxonomy() {
+  if (!module_exists('taxonomy')) {
+    return false;
+  }
+  static $tree = NULL;
+  if (!isset($tree)) {
+    $tree = taxonomy_get_tree(_project_release_get_api_vid());
+  }
+  return $tree;
+}
+
+/**
+ * Returns the vocabulary id for project release API
+ */
+function _project_release_get_api_vid() {
+  return variable_get('project_release_api_vocabulary', '');
+}
+
+/**
+ * Return the taxonomy tree for the release type vocabulary (if any).
+ *
+ * If taxonomy is disabled, this returns false.
+ */
+function project_release_get_release_type_vocabulary() {
+  if (!module_exists('taxonomy')) {
+    return false;
+  }
+  static $tree = NULL;
+  if (!isset($tree)) {
+    $tree = taxonomy_get_tree(_project_release_get_release_type_vid());
+  }
+  return $tree;
+}
+
+/**
+ * Return the vocabulary id for project release type.
+ */
+function _project_release_get_release_type_vid() {
+  return variable_get('project_release_release_type_vid', '');
+}
+
+function project_release_exists($version) {
+  $fields = array('version_major', 'version_minor', 'version_patch', 'version_api_tid');
+  foreach ($fields as $field) {
+    if (isset($version->$field) && is_numeric($version->$field)) {
+      $types[$field] = "%d";
+      $values[$field] = $version->$field;
+      $foo = $version->$field;
+    }
+    else {
+      $null_types[] = $field;
+    }
+  }
+  $fields = array('version', 'version_extra');
+  foreach ($fields as $field) {
+    if (isset($version->$field) && $version->$field !== '') {
+      $types[$field] = "'%s'";
+      $values[$field] = $version->$field;
+      $str = $version->$field;
+    }
+    elseif ($field == 'version_extra') {
+      $null_types[] = $field;
+    }
+  }
+  if (empty($types) && empty($null_types)) {
+    // We have nothing to query, yet...
+    return false;
+  }
+
+  $sql = 'SELECT COUNT(*) FROM {project_release_nodes} WHERE pid = %d';
+  if (!empty($types)) {
+    foreach ($types as $field => $type) {
+      $sql .= " AND $field = $type";
+    }
+  }
+  if (!empty($null_types)) {
+    foreach ($null_types as $field) {
+      $sql .= " AND $field IS NULL";
+    }
+  }
+  // we put pid as the first WHERE, so stick it on the front
+  $values = array_merge(array('pid' => $version->pid), $values);
+  return db_result(db_query($sql, $values));
+}
+
+/**
+ * Generates the appropriate download link for a give file path. This
+ * function takes the 'project_release_download_base' setting into
+ * account, so it should be used everywhere a download link is made.
+ *
+ * @param $filepath
+ *   The path to the download file, as stored in the database.
+ * @param $link_text
+ *   The text to use for the download link. If NULL, the basename
+ *   of the given $filepath is used.
+ * @param $as_array
+ *   Should the link be returned as a structured array, or as raw HTML?
+ * @return
+ *   The link itself, as a structured array.
+ */
+function theme_project_release_download_link($filepath, $link_text = NULL, $as_array = FALSE) {
+  if (empty($link_text)) {
+    $link_text = basename($filepath);
+  }
+  $download_base = variable_get('project_release_download_base', '');
+  if (!empty($download_base)) {
+    $link_path = $download_base . $filepath;
+  }
+  else {
+    $link_path = file_create_url($filepath);
+  }
+  if ($as_array) {
+    return array(
+      'title' => $link_text,
+      'href' => $link_path,
+    );
+  }
+  else {
+    return l($link_text, $link_path);
+  }
+}
+
+/**
+ * Implementation of hook_file_download().
+ *
+ * @param $filename
+ *   The name of the file to download.
+ * @return
+ *   An array of header fields for the download.
+ */
+function project_release_file_download($filename) {
+  $filepath = file_create_path($filename);
+  $result = db_query("SELECT prf.nid FROM {project_release_file} prf INNER JOIN {files} f ON prf.fid = f.fid WHERE f.filepath = '%s'", $filepath);
+  if ($nid = db_result($result)) {
+    $node = node_load($nid);
+    if (node_access('view', $node)) {
+      return array(
+        'Content-Type: application/octet-stream',
+        'Content-Length: '. filesize($filepath),
+        'Content-Disposition: attachment; filename="'. mime_header_encode($filename) .'"',
+      );
+    }
+    return -1;
+  }
+}
+
+/**
+ * Implementation of hook_flush_caches().
+ */
+function project_release_flush_caches() {
+  return array('cache_project_release');
+}
+
+/**
+ * Menu callback to select a project when creating a new release.
+ */
+function project_release_pick_project_page($type_name) {
+  drupal_set_title(t('Submit @name', array('@name' => $type_name)));
+  $project = arg(3);
+  if (!empty($project)) {
+    // If there's any argument at all and we hit this form, it's from a
+    // non-numeric project id, which by definition is invalid.  No one's ever
+    // going to hit this code from clicking around in the normal UI, only if
+    // they type in a URL manually.
+    drupal_set_message(t('Specified argument (%project) is not a valid project ID number.', array('%project' => $project)), 'error');
+    return drupal_goto('/node/add/project-release');
+  }
+  return drupal_get_form('project_release_pick_project_form');
+}
+
+/**
+ * Implementation of hook_theme().
+ */
+function project_release_theme() {
+  return array(
+    'project_release_download_file' => array(
+      'arguments' => array(
+        'file' => NULL,
+        'download_link' => TRUE,
+      ),
+    ),
+    'project_release_download_link' => array(
+      'arguments' => array(
+        'filepath' => NULL,
+        'link_text' => NULL,
+        'as_array' => FALSE,
+      ),
+    ),
+    'project_release_download_table_row' => array(
+      'arguments' => array(
+        'release' => NULL,
+        'recommended' => FALSE,
+        'can_edit' => FALSE,
+        'print_size' => TRUE,
+      ),
+    ),
+    'project_release_download_text_recommended' => array(
+      'arguments' => array(
+        'release' => NULL,
+        'text_type' => NULL,
+      ),
+    ),
+    'project_release_download_text_snapshot' => array(
+      'arguments' => array(
+        'release' => NULL,
+        'text_type' => NULL,
+      ),
+    ),
+    'project_release_download_text_supported' => array(
+      'arguments' => array(
+        'release' => NULL,
+        'text_type' => NULL,
+      ),
+    ),
+    'project_release_download_text_unsupported' => array(
+      'arguments' => array(
+        'release' => NULL,
+        'text_type' => NULL,
+      ),
+    ),
+    'project_release_form_value' => array(
+      'file' => 'includes/release_node_form.inc',
+      'arguments' => array(
+        'element' => NULL,
+      ),
+    ),
+    'project_release_project_download_table' => array(
+      'arguments' => array(
+        'node' => NULL,
+      ),
+    ),
+    'project_release_project_edit_form' => array(
+      'file' => 'includes/release_node_form.inc',
+      'arguments' => array(
+        'form' => NULL,
+      ),
+    ),
+    'project_release_table_overview' => array(
+      'arguments' => array(
+        'project' => NULL,
+        'table_type' => NULL,
+        'release_type' => NULL,
+        'title' => NULL,
+        'print_size' => NULL,
+      ),
+    ),
+    'project_release_node_form_version_elements' => array(
+      'arguments' => array(
+        'form' => NULL,
+      ),
+    ),
+    'project_release_update_status_icon' => array(
+      'arguments' => array(
+        'status' => NULL,
+      ),
+    ),
+  );
+}
+
+function theme_project_release_node_form_version_elements($form) {
+  $output = '<div class="version-elements">';
+  $output .= drupal_render($form);
+  $output .= '</div>';
+  return $output;
+}
+
+/**
+ * Implement hook_token_list() (from token.module)
+ */
+function project_release_token_list($type) {
+  if ($type == 'node') {
+    $tokens['node'] = array(
+      'project_release_pid' => t("A release's project nid"),
+      'project_release_project_title' => t("A release's project title"),
+      'project_release_project_title-raw' => t("A release's project title raw"),
+      'project_release_project_shortname' => t("A release's project short name"),
+      'project_release_version' => t("A release's version string"),
+      'project_release_version_major' => t("A release's major version number"),
+      'project_release_version_minor' => t("A release's minor version number"),
+      'project_release_version_patch' => t("A release's patch version number"),
+      'project_release_version_extra' => t("A release's extra version identifier"),
+    );
+    if (project_release_compatibility_list()) {
+      $vocab = taxonomy_vocabulary_load(_project_release_get_api_vid());
+      $tokens['node']['project_release_version_api_tid'] = t("A release's %api_compatibility term ID", array('%api_compatibility' => $vocab->name));
+      $tokens['node']['project_release_version_api_term'] = t("A release's %api_compatibility term name", array('%api_compatibility' => $vocab->name));
+    }
+    return $tokens;
+  }
+}
+
+/**
+ * Implement hook_token_values() (from token.module).
+ */
+function project_release_token_values($type = 'all', $object = NULL) {
+  if ($type == 'node') {
+    // Defaults in case it's not a release or we run into other problems.
+    $values = array(
+      'project_release_pid' => '',
+      'project_release_project_title' => '',
+      'project_release_project_title-raw' => '',
+      'project_release_project_shortname' => '',
+      'project_release_version' => '',
+      'project_release_version_major' => '',
+      'project_release_version_minor' => '',
+      'project_release_version_patch' => '',
+      'project_release_version_extra' => '',
+      'project_release_version_api_tid' => '',
+      'project_release_version_api_term' => '',
+    );
+    if ($object->type == 'project_release') {
+      if ($project = node_load($object->project_release['pid'])) {
+        $values['project_release_pid'] = intval($object->project_release['pid']);
+        $values['project_release_project_title'] = check_plain($project->title);
+        $values['project_release_project_title-raw'] = $project->title;
+        $values['project_release_project_shortname'] = check_plain($project->project['uri']);
+      }
+      $values['project_release_version'] = check_plain($object->project_release['version']);
+      $values['project_release_version_major'] = check_plain($object->project_release['version_major']);
+      $values['project_release_version_minor'] = check_plain($object->project_release['version_minor']);
+      $values['project_release_version_patch'] = check_plain($object->project_release['version_patch']);
+      $values['project_release_version_extra'] = check_plain($object->project_release['version_extra']);
+      if (!empty($object->project_release['version_api_tid'])) {
+        $term = taxonomy_get_term($object->project_release['version_api_tid']);
+        $values['project_release_version_api_tid'] = check_plain($term->tid);
+        $values['project_release_version_api_term'] = check_plain($term->name);
+      }
+    }
+    return $values;
+  }
+}
+
+/**
+ * Determines taxonomy-specific functionality for releases.
+ */
+function project_release_use_taxonomy() {
+  return module_exists('taxonomy') && _project_release_get_api_vid();
+}
+
+/**
+ * Implementation of hook_help().
+ */
+function project_release_help($section) {
+  switch ($section) {
+    case 'admin/project/project-release-settings':
+      if (project_release_use_taxonomy()) {
+        return _project_release_taxonomy_help();
+      }
+      break;
+  }
+  if (arg(0) == 'admin' && arg(1) == 'content' && arg(2) == 'taxonomy') {
+    $vid = _project_release_get_api_vid();
+    if (arg(3) == $vid) {
+      return _project_release_taxonomy_help($vid, FALSE);
+    }
+  }
+}
+
+/**
+ * Prints help message for release compatibility vocabulary configuration.
+ *
+ * @param $vid
+ *   Vocabulary ID of the project taxonomy.
+ * @param $vocab_link
+ *   Boolean that controls if a link to the vocabulary admin page is added.
+ */
+function _project_release_taxonomy_help($vid = 0, $vocab_link = TRUE) {
+  if (!$vid) {
+    $vid = _project_release_get_api_vid();
+  }
+  if (empty($vid)) {
+    return;
+  }
+  $vocabulary = taxonomy_vocabulary_load($vid);
+  $text = '<p>'. t('The Project release module makes special use of the taxonomy (category) system. A special vocabulary, %vocabulary_name, has been created automatically.', array('%vocabulary_name' => $vocabulary->name)) .'</p>';
+  $text .= '<p>'. t('To categorize project releases by their compatibility with a version of some outside software (eg. a library or API of some sort), add at least one term to this vocabulary. For example, you might add the following terms: "5.x", "6.x", "7.x".') .'</p>';
+  $text .='<p>'. t('For more information, please see !url.', array('!url' => l('http://drupal.org/node/116544', 'http://drupal.org/node/116544'))) .'</p>';
+  if ($vocab_link) {
+    $text .= '<p>'. t('Use the <a href="@taxonomy-admin">vocabulary admininistration page</a> to view and add terms.', array('@taxonomy-admin' => url('admin/content/taxonomy/'. $vid))) .'</p>';
+  }
+  return $text;
+}
+
+/**
+ * Implementation of hook_views_api().
+ */
+function project_release_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'project_release') .'/views',
+  );
+}
+
+/**
+ * Return the mapping of version_extra prefixes to version_extra_weight values.
+ *
+ * This mapping allows project_release to use SQL to sort releases by version,
+ * even though direct string comparison doesn't work for the kinds of version
+ * strings people might use (for example "1.0-unstable1" should be lower than
+ * "1.0-alpha3", even though "u" comes higher in the alphabet than "a"). This
+ * is similar to the logic version_compare() performs, only using this weight
+ * field, we can do the comparison in SQL instead of in PHP.
+ *
+ * @return
+ *   Associative array mapping version_extra prefixes into weights. The
+ *   prefixes should be lowercase, since the query uses LOWER(version_extra)
+ *   inside _project_release_update_version_extra_weights(). The special-case
+ *   is the record with the key 'NULL' (should be uppercase) which doesn't
+ *   correspond to a literal version_extra field, but is used for releases
+ *   that do not define version_extra where the value is NULL in the database.
+ *
+ * @see version_compare()
+ * @see _project_release_update_version_extra_weights()
+ */
+function project_release_get_version_extra_weight_map() {
+  $default_map = array(
+    'NULL' => 10, // Official releases without extra are always highest.
+    'rc' => 4,
+    'beta' => 3,
+    'alpha' => 2,
+    'unstable' => 1,
+    // Anything that doesn't match will remain at weight 0, the default.
+  );
+  return variable_get('project_release_version_extra_weights', $default_map);
+}
+
+/**
+ * Get the human-readable update status string, or an array of all statuses.
+ *
+ * @param $status
+ *   Optional status code to get the human-readable string for. If NULL, the
+ *   whole mapping of status codes to strings is returned.
+ *
+ * @return
+ *   If $status is defined, the human-readable string for that status,
+ *   otherwise, an associative array of status strings keyed by status code.
+ */
+function project_release_update_status($status = NULL) {
+  $status_map = array(
+    PROJECT_RELEASE_UPDATE_STATUS_CURRENT => t('Up to date'),
+    PROJECT_RELEASE_UPDATE_STATUS_NOT_CURRENT => t('Update available'),
+    PROJECT_RELEASE_UPDATE_STATUS_NOT_SECURE => t('Not secure'),
+  );
+  return isset($status) ? $status_map[$status] : $status_map;
+}
+
+/**
+ * Render HTML for an icon approrpriate for the given release update status.
+ *
+ * @param $status
+ *   Update status code to get the icon for.
+ *
+ * @return
+ *   Icon to use for the given update status code.
+ */
+function theme_project_release_update_status_icon($status) {
+  $label = project_release_update_status($status);
+  $icon = '';
+  switch ($status) {
+    case PROJECT_RELEASE_UPDATE_STATUS_CURRENT:
+      $icon = theme('image', 'misc/watchdog-ok.png', $label, $label);
+      break;
+
+    case PROJECT_RELEASE_UPDATE_STATUS_NOT_CURRENT:
+      $icon = theme('image', 'misc/watchdog-warning.png', $label, $label);
+      break;
+
+    case PROJECT_RELEASE_UPDATE_STATUS_NOT_SECURE:
+      $icon = theme('image', 'misc/watchdog-error.png', $label, $label);
+      break;
+  }
+
+  return $icon;
+}
+
+/**
+ * Implement hook_preprocess_views_view_table().
+ *
+ * Handles the logic for conditionally adding row classes based on release
+ * update_status, and has a hack for hiding the update_status column entirely
+ * on the project_release_download_table view if there's nothing to see.
+ */
+function project_release_preprocess_views_view_table($variables) {
+  $view = $variables['view'];
+  if ($view->plugin_name == 'project_release_table') {  
+    // TODO: this is a hack, we want something more flexible.
+    $needs_status_column = FALSE;
+    foreach ($view->result as $num => $result) {
+      $variables['row_classes'][$num][] = "release-update-status-$result->project_release_nodes_update_status";
+      if (!empty($variables['rows'][$num]['update_status'])) {
+        $needs_status_column = TRUE;
+      }
+    }
+    if ($view->name == 'project_release_download_table' && !$needs_status_column) {
+      unset($variables['header']['update_status']);
+      foreach ($variables['rows'] as &$row) {
+        unset($row['update_status']);
+      }
+    }
+    $variables['class'] .= " project-release";
+  }
+}
+

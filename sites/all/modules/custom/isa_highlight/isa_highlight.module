@@ -1,0 +1,589 @@
+<?php
+// $Id: isa_highlight.module,v 1.1.2.9 2010/03/02 12:21:23 gunzip Exp $
+
+/**
+ * @file
+ *
+
+/**
+ * Implementation of hook_perm().
+ */
+function isa_highlight_perm() {
+  return array('admin highlight', 'remove highlight');
+}
+
+
+
+/**
+ * Implementation of hook_views_api().
+ */
+function isa_highlight_views_api() {
+  return array(
+    'api' => 2.0,
+    'path' => drupal_get_path('module', 'isa_highlight') .'/includes',
+  );
+}
+
+
+
+/**
+ * Implementation of hook_menu().
+ */
+function isa_highlight_menu() {
+  $path = drupal_get_path('module', 'isa_highlight');
+  $path = $path . '/includes';
+  $items = array();
+  $items['hl/%/edit'] = array(
+    'title' => t('Highlight content'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_highlight_edit_form', 1),
+    'access arguments' => array('admin highlight'),
+//    'file' => 'isa_highlight_mail.inc',
+//    'file path' => $path,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['hl/%/remove'] = array(
+    'title' => t('Reject highlight content'),
+    'page callback' => 'isa_highlight_reject',
+    'page arguments' => array(1),
+    'access arguments' => array('access content'),
+//    'file' => 'isa_highlight_mail.inc',
+//    'file path' => $path,
+    'type' => MENU_CALLBACK,
+  );
+
+  // no email for highlight
+//  $items['admin/isa/mail/highlight_template_message'] = array(
+//    'title' => t('Highlights'),
+//    'description' => t('Change highlight template messages.'),
+//    'page callback' => 'drupal_get_form',
+//    'page arguments' => array('isa_highlight_mails_form'),
+//    'access arguments' => array('administer ISA mails'),
+//    'file' => 'isa_highlight_mail.inc',
+//    'file path' => $path,
+//    'type' => MENU_LOCAL_TASK,
+//  );
+
+  return $items;
+}
+
+
+/**
+ *
+ * @global object $user
+ * @param type $form_state
+ * @param type $nid
+ * @return type 
+ */
+function isa_highlight_edit_form(&$form_state, $nid) {
+  $form = array();
+  global $user;
+  $groups = $user->highlight_groups;
+
+  $form['nid'] = array(
+    '#type' => 'value',
+    '#value' => $nid
+  );
+
+  $form['tid'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Communities & projects'),
+    '#weight' => -1,
+    '#required' => FALSE,
+      '#default_value' => get_node_hl($nid),
+      '#options' => $groups,
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('highlight content'),
+  );
+
+//  $form['cancel'] = array(
+//    '#value' => l(t('Cancel'), $_GET['destination'])
+//  );
+
+  return $form;
+}
+
+
+/**
+ *
+ * @global object $user
+ * @param type $form
+ * @param type $form_state 
+ */
+function isa_highlight_edit_form_submit(&$form, $form_state) {
+  global $user;
+
+  // add terms NAT to node
+  // update isa_highlight table
+  $node = node_load($form_state['values']['nid']);
+
+  foreach($form_state['values']['tid'] as $tid => $value) {
+    $gid = db_result(db_query("SELECT nid FROM {nat} WHERE tid = %d", $tid));
+    $highlight = isa_highlight_find($node->nid, $gid);
+    if($value > 0) { // Is the checkbox checked?
+      if (!$highlight) isa_highlight_add($node, $gid, $tid); // Don't set the highlight if it's already been created
+    }
+    else isa_highlight_del($highlight);
+  }
+
+  drupal_set_message('Changes were succesfully saved');
+}
+
+
+
+/**
+ * Implementation of hook_nodeapi().
+ */
+function isa_highlight_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
+  switch ($op) {
+    case 'delete':
+      $types = get_highlightable_types();
+      // Deleting highlightable types
+      if(in_array($node->type, $types)) {
+        $sql = "DELETE FROM {isa_highlight} WHERE nid = %d";
+        db_query($sql, $node->nid);
+        // the nid in term_node is deleted by nodeapi of taxonomy module ?
+      }
+      // Deleting any other type
+      switch ($node->type) {
+        case ISA_COMMUNITY_TYPE:
+        case ISA_PROJECT_TYPE:
+          $tid = "SELECT tid FROM {nat} WHERE nid = %d";
+          $tid = db_result(db_query($tid, $node->nid));
+          $term_node = "DELETE FROM {term_node} WHERE tid = %d";
+          $isa_highlight = "DELETE FROM {isa_highlight} WHERE gid = %d";
+          db_query($isa_highlight, $node->nid);
+          if($tid > 0) db_query($term_node, $tid); // Check is to make sure $tid isn't FALSE or NULL.
+          break;
+      }
+    break;
+      case 'presave':
+        // automatically add terms from NAT to group posts
+        if (!empty ($node->og_groups) ){
+          foreach($node->og_groups as $gid => $group) {
+            if($group > 0) {
+              $tid = db_result(db_query("SELECT tid FROM {nat} WHERE nid = %d", $gid));
+              $node->taxonomy[$tid] = taxonomy_get_term($tid);
+            }
+          }
+        }
+        //highlight issue and release in parent software and asset
+        if ($node->type == 'project_issue' || $node->type == 'project_release') {
+          $gid = variable_get('current_group',isa_toolbox_get_community_nid());
+          if($gid) {
+            $tid = db_result(db_query("SELECT tid FROM {nat} WHERE nid = %d", $gid));
+            $node->taxonomy[$tid] = taxonomy_get_term($tid);
+          }
+        }
+        break;
+  }
+}
+
+
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function isa_highlight_form_alter(&$form, &$form_state, $form_id) {
+  $suffix = substr($form_id, -9);
+  // hide the highlight taxonomy
+  if($suffix == 'node_form') {
+    $hl_vid = variable_get('hl_vid', NULL);
+    unset($form['taxonomy'][$hl_vid]);
+  }
+}
+
+
+
+function get_my_ogs() {
+  global $user;
+  $my_ogs = array();
+  $current_gid = variable_get('current_group', isa_toolbox_get_community_nid());
+  foreach($user->og_groups as $gid => $og) {
+    if ($current_gid != $gid){
+      $sql = "SELECT nat.tid, td.name 
+        FROM {nat}
+        LEFT JOIN {term_data} td ON td.tid = nat.tid
+        LEFT JOIN {workflow_node} wn ON wn.nid = nat.nid
+        WHERE nat.nid = %d AND wn.sid = %d";
+      $sql = db_query($sql, $gid , ISA_SID_COMMUNITY_VALIDATED);
+      $term = db_fetch_object($sql);
+      if ($term) {
+        $my_ogs[$term->tid] = $term->name;
+      }
+    }
+  }
+  return $my_ogs;
+}
+
+
+
+/**
+ * Implementation of hook_link().
+ * @see isa_highlight_init ()
+ */
+//function isa_highlight_link($type, $object, $teaser = FALSE) {
+//  global $user;
+//  $links = array();
+// 
+//  // $user->highlight_types & $user->highlight_groups is set in isa_highlight_init ()
+//  $types = $user->highlight_types;
+//  $groups = $user->highlight_groups;
+//  //$types = get_highlightable_types();
+//  //$groups = get_my_ogs();
+//  
+//  if(count($groups) > 0) { // Checks to see if user is a member of any group
+//    if ((!$object->_workflow || ($object->_workflow && ($object->_workflow == ISA_SID_NEWS_VALIDATED || $object->_workflow == ISA_SID_NEWS_CREATED))) && in_array($object->type, $types) && $object->name) {
+//      $links['hl_link'] = array(
+//        'title' => 'Highlight this content',
+//        'href' => 'hl/' . $object->nid.'/edit',
+//          'attributes' => array(
+//            'class' => 'popups-form',
+//            'title' => t('Highlight this content'),
+//          ),
+//      );
+//    }
+//  }
+//  return $links;
+//}
+
+
+
+function get_node_hl($nid) {
+  $sql = "SELECT tid FROM {isa_highlight} WHERE nid = %d";
+  $result = db_query($sql, $nid);
+  $terms = array();
+  while($row = db_fetch_object($result)) { $terms[] = $row->tid; }
+  return $terms;
+}
+
+
+
+/**
+ * Creates a list the name of all node types associated with the vocabulary 'highlight'
+ * @return array List of names
+ */
+function get_highlightable_types() {
+  // Query to get all node types from table vocabulary
+  $sql = "SELECT type FROM {vocabulary_node_types} vnt, {vocabulary} v
+          WHERE vnt.vid = v.vid AND v.vid = '%d'";
+  $sql = db_query($sql, variable_get ('hl_vid',NULL));
+
+  // Build array from query results
+  $types = array();
+  while($type = db_result($sql)) {
+    $types[] = $type;
+  }
+
+  // Return array
+  return $types;
+}
+
+
+
+/**
+ * Finds a highlight for the given node - group combination
+ * Returns the object containing all the highlight's data, or FALSE if nothing's been found
+ * @param int $nid Node ID
+ * @param int $gid Group ID
+ * @return object $highlight A Highlight object
+ */
+function isa_highlight_find($nid, $gid) {
+  $sql = "SELECT * FROM {isa_highlight} WHERE nid = %d AND gid = %d";
+  $sql = db_query($sql, $nid, $gid);
+  $highlight = db_fetch_object($sql);
+  return $highlight;
+}
+
+
+/**
+ * Gets a list of facilitator IDs for a single community
+ * @param int $gid Community ID to get facilitators of
+ * @return array List of facilitator IDs
+ */
+function isa_highlight_get_facilitators($gid) {
+  $sql = "SELECT uid FROM {og_users_roles} our, {role} WHERE role.rid = '%s' AND role.rid = our.rid AND our.gid = %d";
+  $sql = db_query($sql, variable_get("facilitator_rid"), $gid);
+  $facilitators = array();
+  while($uid = db_result($sql)) $facilitators[] = $uid;
+  return $facilitators;
+}
+
+/**
+ * Insert highlight in the database
+ * 
+ * @global object $user
+ * @param object $node node highlighted
+ * @param numeric $gid nid of target group
+ * @param numeric $tid tid of target group 
+ * @param numeric $uid user who has highlight node
+ * @param type $time
+ * @param boolean $invoke_event true for trigger event highlight_add
+ */
+function isa_highlight_add($node, $gid, $tid,$uid = NULL, $time = NULL,$invoke_event = TRUE) {
+  if (!$uid){
+    global $user;
+    $uid = $user->uid;
+  }
+  
+  if (!$time){
+    $time = time();
+  }
+  $term_node = "INSERT INTO {term_node} (nid, vid, tid) VALUES (%d,%d,%d)";
+  $isa_highlight = "INSERT INTO {isa_highlight} (nid, gid, tid, uid, timestamp) VALUES(%d, %d, %d, %d, %d)";
+  db_query($isa_highlight, $node->nid, $gid, $tid, $uid, $time);
+  db_query($term_node, $node->nid, $node->vid, $tid);
+  if ($invoke_event){
+    $group = node_load ($gid);
+    rules_invoke_event('highlight_add', $node , $group , $user ); 
+  }
+  //isa_highlight_prep_mail('facilitators', 'Add', $node->nid, $gid);
+}
+
+/**
+* Implementation of hook_rules_event_info().
+* @ingroup rules
+*/
+function isa_highlight_rules_event_info() {
+  return array(
+    'highlight_add' => array(
+      'label' => t('User highlight a content'),
+      'module' => 'Highlight',
+      'arguments' => array(
+        'node' => array('type' => 'node', 'label' => t('Node who is highlighted in a group.')),
+		'group' => array('type' => 'node', 'label' => t('Group where the node is highlighted.')),
+        'user' => array('type' => 'user', 'label' => t('User who has highlighted a content')),
+      ),
+    ),
+  );
+}
+
+
+function isa_highlight_del($highlight) {
+  global $user;
+  $tid = $highlight->tid;
+  $nid = $highlight->nid;
+  $gid = $highlight->gid;
+  $is_author = ( $user->uid == $highlight->uid );
+  // SGS user permission 'remove highlights', facilitator has this permission
+  //  $facilitators = isa_highlight_get_facilitators($gid);
+  //  $is_facilitator = in_array($user->uid, $facilitators);
+  if($is_author || user_access ('remove highlight')) {
+    db_query("DELETE FROM {term_node} WHERE tid = %d AND nid = %d", $tid, $nid);
+    db_query("DELETE FROM {isa_highlight} WHERE tid = %d AND nid = %d", $tid, $nid);
+    //if ($is_author) { isa_highlight_prep_mail('facilitators', 'Remove', $nid, $gid); } // SEND MAIL TO FACILITATORS
+    //else { isa_highlight_prep_mail('proposer', 'Remove', $nid, $gid); }// SEND MAIL TO AUTHOR
+  }
+}
+
+function isa_highlight_reject($fhid) {
+  global $user;
+  // SGS : use isa_highlight_get_hihglight
+  //  $sql = "SELECT * FROM {isa_highlight} WHERE fhid = %d";
+  //  $sql = db_query($sql, $fhid);
+  $highlight = isa_highlight_get_highlight ($fhid);
+  $is_author = ( $user->uid == $highlight->uid );
+  // SGS use permission 'remove highlights', facilitator have this permission
+  //  $facilitators = isa_highlight_get_facilitators($highlight->gid);
+  //  $is_facilitator = in_array($user->uid, $facilitators);
+  if($is_author || user_access ('remove highlight')) {
+    isa_highlight_del($highlight);
+  }
+  $group_node = node_load ($highlight->gid);
+  //  if ($group_node->type == ISA_PROJECT_TYPE) {
+  //    $short_name = $group_node->project['uri'];
+  //  }else{
+  //    $short_name = $group_node->field_community_short_name[0]['value'];
+  //  }
+
+  // drupal_set_message don't work, the message is saved in $SESSION, but the session is cleared in drupal_goto...
+  if ($group_node){
+  //GKN redirect to previous page
+    drupal_goto( $_SERVER['HTTP_REFERER'] /*$group_node->group_type . '/' . $short_name . '/home'*/);
+  } 
+  drupal_set_message(t('The highlight has been removed'));
+}
+
+
+function isa_highlight_views_query_alter(&$view, &$query) {
+  switch($view->name) {
+    case 'Blog_view':
+      switch($view->current_display) {
+        case 'page_1':
+        case 'feed_1':
+		isa_highlight_query_change_default($query);
+		break;
+        case 'page_3':
+        case 'page_4':
+        case 'feed_2':
+        case 'feed_3':
+		  $query->table_queue['node_og_ancestry__project_projects']['join']->type = 'LEFT';
+          isa_highlight_query_change_default($query);
+          break;
+        case 'block_2':
+          isa_highlight_query_change_default($query);
+          break;
+      }
+      break;
+    case 'Wiki_listall':
+      switch($view->current_display) {
+        case 'page_2':
+        case 'page_3':
+          $query->table_queue['node_og_ancestry__project_projects']['join']->type = 'LEFT';
+        case 'page_1':
+        case 'block_1':
+          isa_highlight_query_change_default($query);
+        break;
+      }
+      break;
+
+    case 'Topic_list':
+      switch($view->current_display) {
+        case 'page_2':
+        case 'page_3':
+          $query->table_queue['node_og_ancestry__project_projects']['join']->type = 'LEFT';
+        case 'page_1':
+          isa_highlight_query_change_forum_page($query);
+          break;
+        case 'block_1':
+          isa_highlight_query_change_default($query);
+          break;
+      }
+      break;
+    case 'items':
+        isa_highlight_query_change_default($query);
+      break;
+  }
+}
+
+
+
+function isa_highlight_query_change_default(&$query) {
+  $tid = isa_highlight_get_community_tid();
+
+  $where = $query->where[0];
+  $i = count($where['clauses'])-1;
+  $where['clauses'][$i] = '(' . $where['clauses'][$i] . ' OR isa_highlight.tid = %d)';
+  $where['args'][] = $tid;
+
+  $query->where[0] = $where;
+  isa_toolbox_query_add_table($query, 'isa_highlight');
+}
+
+
+
+function isa_highlight_query_change_forum_page(&$query) {
+  $tid = isa_highlight_get_community_tid();
+
+  $where = $query->where[0];
+  $clauses = $where['clauses'];
+  $og_key = -1;
+  foreach ($clauses as $key => $clause) {
+    if (strstr($clause,'og_ancestry')) {
+      $og_key = $key;
+    }
+  }
+  $og_clause = $where['clauses'][$og_key];
+  $og_arg = $where['args'][$og_key];
+  unset($where['clauses'][$og_key]);
+  unset($where['args'][$og_key]);
+
+  $where['clauses'][] = "({$og_clause} OR isa_highlight.tid = %d)";
+  $where['args'][] = $og_arg;
+  $where['args'][] = $tid;
+
+  $query->where[0] = $where;
+
+  isa_toolbox_query_add_table($query, 'isa_highlight');
+}
+
+
+function isa_highlight_get_community_tid($gid = NULL) {
+  if (!isset ($gid)){
+    $gid = isa_toolbox_get_community_nid();
+  }
+  $tid = 'SELECT tid FROM {nat} WHERE nid = %d';
+  $tid = db_result(db_query($tid, $gid));
+  return $tid;
+}
+
+/**
+ * Implementation of hook_init ()
+ * @global object $user
+ */
+function isa_highlight_init() {
+  global $user;
+  $user->highlight_types = get_highlightable_types();
+  $user->highlight_groups = get_my_ogs();
+}
+
+//function isa_highlight_get_highlight ($fhid){
+//  $sql = "SELECT * FROM {isa_highlight} WHERE fhid = %d";
+//  $sql = db_query($sql, $fhid);
+//  $highlight = db_fetch_object($sql);
+//  return $highlight;
+//}
+
+function isa_highlight_views_pre_render(&$view) {
+  $node_types = array('Blog_view', 'Wiki_listall', 'Topic_list');
+  if (in_array($view->name, $node_types)) {
+    if (!empty($view->args[0])) {
+      $gid = isa_toolbox_get_community_nid();
+      foreach ($view->result as $key => $result) {
+        $nid = $result->nid;
+        $node = node_load($nid);
+        $hl = isa_highlight_find($nid, $gid);
+
+        if (in_array($gid, $node->og_groups) || $hl == NULL) {
+          $view->result[$key]->isa_highlight_fhid = FALSE;
+          $view->result[$key]->isa_highlight_timestamp = FALSE;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Load highlights
+ *
+ * @param $param
+ *   Either the highlight id or an array of conditions to match against in the database query
+ *
+ * @return array
+ *   An array containing all highlight for the group
+ */
+function isa_highlight_get_highlight($param) {
+	if ($param && !empty ($param)){
+  $single = FALSE; 
+  if (is_numeric($param)) {
+    $single = TRUE;
+    $cond = 'hl.fhid = %d';
+    $arguments[] = $param;
+  } elseif (is_array($param)) {
+    // Turn the conditions into a query.
+    foreach ($param as $key => $value) {
+      $cond[] = 'hl.' . db_escape_table($key) . " = '%s'";
+      $arguments[] = $value;
+    }
+    $cond = implode(' AND ', $cond);
+  }
+  $result = db_query_slave("SELECT * FROM {isa_highlight} hl WHERE $cond", $arguments);
+  $hls = array();
+  while ($row = db_fetch_object($result)) {
+    $hls[] = $row;
+  }
+
+  if ($single){
+    return $hls[0];
+  }else{
+    return $hls;
+  }
+}else{
+ return FALSE;
+}
+  
+}

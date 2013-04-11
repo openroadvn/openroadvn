@@ -1,0 +1,75 @@
+//$Id: CHANGELOG.txt,v 1.1.2.12 2010/01/26 14:32:31 darrenferguson Exp $
+
+CONTEXTHELP 6.x.dev
+===================
+
+CONTEXTHELP 6.x-1.0-rc3
+=======================
+Feature Addition:
+  - #433514 added the ability for the module to add a class too the contexthelp dialog when 
+            there is currently help available for that particular page.
+            Added the ability for administrators to decide whether or not too show the help button 
+            if the "Current Page" does not have any help associated with it.            
+
+CONTEXTHELP 6.x-1-0-rc2
+=======================
+Performance Features:
+  - #0 updated current view so that it utilizes pure sql based off the view instead 
+       of loading all of the node ids and then doing a node load so it could match the 
+       url string against the current url of the page.
+  - #0 url matching for wildcards and regular urls is now done in the database query 
+       thus speeding up the system since we do not have to continually check on each 
+       node (as described above) in php.
+  - #0 updated content permissions so that 
+
+Bug fixes:
+  - #0 fixed css issue where the li item lists would not display correctly due 
+       too the css for the accordian over-writing the system
+
+CONTEXTHELP 6.x-1-0-Beta2
+=========================
+
+Main features:
+  - #415122 Added the ability to go back to the node edit when using the save 
+            draft functionality on an existing node. This will save the system 
+            creating a new node every time and will instead update the existing
+            node already created in the system.
+
+Bug fixes:
+  - #418314 Updating the FCKEditor code so that the html is there before it finishes
+            loading that way the data is put correctly in the FCKEditor box for the 
+            textarea
+  - #416100 Added handling so the module would not fail if the content module 
+            does not exist in the users installation. Do not want to make the 
+            content module a dependency so have added code to fallback to a default
+            if the content module does not exist. (This code was introduced 
+            originally to handle the admin selecting the Title and Body field from 
+            the content types list of known fields supplied by the content module)
+
+DRAFT 6.x-1-0-Beta1
+===================
+
+Main features:
+  - #368017 Split Drafts and Views so there is no initial reliance on views
+            PHP view has been added to the main drafts module so people can see
+            their drafts
+
+Module changes:
+  - #379838 Portuguese - Brazilian translation (thansk to lourenzo)
+  - #367165 updated default fields shown in the view (view was updated to
+            accomodate the new fields we have in the database)
+  - #361812 added configurable view url for the draft views module so the
+            user can specify it if they change the draft view url
+
+Bug fixes:
+  - #406648 added units for the autosave interval in administrator settings
+  - #367184 added same as above and also for user form settings
+  - #368286 shortened the textfields utilized for autosave intervals
+  - #369042 reworked so cron will not delete the draft is the admin specifies
+  - #367171 updated the processing draft moved to right hand corner instead of
+            bulky div in the middle of the users screen
+  - #353252 fixed bug with node names and underscores not being handled properly
+  - #367180 provided user feedback when draft was loading since it looked like
+            nothing was happening for the draft populate form timeout
+  - #348165 code updated for the FCKEditor and verified with their site to work
+  - #361809 fixed issue where preview button would stop drafts from being saved

@@ -1,0 +1,5 @@
+; $Id
+core            = "6.x"
+description     = "Manage Questions and Answers for isa"
+name            = "Questions and Answers"
+package         = "ISA Toolbox"

@@ -1,0 +1,7 @@
+name = "ISA Links"
+description = "Create the buttons on the right side and the menus on the left"
+core = 6.x
+package = "ISA Toolbox"
+dependencies[]  = isa_toolbox
+version = "6.x-1.0"
+core = "6.x"

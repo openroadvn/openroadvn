@@ -1,0 +1,17 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the public_and_private_files 
+ * module.
+ */
+function public_and_private_files_uninstall() {
+  variable_del('public_and_private_files_path');
+}
+
+function public_and_private_files_disable() {
+  // Set the file_downloads methods to private if it was set to mixed
+  if (variable_get('file_downloads', '') == FILE_DOWNLOADS_MIXED) {
+    variable_set('file_downloads', FILE_DOWNLOADS_PRIVATE);
+  }
+}
+

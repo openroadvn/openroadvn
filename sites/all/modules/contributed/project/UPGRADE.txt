@@ -1,0 +1,109 @@
+$Id: UPGRADE.txt,v 1.5 2009/01/12 20:07:19 dww Exp $
+
+======================================================================
+This file contains specific instructions for upgrading your site's
+version of project.module to a new release.  You should always check
+this file when you download a new version to see if there are any
+specific things you need to know about a certain upgrade.
+======================================================================
+
+--------------------------------------------------
+Upgrading to 6.x-1.* (from 5.x)
+--------------------------------------------------
+  Before upgrading to the Drupal 6 version of the project and/or project
+release modules, you *must* first upgrade to the most recent official release
+of the project module.
+
+  The Drupal 6 version of the project module now uses the Views module for
+project browsing.  To use Views, many aspects of how the project browsing
+works had to be changed.
+
+  * Access to the project browsing views is based on a new permission
+    called 'browse project listing'.  You will likely want to give this
+    permission to all roles that currently have one or more of the following
+    permissions:
+      'access projects', 'access own projects', 'administer projects'.
+
+--------------------------------------------------
+Upgrading to 5.x-1.1 (from 5.x-1.0)
+--------------------------------------------------
+
+  The 'Project e-mail' setting on the project edit page has been
+removed due to a number of problems.  This setting was only used for
+Project issue tracking, so it didn't belong here in any case.
+Therefore, database update #5001 drops this column from the
+{project_projects} database table where it is stored.  If you happen
+to want to save this data for some reason, you should save it into a
+separate table before you upgrade to 5.x-1.1 and run update.php.  For
+more information, please see the UPGRADE.txt file in the project_issue
+directory, and read the following issues:
+- http://drupal.org/node/36619
+- http://drupal.org/node/189210
+
+
+--------------------------------------------------
+Upgrading to 5.x-1.* (from 4.7.x-*)
+--------------------------------------------------
+
+  If your site is currently running 4.7.x-1.*, you will have the same
+complications upgrading directly to 5.x-1.* as you would upgrading to
+4.7.x-2.*.  Therefore, please read the instructions for upgrading to
+4.7.x-2.* below.  You can still upgrade directly from 4.7.x-1.* to
+5.x-1.*, but if your site makes use of releases, you will have to
+follow the instructions at http://drupal.org/node/163616.
+
+  If your site is currently running 4.7.x-2.*, upgrading to 5.x-1.* is
+very simple.  In this case, the normal upgrade procedure should be
+followed, see http://drupal.org/upgrade for details instructions.
+Basically:
+
+  1) Backup your site and database.
+  2) Disable all of your project-related modules (project,
+     project_issue, project_release, etc) -- in fact, it's safest to
+     disable all contrib modules before upgrading to a new core series.
+  3) Upgrade core to the latest 5.* release.
+  4) Install the latest 5.x-1.* release of project and project_issue.
+  5) Re-enable project, project_issue (and optionally, project_release).
+  6) Re-run update.php for changes to the project-related DB schema.
+
+
+--------------------------------------------------
+Upgrading to 4.7.x-2.* (from the 4.7.x-1.* series)
+--------------------------------------------------
+
+  During the 4.7.x development of the project modules, a fundamental
+change was made to the code, which resulted in the split between the
+4.7.x-1.* and 4.7.x-2.* versions.  Previously, project releases were
+represented via a special table in the database, and all of their
+behavior was hard-coded into the project.module.  Starting with the
+4.7.x-2.* series, project releases are now represented by release
+nodes (see http://drupal.org/node/94000 for more information).
+
+  To see if your site is affected, you should run the following query:
+
+     "SELECT COUNT(*) FROM project_releases;"
+
+     (This assumes your site is not using any table prefixing, alter
+     the table name with your site's table prefix if needed).
+
+  If your {project_releases} table is empty, your 4.7.x-1.* or earlier
+site does not use releases and upgrading to the 4.7.x-2.* series is
+quite easy.  In this case, the normal upgrade procedure should be
+followed, see http://drupal.org/upgrade for details instructions.
+Basically:
+
+  1) Backup your site and database.
+  2) Install the latest 4.7.x-2.* release of project and project_issue.
+  3) Run update.php.
+
+  (Please note that the 4.7.x-2.* versions of project and project_issue
+must be upgraded at the same time.  For example, you cannot run
+project version 4.7.x-2.* with project_issue version 4.7.x-1.*).
+
+  However, if your {project_releases} table has records, you are using
+the old releases system, and upgrading your site will be a somewhat
+difficult process.  In that case, you should view the following
+handbook page on drupal.org *BEFORE* you start upgrading:
+
+  http://drupal.org/node/163616
+

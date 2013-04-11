@@ -1,0 +1,75 @@
+<?php
+
+/**
+ * Implementation of hook_install
+ */
+function isa_private_files_install (){
+$success = drupal_install_schema ('isa_private_files');
+  if (empty($success[0]['success'])) {
+    drupal_set_message(st('The installation of ISA private file module failed.'), 'error');
+  }
+}
+
+
+/**
+ * Implementation of hook_uninstall ()
+ */
+function isa_private_files_uninstall (){
+  
+}
+
+
+/**
+ * Implementation of hook_schema().
+ */
+function isa_private_files_schema() {
+  $schema = array();
+  $schema['isa_download_statistics'] = array(
+    'fields' => array(
+      'dsid' => array(
+        'type' => 'serial',
+        'size' => 'small',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'pid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'nid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'fid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'uid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'timestamp' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'disp-size' => 11,
+      )
+    ),
+    'primary key' => array('dsid'),
+    'indexes' => array(
+      'nid_uid' => array('nid', 'uid'),
+    ),
+  );
+
+  return $schema;
+}
+

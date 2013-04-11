@@ -1,0 +1,12 @@
+; $Id: relevant_content.info,v 1.2.2.2 2009/09/15 16:17:20 njt1982 Exp $
+name = "Relevant Content"
+description = "Provides blocks displaying relevant nodes for the current page based on taxonomy."
+dependencies[] = taxonomy
+core = 6.x
+
+; Information added by drupal.org packaging script on 2010-11-17
+version = "6.x-1.5"
+core = "6.x"
+project = "relevant_content"
+datestamp = "1290016947"
+

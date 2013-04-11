@@ -1,0 +1,6 @@
+; $Id
+core            = "6.x"
+dependencies[]  = og
+description     = "Module for custom blocks"
+name            = "Custom Blocks"
+package         = "ISA Toolbox"

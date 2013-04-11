@@ -1,0 +1,249 @@
+<?php
+// $Id$
+/**
+ * @file
+ * This is the main file for the isa_private_files module.
+ */
+
+/**
+ * Implementation of hook_menu_alter().
+ * Used here to set our own callbacks on system/files
+ */
+function isa_private_files_menu_alter(&$items) {
+  $items['system/files']['access callback'] = 'isa_private_files_access';
+  $items['system/files']['access arguments'] = array();
+  $items['system/files']['page callback'] = 'isa_private_files_transfer';
+  $items['system/files']['page arguments'] = array();
+}
+
+/**
+ * Access callback for system/files - always returns true. The actual access
+ * control is done in isa_private_files_transfer for performance reasons.
+ */
+function isa_private_files_access() {
+  return TRUE;
+}
+
+/**
+ * Page callback for system/files - simply transfers the file, without
+ * performing any access control (this is the role of isa_private_files_access).
+ * @see file_download()
+ */
+function isa_private_files_transfer() {
+  global $user;
+  
+  // Merge remainder of arguments from GET['q'], into relative file path.
+  $args = func_get_args();
+  $filepath = implode('/', $args);
+
+  // Maintain compatibility with old ?file=paths saved in node bodies.
+ if (isset($_GET['file'])) {
+    $filepath =  $_GET['file'];
+  }
+
+  $filepath_path = file_create_path($filepath);
+  // Does the file exist?
+  /*if (!file_exists($filepath_path)) {
+    return drupal_not_found();
+  }*/
+
+  //only authenticated user can download files, or anonymous (if the download is allowed)
+  if (isset ($user->roles[1])){
+    if (is_string($filepath_path)){
+      $result = db_fetch_object(db_query("
+            SELECT f.fid , prn.nid , prn.pid
+            FROM {files} f
+            INNER JOIN {project_release_file} prf on prf.fid = f.fid
+            INNER JOIN {project_release_nodes} prn on prf.nid = prn.nid
+            WHERE f.filepath LIKE '%s'",$filepath_path));
+       //only save download statistics for project release (if nid is not null)
+      if ($result->pid) {
+        $project = node_load($result->pid);
+        if ($project->field_project_anonymous_download[0]['value'] == 0) {
+          return drupal_access_denied();
+        }
+      }
+    }
+  }
+	  
+  // find the nid of the node that references the file in all the the CCK filefield
+  if($fileinfo = db_fetch_object(db_query('SELECT filemime, fid FROM {files} WHERE filepath = \'%s\'', $filepath_path))) {
+	  $file_object = new StdClass();
+	  $file_object->fid = $fileinfo->fid;
+	  $nids = filefield_get_file_references($file_object);
+	  
+	  if(!empty($nids)) {
+		if (($node = node_load(key($nids)))) {
+		  if (!node_access('view', $node)) {
+			// this is the only case where we deny access to a file: we know that it
+			// is rattached to a node AND this node cannot be viewed by the current user
+			return drupal_access_denied();
+		  }
+		}  
+	  }	
+  }
+
+  // we let everybody specify HTTP headers, but we do not take any '-1' (aka
+  // 'deny') value into account. Also we call file_transfer even if no headers
+  // were provided by modules.
+  $headers = module_invoke_all('file_download', $filepath);
+  $headers[] = "Cache-Control: maxage=1";	
+  $headers[] = "Pragma: public";
+  
+  // CCE : fix the missing content-type problem
+  if($fileinfo)
+	$headers[] = "Content-type: ".$fileinfo->filemime;
+  
+  //save downnload statistics
+  isa_private_files_save_statistics ($filepath_path);
+  if (isa_surveys_user_should_receive_survey($filepath_path)) {
+    isa_surveys_trigger_download_project_event($filepath_path);
+  }
+  file_transfer($filepath, $headers);
+}
+
+/**
+ * Implementation of hook_enable().
+ * Used to here to set the weight of this module to a reasonably high value:
+ * this module should the last one altering the menu entry "system/files".
+ */
+function isa_private_files_enable() {
+  $weight = 65535;
+  db_query('UPDATE {system} SET Weight = %d WHERE name = \'isa_private_files\'', $weight);
+}
+
+/**
+ * Insert in db when files is download
+ *
+ * @global object $user
+ * @param  $filepath
+ */
+function isa_private_files_save_statistics ($filepath_path){
+  //$fid = db_result(db_query("SELECT fid FROM {files} WHERE filename='%s'",$filepath));
+  global $user;
+  if (is_string($filepath_path)){
+     $result = db_fetch_object(db_query("
+            SELECT f.fid , prn.nid , prn.pid
+            FROM {files} f
+            LEFT JOIN {project_release_file} prf on prf.fid = f.fid
+            LEFT JOIN {project_release_nodes} prn on prf.nid = prn.nid
+            WHERE f.filepath LIKE '%s'",$filepath_path));
+     //only save download statistics for project release (if nid is not null)
+     if ($result->nid){
+       $time = time();
+       $sql = "INSERT INTO {isa_download_statistics} (nid, pid, fid, uid, timestamp) VALUES(%d, %d, %d, %d, %d)";
+       db_query($sql, $result->nid, $result->pid , $result->fid , $user->uid, $time);
+	   
+	   // update isa_download_statistics_count table
+	   $result_count = db_fetch_object(db_query("SELECT count FROM isa_download_statistics_count WHERE nid = %d AND pid = %d AND fid = %d", $result->nid, $result->pid , $result->fid));
+	   if($result_count) {
+	     $count = $result_count->count;
+		 $count++;
+		 db_query("UPDATE isa_download_statistics_count SET count = %d WHERE nid = %d AND pid = %d AND fid = %d", $count, $result->nid, $result->pid, $result->fid);
+	   }
+	   else {
+	     db_query("INSERT INTO isa_download_statistics_count (nid, pid, fid, count) VALUES (%d, %d, %d, 1)", $result->nid, $result->pid , $result->fid);
+	   }
+     }
+  }
+}
+
+/**
+ * Implementation of hook_views_api().
+ */
+function isa_private_files_views_api() {
+  return array(
+    'api' => 2.0,
+    'path' => drupal_get_path('module', 'isa_private_files') .'/includes',
+  );
+}
+
+function isa_private_files_get_project_downloads_count($pid) {
+  $result = db_result(db_query("
+    SELECT COUNT(*) FROM {isa_download_statistics}
+    WHERE pid = '%d'", $pid));
+  return $result;
+}
+
+/**Implementation of hook_nodeapi
+ *
+ * This function delete the download statistics when a node (release or project) is deleted
+ *
+ */
+function isa_private_files_nodeapi (&$node, $op, $teaser = NULL, $page = NULL){
+  if ($op == 'delete'){
+    if ($node->type == ISA_PROJECT_TYPE ){
+      db_query("DELETE FROM {isa_download_statistics} WHERE pid = %d ", $node->nid);
+    }elseif ($node->type == 'project_release'){
+      db_query("DELETE FROM {isa_download_statistics} WHERE nid = %d ", $node->nid);
+    }   
+  }
+}
+
+
+function isa_private_files_menu (){
+    $items['anonymous_validation/%node/%'] = array(
+      'title' => 'Page title',
+      'description' => 'page description',
+      'page callback' => 'isa_private_files_anonymous_page',
+      'page arguments' => array('isa_toolbox_newsletters_template_mail'),
+      'weight' => 0,
+      'page arguments' => array(1,2),
+      'access callback' => 1,
+          //'type' => MENU_LOCAL_TASK,
+  );
+  return $items;
+}
+
+function isa_private_files_anonymous_page ($release , $fid){
+  // actually, this function can also accept a release node as first parameter
+  if (is_numeric($release)) {
+    $release_nid = $release;
+    $release = node_load(array('nid' => $release_nid));
+  }
+  elseif (is_object($release)) {
+    $release_nid = $release->nid;
+  }
+  else {
+    return (FALSE);
+  }
+
+  
+  //prepare login link
+  $pid = $release->project_release['pid'];
+  $project = node_load($pid);
+
+  if ($project->field_project_anonymous_download[0]['value'] == 1) {
+    $option = array('query' => array ('destination' => $release->path));
+    $vars['login_link'] = l (variable_get ('anonymous_validation_page_login_link_title','login'),'user/login', $option);
+
+    //prepare download link
+    $file = project_release_load_file($fid);
+    $file_url = file_create_url($file->filepath);
+    $vars['file_link'] = l(variable_get ('anonymous_validation_page_download_link_title','download'),$file_url,array ('attributes' => array ('class'=> 'hijackDestination')));
+
+    //prepare static text
+    $vars['info_text_login'] = variable_get ('anonymous_validation_page_login_desciption',NULL);
+    $vars['info_text_download'] = variable_get ('anonymous_validation_page_download_desciption','...');
+  }
+  else {
+    $vars['info_text_login'] = variable_get ('anonymous_validation_page_not_allowed_desciption','NULL');
+  }
+
+  $content =  theme('anonymous_validation_page', $vars);
+  drupal_set_title(variable_get ('anonymous_validation_page_title',''));
+
+  return $content;
+}
+
+/**
+ * Implementation of hook_theme
+ */
+function isa_private_files_theme (){
+  $items = array();
+    $items['anonymous_validation_page'] = array(
+      'arguments' => array('vars' => NULL),
+      'template' => 'anonymous_validation_page',
+  );
+    return $items;
+}

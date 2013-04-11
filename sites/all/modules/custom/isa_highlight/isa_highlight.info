@@ -1,0 +1,13 @@
+; $Id: isa_highlight.info,v 1.1.2.2 2009/07/05 19:18:27 gunzip Exp $ 
+name = ISA Highlight
+description = Allows users to highlight a node by linking it to a ISA community
+core = 6.x
+dependencies[] = nat
+dependencies[] = isa_toolbox
+package = "ISA Toolbox"
+
+version = "6.x-1.0"
+core = "6.x"
+project = "isa_highlight"
+datestamp = "1267533011"
+

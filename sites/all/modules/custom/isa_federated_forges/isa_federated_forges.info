@@ -1,0 +1,9 @@
+name = ISA Federated Forges
+description = Handles Federated Forges
+package = ISA
+core = 6.x
+dependencies[] = content
+dependencies[] = content_copy
+dependencies[] = link
+dependencies[] = nodereference
+dependencies[] = imagefield

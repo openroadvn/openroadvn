@@ -1,0 +1,11 @@
+
+name = "ISA OG Forum"
+description = "Create the list of forum-topic into a community"
+core = 6.x
+package = "ISA Toolbox"
+dependencies[] = isa_toolbox
+dependencies[] = og
+version = "6.x-1.0"
+core = "6.x"
+datestamp = "1267533011"
+

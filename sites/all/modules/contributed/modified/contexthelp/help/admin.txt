@@ -1,0 +1,341 @@
+$contexthelp = array(0 => array('title' => 'Reports help', 'body' => '<p>The reports area holds the different management pages for this site. 
+These reports are used by administrators and other users with privileges to not only watch what is happening on the site -- what areas are most 
+popular, what changes are being made to pages -- but also to monitor the health of the site\'s modules and core files.</p>
+<p>These reports are vital to the general operation of the site and should be checked frequently to maintain a well-informed knowledge of the 
+site\'s vitality.</p>', 'language' => 'en', 'url' => 'admin/reports',), 1 => array('title' => 'Recent log entries help', 'body' => '<p><span 
+class="Apple-style-span" style="word-spacing: 0px; text-transform: none; color: #003150; text-indent: 0px; font-family: \'Bitstream Vera Sans\'; 
+white-space: normal; letter-spacing: normal; border-collapse: separate; orphans: 2; widows: 2;">This report monitors the site, capturing system 
+events in a log to be reviewed by an authorized individual at a later time. It is a list of recorded events containing usage data, performance 
+data, errors, warnings and operational information. It is vital to check the recent log entries report on a regular basis as it can be the easiest 
+way to keep tabs on what is happening on the site.</span></p>
+<p> </p>
+<p><strong>Finding an event log</strong></p>
+<p>To best utilize the <strong>Recent log entries</strong> report, you may order the list of events a number of ways. You may sort by:</p>
+<ul>
+<li><strong>Type</strong> of event log</li>
+<li>the <strong>Date</strong> the event happened</li>
+<li>the <strong>User</strong> that performed the event<br /></li>
+</ul>
+<p>If you know more specifically what event or kind of event you are looking for, you may utilize the <strong>filter</strong> provided on the page 
+to narrow the results displayed in the entries log.</p>
+<p> </p>
+<p><strong>More informaiton</strong></p>
+<p>Should you find that you want to know more about a listed event, simply mouse-click on the link provided in the <strong>Message</strong> 
+column. This will open a new page, displaying a detailed account of the event including date, time, user and a summary of the action taken or 
+error which occurred</p>
+<p> </p>
+<p><strong>Contacting the user</strong></p>
+<p>It may be helpful to query a user regarding an action they took or an error that occurred while they were using the site. In the 
+<strong>User</strong> column, hovering the mouse over the user\'s handle will bring up the user action box. Mouse-click on the [+] to the right of 
+the user\'s name to bring up the action list, and select "Send email" to be taken to the webmail new message page or "Initiate chat" if the user 
+is online to start a converstaion with them.</p>', 'language' => 'en', 'url' => 'admin/reports/dblog',), 2 => array('title' => 'Filterable access 
+log report help', 'body' => '<p><strong>Overview</strong></p>
+<p>This report delivers a chronological listing of each page hit on the site. It displays which page was accessed, which page reported the access 
+(usually the same page) and when the access happened. It displays page hits for every user on the site.</p>
+<p>The log allows you to visit both the page which was accessed and the page that referred the record by clicking on the links provided in each 
+entry.</p>
+<p> </p>
+<p><strong>Filtering the log</strong></p>
+<p>The <strong>access log</strong> may be filtered using any of three criteria:</p>
+<ul>
+<li>The path to the page which was accessed (the part of the URL that comes after ".com" or ".mil")</li>
+<li>The date/time the access began (when the user loaded the page)<br /></li>
+<li>The date/time the accessed ceased (when the user left the page)</li>
+</ul>
+<p>You may narrow the listings down by entering the relevant data into one or more of the fields listed on the right side of the page and clicking 
+apply.</p>
+<p> </p>', 'language' => 'en', 'url' => 'admin/reports/access-log',), 3 => array('title' => 'Recent hits help', 'body' => '<p>The <strong>Recent 
+hits</strong> report displays the most recent pages visits by site users. The report provides a convenient way for administrators to see which 
+parts of the site are currently active and to view detailed information on individual page views.</p>
+<p> </p>
+<p><strong>Getting Started: sorting the report</strong></p>
+<p>The standard display for this report is descending chronological; the newest page visit is on the top of page 1. The report can, however, be 
+reordered by</p>
+<ul>
+<li>the <strong>Timestamp,</strong> or the date/time it was accessed,</li>
+<li>the name of the <strong>Page</strong> that was visited, and</li>
+<li>the <strong>User</strong> that visited the page.</li>
+</ul>
+<p>To reorder the report, click on the title of the column you wish to order it by. The page will reload with the page hits in their new 
+order.</p>
+<p>The site by default orders its reports A-Z, newest-to-oldest. It is possible, however, to order any sorting column in reverse. To do so,</p>
+<ol>
+<li>Click the column you want to sort the page by the first time to make the initial sort, then</li>
+<li>Click the same column one more time, to refresh the page in reverse order.</li>
+</ol>
+<p>The current sort order of the active sorting column is indicated by a small white arrow to the right of the sorting column.</p>
+<p> </p>
+<p><strong>Learning More: viewing a page visit detail page</strong></p>
+<p>The true utility of the <strong>Recent hits</strong> page is the ability to view a detailed account of each page hit displayed. To view details 
+about a page visit, an administrator needs simply to click on the <strong>details</strong> link at the right of the visit\'s entry on the list. 
+The site will navigate to a new page, listing the page visit\'s:</p>
+<ul>
+<li><strong>URL</strong></li>
+<li><strong>Title</strong></li>
+<li>the page that user came from had a link to the one being viewed, it is called the <strong>referer</strong>,<br /></li>
+<li>the <strong>Date</strong> and time the page was visited</li>
+<li>the name of the <strong>User</strong> who visited the page<br /></li>
+<li>the <strong>Hostname</strong> or IP Address of the computer the user accessed the page from.<br /></li>
+</ul>', 'language' => 'en', 'url' => 'admin/reports/hits',), 4 => array('title' => 'Signup status log help', 'body' => '<p>This report is created 
+by the event signup feature on the site. It displays, newest first, users who sign up for events, seminars, conferences, etc. The report is by 
+default sorted in forward chronological order -- the newest signup is shown on top.</p>
+<p> </p>
+<p><strong>Sorting the report<br /></strong></p>
+<p>The signup status log can be sorted by many data columns. The sorting columns available are:</p>
+<ul>
+<li><strong>Timestamp</strong> of when the signup took place</li>
+<li><strong>Title</strong> of the page the signup took place on</li>
+<li>The <strong>user</strong> that signed up for the event</li>
+<li>If the signup status was changed, who it was <strong>changed by</strong></li>
+<li>The signup <strong>status</strong> = yes, maybe, will not attend, etc.</li>
+<li>If it was changed, the <strong>action </strong>(add, delete) taken by the user on the signup status. <br /></li>
+</ul>
+<p>To reorder the report, click on the title of the column you wish to order it by. The page will reload with the page hits in their new 
+order.</p>
+<p>The site by default orders its reports A-Z, newest-to-oldest. It is possible, however, to order any sorting column in reverse. To do so,</p>
+<ol>
+<li>Click the column you want to sort the page by the first time to make the initial sort, then</li>
+<li>click the same column one more time, to refresh the page in reverse order.</li>
+</ol>
+<p>The current sort order of the active sorting column is indicated by a small white arrow to the right of the sorting column.</p>
+<p><strong>Changing a user\'s signup status</strong></p>
+<p>You may need to change the status of a user who has signed up for an event on the site. To do this, click on the <strong>edit</strong> link on 
+the far right side of the display. The page will reload, now showing options to change</p>
+<ul>
+<li>the user\'s name, <br /></li>
+<li>if they attended, <br /></li>
+<li>if they plan to attend, and <br /></li>
+<li>the notes that user may have left on the signup status before.</li>
+</ul>
+<p>Click <strong>Save</strong> after you\'re finished editing the content to submit the new signup details.</p>', 'language' => 'en', 'url' => 
+'admin/reports/signup_status_log',), 5 => array('title' => 'Top "access denied" errors help', 'body' => '<p>This report shows which pages users 
+land on the most where they don\'t have access.</p>
+<p> </p>
+<p><strong>Getting started: sorting the report</strong></p>
+<p>The standard display for this report is "greatest number of hits" - the page with the most "access denied" reports is on the top of page 1. The 
+report can, however, be reordered by</p>
+<ul>
+<li>the <strong>Count,</strong> or the number of times the page has denied access to users, and</li>
+<li><strong>Message</strong>, which reports the path of the page denying access.</li>
+</ul>
+<p>To reorder the report, click on the title of the column you wish to order it by. The page will reload with the page hits in their new 
+order.</p>
+<p>The site by default orders its reports A-Z, newest-to-oldest. It is possible, however, to order any sorting column in reverse. To do so,</p>
+<ol>
+<li>Click the column you want to sort the page by the first time to make the initial sort, then</li>
+<li>Click the same column one more time, to refresh the page in reverse order.</li>
+</ol>
+<p>The current sort order of the active sorting column is indicated by a small white arrow to the right of the sorting column.</p>', 'language' => 
+'en', 'url' => 'admin/reports/access-denied',), 6 => array('title' => 'Top "page not found" errors help', 'body' => '<p>This report shows URLs 
+that don\'t exist which users try to navigate to.</p>
+<p> </p>
+<p><strong>Sorting the report</strong></p>
+<p>The standard display for this report is "greatest number of hits" - the page with the most "page not found" reports is on the top of page 1. 
+The report can, however, be reordered by</p>
+<ul>
+<li>the <strong>Count,</strong> or the number of times the error has occurred, and</li>
+<li><strong>Message</strong>, which reports the path of the page denying access.</li>
+</ul>
+<p>To reorder the report, click on the title of the column you wish to order it by. The page will reload with the page hits in their new 
+order.</p>
+<p>The site by default orders its reports A-Z, newest-to-oldest. It is possible, however, to order any sorting column in reverse. To do so,</p>
+<ol>
+<li>Click the column you want to sort the page by the first time to make the initial sort, then</li>
+<li>Click the same column one more time, to refresh the page in reverse order.</li>
+</ol>
+<p>The current sort order of the active sorting column is indicated by a small white arrow to the right of the sorting column.</p>', 'language' => 
+'en', 'url' => 'admin/reports/page-not-found',), 7 => array('title' => 'Top referrers report help', 'body' => '<p>The <strong>top 
+referrers</strong> report show the URLs from which users enter this site and the total number of times users enter from those URLs.</p>
+<p> </p>
+<p> </p>
+<p><strong>Sorting the report</strong></p>
+<p>The standard display for this report is "greatest number of hits" - the URLs with the most referrals is on the top of page 1. The report can, 
+be reordered by</p>
+<ul>
+<li>the <strong>Hits,</strong> or the number of times a URL has referred visitors,</li>
+<li>the <strong>URL </strong>those visitors came from, and</li>
+<li>the <strong>last time a visitor </strong>came from the listed URL.</li>
+</ul>
+<p>To reorder the report, click on the title of the column you wish to order it by. The page will reload with the page hits in their new 
+order.</p>
+<p>The site by default orders its reports A-Z, newest-to-oldest. It is possible, however, to order any sorting column in reverse. To do so,</p>
+<ol>
+<li>Click the column you want to sort the page by the first time to make the initial sort, then</li>
+<li>Click the same column one more time, to refresh the page in reverse order.</li>
+</ol>
+<p>The current sort order of the active sorting column is indicated by a small white arrow to the right of the sorting column.</p>', 'language' => 
+'en', 'url' => 'admin/reports/referrers',), 8 => array('title' => 'Top search phrases help', 'body' => '<p>This report shows which words are 
+searched for the most.</p>
+<p> </p>
+<p><strong>Sorting the report</strong></p>
+<p>The standard display for this report is "greatest number of hits" - the word searched for the most is on the top of page 1. The report can be 
+reordered by</p>
+<ul>
+<li>the <strong>Count,</strong> or the number of times the word was searched, and<br /></li>
+<li><strong>Message</strong>, which reports the word searched for.</li>
+</ul>
+<p>To reorder the report, click on the title of the column you wish to order it by. The page will reload with the page hits in their new 
+order.</p>
+<p>The site by default orders its reports A-Z, newest-to-oldest. It is possible, however, to order any sorting column in reverse. To do so,</p>
+<ol>
+<li>Click the column you want to sort the page by the first time to make the initial sort, then</li>
+<li>Click the same column one more time, to refresh the page in reverse order.</li>
+</ol>
+<p>The current sort order of the active sorting column is indicated by a small white arrow to the right of the sorting column.</p>', 'language' => 
+'en', 'url' => 'admin/reports/search',), 9 => array('title' => 'Top search phrases help', 'body' => '<p>This report shows which words are searched 
+for the most.</p>
+<p> </p>
+<p><strong>Sorting the report</strong></p>
+<p>The standard display for this report is "greatest number of hits" - the word searched for the most is on the top of page 1. The report can be 
+reordered by</p>
+<ul>
+<li>the <strong>Count,</strong> or the number of times the word was searched, and<br /></li>
+<li><strong>Message</strong>, which reports the word searched for.</li>
+</ul>
+<p>To reorder the report, click on the title of the column you wish to order it by. The page will reload with the page hits in their new 
+order.</p>
+<p>The site by default orders its reports A-Z, newest-to-oldest. It is possible, however, to order any sorting column in reverse. To do so,</p>
+<ol>
+<li>Click the column you want to sort the page by the first time to make the initial sort, then</li>
+<li>Click the same column one more time, to refresh the page in reverse order.</li>
+</ol>
+<p>The current sort order of the active sorting column is indicated by a small white arrow to the right of the sorting column.</p>', 'language' => 
+'en', 'url' => 'admin/reports/search',), 10 => array('title' => 'Top pages help', 'body' => '<p>This report shows the pages accessed most often on 
+the site in the past 16 weeks. It displays useful information including the number of times visitors have loaded the page, average time taken to 
+load the page, and total time spent loading the page for all visits. For admin convenience, the report provides a link to the page, if available, 
+in each entry.</p>
+<p> </p>
+<p><strong>Sorting the report</strong></p>
+<p>The standard display for this report is "greatest number of hits" - the page visited the most times is on the top of page 1. The report can be 
+reordered by</p>
+<ul>
+<li><strong>Hits</strong></li>
+<li><strong>Page</strong></li>
+<li><strong>Average page generation time</strong></li>
+<li><strong>Total page generation time<br /></strong></li>
+</ul>
+<p>To reorder the report, click on the title of the column you wish to order it by. The page will reload with the page hits in their new 
+order.</p>
+<p>The site by default orders its reports A-Z, newest-to-oldest. It is possible, however, to order any sorting column in reverse. To do so,</p>
+<ol>
+<li>Click the column you want to sort the page by the first time to make the initial sort, then</li>
+<li>Click the same column one more time, to refresh the page in reverse order.</li>
+</ol>
+<p>The current sort order of the active sorting column is indicated by a small white arrow to the right of the sorting column.</p>', 'language' => 
+'en', 'url' => 'admin/reports/pages',), 11 => array('title' => 'Top visitors help', 'body' => '<p>This report shows the users who access the most 
+pages on the site in the last 16 weeks. It displays such useful data as username, the number of pages that user accessed, the total time spent 
+loading pages for the user, and the option to ban the user if an administrator so wishes.</p>
+<p> </p>
+<p><strong>Getting Started: Sorting the report</strong></p>
+<p>The standard display for this report is "greatest number of hits" - the user who visited the most pages is on the top of page 1. The report can 
+be reordered by</p>
+<ul>
+<li><strong>Hits</strong></li>
+<li><strong>Visitor<br /></strong></li>
+<li><strong>Total page generation time<br /></strong></li>
+</ul>
+<p>To reorder the report, click on the title of the column you wish to order it by. The page will reload with the page hits in their new 
+order.</p>
+<p>The site by default orders its reports A-Z, newest-to-oldest. It is possible, however, to order any sorting column in reverse. To do so,</p>
+<ol>
+<li>Click the column you want to sort the page by the first time to make the initial sort, then</li>
+<li>Click the same column one more time, to refresh the page in reverse order.</li>
+</ol>
+<p>The current sort order of the active sorting column is indicated by a small white arrow to the right of the sorting column.</p>
+<p> </p>
+<p><strong>Going further: banning users</strong></p>
+<p>An administrator may need to ban a user who appears on the Top Visitors list. To do so, that admin will mouse-click on the <strong>ban</strong> 
+link, loading a new page with the choice to allow or deny access to the site based on username, e-mail address, or IP Address.</p>', 'language' => 
+'en', 'url' => 'admin/reports/visitors',), 12 => array('title' => 'Recent hits help', 'body' => '<p>Der Bericht <strong>Neueste Aufrufe</strong> 
+entht eine ersicht er die von den Benutzern der Website zuletzt angesehenen Seiten. Administratoren knen hier sehr schnell erkennen, welche 
+Bestandteile der Website gegenwtig genutzt werden, und detaillierte Informationen er einzelne Seitenaufrufe einsehen.</p>
+<p>Erste Schritte: Sortieren des Berichts<br />Der Bericht wird standardmig in chronologischer Reihenfolge angezeigt: Der letzte Seitenaufruf 
+erscheint ganz oben auf Seite 1. Er kann jedoch auch nach den folgenden Kriterien sortiert werden:</p>
+<ul>
+<li><strong>Zeitstempel </strong>oder Datum/Urzeit des Zugriffs</li>
+<li>Name der besuchten <strong>Seite </strong>oder</li>
+<li>Benutzer, der die Seite aufgerufen hat.</li>
+</ul>
+<p><br />Klicken Sie auf den Titel der Spalte, nach der Sie den Bericht sortieren mhten. Der Bericht wird dann neu geladen und die Seitenanrufe 
+werden in der gederten Reihenfolge dargestellt.</p>
+<p>Standardmig sind die Berichte von A bis Z und vom neuesten zum testen sortiert. Sie knen diese Reihenfolge jedoch auch umkehren:</p>
+<ol>
+<li>Klicken Sie zunhst auf die Spalte, nach der Sie die Seite sortieren mhten, und</li>
+<li>klicken Sie dann nochmals auf diese Spalte, um die Sortierreihenfolge umzukehren.</li>
+</ol>
+<p>Die jeweilige Reihenfolge wird rechts von der Spalte, nach der die Tabelle sortiert ist, durch einen kleinen wein Pfeil verdeutlicht.</p>
+<p><br /><strong>Weitere Informationen: Anzeige der Detailseite f einen Seitenaufruf</strong></p>
+<p><br />Der besondere Nutzen der Seite Neueste Aufrufe liegt in der Mlichkeit, eine detaillierte ersicht er alle aufgefrten Seitenaufrufe 
+anzeigen zu lassen. Ein Administrator braucht dazu nur rechts vom jeweiligen Eintrag auf die Verknfung Details zu klicken. Auf einer neuen Seite 
+werden dann die folgenden Informationen zum jeweiligen Seitenaufruf angezeigt:</p>
+<ul>
+<li>URL</li>
+<li>Titel</li>
+<li>Seite, die der Benutzer vorher aufgerufen hatte und die eine Verknfung zur angezeigten Seite entht (als Referrer bezeichnet) </li>
+<li>Datum und Uhrzeit des Seitenaufrufs</li>
+<li>Name des Benutzers, der die Seite aufgerufen hat</li>
+<li>Hostname oder IP-Adresse des Computers, von dem aus die Seite aufgerufen wurde.</li>
+</ul>', 'language' => 'de', 'url' => 'admin/reports/hits',), 13 => array('title' => 'Content types help', 'body' => '<p>From <span 
+style="font-weight: bold;">Content types</span>, administrators may view, ecit, create and delete the different kinds of posts site users can make 
+to the site. A content type defines what a type of post will be called, what information will be stored in that post, and how that information 
+will be displayed. </p>
+<p> </p>
+<p><span style="font-weight: bold;">Getting started: viewing content types</span></p>
+<p>The content types page has a simple display. The columns do not allow the user to sort as there are so few entries on the page. An 
+administrator has four options on the page:</p>
+<ul>
+<li>Edit</li>
+<li>Manage fields</li>
+<li>Delecte</li>
+<li>Add a new content type</li>
+</ul>
+<div><br /></div>
+<div><span style="font-weight: bold;">Diving Deeper: managing the content fields in a content type</span></div>
+<div><br /></div>
+<div><span style="font-style: italic;">Note: Changing ANY settings in these areas may break how the page is displayed on the site. Please DO NOT 
+change anything unless you know what you\'re doing.</span></div>
+<div><br /></div>
+<div>By clicking on the <span style="font-weight: bold;">manage fields</span> link for a given content type, an administrator may rearrange, edit, 
+add and delete fields. </div>
+<div><br /></div>
+<div><br /></div>
+<div><span style="font-style: italic;">Rearranging fields</span></div>
+<div>When the manage fields link is clicked and the page reloads, the administrator will see a list of fields currently in use by a content type. 
+These firlds are the places where users type information and represent the heirarchy of data a content type stores and displays. </div>
+<div><br /></div>
+<div>By clicking and holding on the [+] icon to the left of a field, the user may move a field up or down in it\'s display order on the content 
+type\'s creation/editing page, as well as some display pages. </div>
+<div><br /></div>
+<div>To save a new field order, the user must click the <span style="font-weight: bold;">Save</span> button on the bottom of the page. If the user 
+navigates away from the page without saving first, the changes made will be lost. </div>
+<div><br /></div>
+<div><br /></div>
+<div><span style="font-style: italic;">Editing fields</span></div>
+<div>An administrator may at some point find it necessary to change the settings of a particular data field. This is done with the <span 
+style="font-weight: bold;">edit</span> link on the right end of a field\'s entry. </div>
+<div><br /></div>
+<div><span style="font-weight: bold;">Advanced operations: editing the site\'s content types</span></div>
+<div><br /></div>
+<div>There are three options for editing or changing the site\'s content types.</div>
+<div><br /></div>
+<div>Editing a content types allows an administrator the ability to change many settings that affect all posts made under that content type. In 
+general, if you don\'t know what something does, do not change it, do not touch it, and ask someone else for help. Especailly on these pages, 
+changing a setting can break the site and cause many, many problems.</div>
+<div><br /></div>
+<div>The settigs areas available for editing are:</div>
+<div>
+<ul>
+<li>Submissions form settings</li>
+<li>Workflow settings</li>
+<li>Locative information</li>
+<li>Organic groups</li>
+<li>Signup settings</li>
+<li>Comment settings</li>
+<li>file attachments</li>
+<li>Feed API</li>
+<li>RDF mapping</li>
+<li>Audience Check</li>
+<li>Content Profile</li>
+</ul>
+<div>There is a significant ammount of </div>
+</div>', 'language' => 'en', 'url' => 'admin/content/types',), );

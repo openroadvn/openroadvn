@@ -1,0 +1,7 @@
+; $Id
+core            = "6.x"
+dependencies[]  = isa_membership
+dependencies[]  = isa_toolbox
+description     = "Module for send email for membership"
+name            = "ISA Membership Mail"
+package         = "ISA Toolbox"

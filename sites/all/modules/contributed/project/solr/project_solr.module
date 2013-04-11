@@ -1,0 +1,558 @@
+<?php
+// $Id: project_solr.module,v 1.62 2009/09/22 21:52:30 dww Exp $
+
+//----------------------------------------
+// Core hooks
+//----------------------------------------
+
+/**
+ * Implementation of hook_menu().
+ */
+function project_solr_menu() {
+  $items = array();
+  $items['project'] = array(
+    'title' => 'Project summary',
+    'description' => '',
+    'page callback' => 'project_solr_browse_summary_page',
+    'access arguments' => array('access content'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['project/%'] = array(
+    'title' => 'Project summary',
+    'description' => '',
+    'page callback' => 'project_solr_browse_page',
+    'page arguments' => array(1),
+    'access arguments' => array('access content'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+/**
+ * Implementation of hook_theme().
+ */
+function project_solr_theme() {
+  return array(
+    'project_solr_no_count_facet_link' => array(
+      'arguments' => array(
+        'facet_text' => NULL,
+        'path' => '',
+        'options' => '',
+        'active' => FALSE,
+        'num_found' => NULL,
+      ),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ *
+ * Whenever a release node is edited or submitted, if the node is now
+ * published, reindex the project node associated with that release.
+ */
+function project_solr_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  switch ($op) {
+    case 'update':
+    case 'insert':
+      if ($node->type == 'project_release' && $node->status) {
+        apachesolr_mark_node($node->project_release['pid']);
+      }
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function project_solr_form_apachesolr_delete_index_form_alter(&$form, $form_state) {
+  $form['reindex_project'] = array(
+    '#type' => 'submit',
+    '#value' => t('Re-index all projects'),
+    '#submit' => array('project_solr_reindex_projects'),
+  );
+  $form['reindex_project_desc'] = array(
+    '#type' => 'item',
+    '#description' => t('This will only re-index the project content on your site.'),
+  );
+}
+
+function project_solr_reindex_projects($form, $form_state) {
+  db_query("UPDATE {apachesolr_search_node} SET changed = %d WHERE nid IN (SELECT nid FROM {node} WHERE type = 'project_project')", time());
+  drupal_set_message(t('Marked all project content to be reindexed by Apache Solr.'));
+}
+
+//----------------------------------------
+// Solr-related hooks
+//----------------------------------------
+
+/**
+ * Implementation of hook_apachesolr_update_index().
+ *
+ * This adds information about releases for the project to the Solr document
+ * so we can facet on releases (API compatibility terms, usage, etc), along
+ * with other project-specific metadata (e.g. shortname/uri).
+ *
+ * Beware that this hook is invoked for all nodes, so we should be careful in
+ * here to check that we're really dealing with a project node before trying
+ * to access any project-specifc data.
+ */
+function project_solr_apachesolr_update_index(&$document, $node) {
+  if (!empty($node->project['uri'])) {
+    $document->ss_project_uri = $node->project['uri'];
+  }
+  if (module_exists('project_release') && !empty($node->project_release['releases'])) {
+    $document->is_project_has_releases = 1;
+
+    $max_filetime = 0;
+    $max_official_filetime = 0;
+    $term_query = db_query("SELECT DISTINCT(tn.tid) FROM {node} n INNER JOIN {project_release_nodes} prn ON n.nid = prn.nid INNER JOIN {term_node} tn ON n.nid = tn.nid INNER JOIN {term_data} td ON tn.tid = td.tid WHERE prn.pid = %d AND td.vid = %d", $node->nid, _project_release_get_api_vid());
+    while ($term = db_fetch_object($term_query)) {
+      $document->setMultiValue('im_project_release_api_tids', $term->tid);
+      $latest_activity = db_fetch_object(db_query_range("SELECT f.timestamp, prn.rebuild FROM {node} n INNER JOIN {project_release_nodes} prn ON n.nid = prn.nid INNER JOIN {project_release_file} prf ON prn.nid = prf.nid INNER JOIN {term_node} tn ON prn.nid = tn.nid INNER JOIN {files} f ON prf.fid = f.fid WHERE n.status = 1 AND tn.tid = %d AND prn.pid = %d ORDER BY f.timestamp DESC", $term->tid, $node->nid, 0, 1));
+      $filetime = $latest_activity->timestamp;
+      $key = 'ds_project_latest_activity_'. $term->tid;
+      $document->$key = apachesolr_date_iso($filetime);
+      if ($filetime > $max_filetime) {
+        $max_filetime = $filetime;
+      }
+
+      // Now, look for the most recent official release for this API version.
+      $key = 'ds_project_latest_release_'. $term->tid;
+      if ($latest_activity->rebuild == 0) {
+        // The latest activity is official, we're done.
+        $document->$key = apachesolr_date_iso($filetime);
+        if ($filetime > $max_official_filetime) {
+          $max_official_filetime = $filetime;
+        }
+      }
+      else {
+        $filetime = db_result(db_query_range("SELECT f.timestamp FROM {node} n INNER JOIN {project_release_nodes} prn ON n.nid = prn.nid INNER JOIN {project_release_file} prf ON prn.nid = prf.nid INNER JOIN {term_node} tn ON prn.nid = tn.nid INNER JOIN {files} f ON prf.fid = f.fid WHERE n.status = 1 AND prn.rebuild = 0 AND tn.tid = %d AND prn.pid = %d ORDER BY f.timestamp DESC", $term->tid, $node->nid, 0, 1));
+        if (!empty($filetime)) {
+          $document->$key = apachesolr_date_iso($filetime);
+        }
+        if ($filetime > $max_official_filetime) {
+          $max_official_filetime = $filetime;
+        }
+      }
+    }
+    $document->ds_project_latest_activity = apachesolr_date_iso($max_filetime);
+    if (!empty($max_official_filetime)) {
+      $document->ds_project_latest_release = apachesolr_date_iso($max_official_filetime);
+    }
+    
+    if (module_exists('project_usage')) {
+      $weeks = variable_get('project_usage_active_weeks', array());
+      $week = reset($weeks);
+      $total_usage = 0;
+      $query = db_query("SELECT * FROM {project_usage_week_project} WHERE nid = %d AND timestamp = %d", $node->nid, $week);
+      while ($usage = db_fetch_object($query)) {
+        $key = 'sis_project_release_usage_'. $usage->tid;
+        $document->$key = $usage->count;
+        $total_usage += $usage->count;
+      }
+      $document->sis_project_release_usage = $total_usage;
+    }
+  }
+}
+
+//----------------------------------------
+// Page callbacks
+//----------------------------------------
+
+/**
+ * Summary project browsing page.
+ */
+function project_solr_browse_summary_page() {
+  $vid = _project_get_vid();
+  $tree = taxonomy_get_tree($vid, 0, -1, 1);
+  $items = array();
+  foreach ($tree as $term) {
+    $items[] = theme('project_type', $term);
+  }
+  drupal_set_title(t('Project types'));
+  return theme('item_list', $items);
+}
+
+function project_solr_browse_page($term_name) {
+  try {
+    $output = '';
+
+    $parent_term = db_fetch_object(db_query("SELECT t.tid, t.name, t.description FROM {term_data} t WHERE t.vid = %d AND LOWER(t.name) = LOWER('%s')", _project_get_vid(), $term_name));
+
+    if (!$parent_term) {
+      // XXX: this is the Drupal 5 way...
+      return drupal_not_found();
+    }
+    drupal_set_title(check_plain($parent_term->name));
+    if (!empty($parent_term->description)) {
+      $output .= theme('project_type_description', $parent_term);
+    }
+
+    $text_query = isset($_GET['text']) ? $_GET['text'] : '';
+    $filters = isset($_GET['filters']) ? $_GET['filters'] : '';
+
+    $sort = isset($_GET['solrsort']) ? check_plain($_GET['solrsort']) : '';
+
+    // Validate sort parameter
+    if ((!isset($sort) || !preg_match('/^([a-z0-9_]+ (asc|desc)(,)?)+$/i', $sort)) && empty($text_query)) {
+      $sort = variable_get('project_solr_default_sort', 'sort_title asc');
+    }
+
+    include_once drupal_get_path('module', 'project_solr') .'/ProjectSolrQuery.php';
+
+    $query = new ProjectSolrQuery(apachesolr_get_solr(), $text_query, $filters, $sort);
+    if (is_null($query)) {
+      throw new Exception(t('Could not construct a Solr query.'));
+    }
+
+    $query->add_field_aliases(array('im_project_release_api_tids' => 'drupal_core'));
+
+    $params = array(
+      'fl' => 'id,nid,title,body,format,comment_count,type,created,changed,score,url,uid,name,sis_project_release_usage,ds_project_latest_release,ds_project_latest_activity',
+      'rows' => variable_get('apachesolr_rows', 10),
+      'facet' => 'true',
+      'facet.mincount' => 1,
+      'facet.sort' => 'true',
+      'facet.field' => array(
+        'im_vid_'. _project_get_vid(),
+        'im_project_release_api_tids',
+      ),
+      'facet.limit' => 200,
+    );
+
+    $page = isset($_GET['page']) ? $_GET['page'] : 0;
+    $params['start'] = $page * $params['rows'];
+
+    // This is the object that does the communication with the solr server.
+    $solr = apachesolr_get_solr();
+
+    // This hook allows modules to modify the query and params objects.
+    apachesolr_modify_query($query, $params, 'project_solr');
+    if (!$query) {
+      return array();
+    }
+
+    // Force sort to be by the corresponding core compatibility if filtered.
+    $sort = $query->get_solrsort();
+    if (in_array($sort['#name'], array('ds_project_latest_release', 'ds_project_latest_activity'))
+      && ($api_filters = $query->get_filters('im_project_release_api_tids'))) {
+      $first_filter = reset($api_filters);
+      $params['sort'] = $sort['#name'] .'_'. $first_filter['#value'] .'  '. $sort['#direction'];
+    }
+
+    // We add 'fq' (filter query) parameters here to include all the constant
+    // filters for the query -- project nodes of the given top-level type that
+    // have releases (if project_release is enabled).
+    $fq[] = 'type:project_project';
+    $fq[] = 'im_vid_'. _project_get_vid() .':'. $parent_term->tid;
+    if (module_exists('project_release')) {
+      $fq[] = 'is_project_has_releases:1';
+    }
+    $params['fq'][] = '('. implode(' AND ', $fq) .')';
+
+    $response = $solr->search($query->get_query_basic(), $params['start'], $params['rows'], $params);
+
+    // The response is cached so that it is accessible to the blocks and anything
+    // else that needs it beyond the initial search.
+    $total = $response->response->numFound;
+
+    project_solr_response_cache(array($query, $response, $parent_term));
+
+    // Set breadcrumb
+    $breadcrumb = menu_get_active_breadcrumb();
+    drupal_set_breadcrumb($breadcrumb);
+
+    $output .= '<div id="project-overview">';
+    pager_query("SELECT %d", $params['rows'], 0, NULL, $total);
+    if ($total > 0) {
+      foreach ($response->response->docs as $doc) {
+        $doc->created = strtotime($doc->created);
+        $doc->changed = strtotime($doc->changed);
+        $output .= project_solr_render_search_result($doc);
+      }
+    }
+    else {
+      $output .= t('No projects found in this category.');
+    }
+
+    $output .= '</div>'; // id="project-overview"
+    $output .= theme('pager', NULL, $params['rows'], 0);
+  }
+  catch (Exception $e) {
+    watchdog('Apache Solr', $e->getMessage(), NULL, WATCHDOG_ERROR);
+    apachesolr_failure(t('Solr search'), is_null($query) ? $keys : $query->get_query_basic());
+  }
+
+  return $output;
+}
+
+function project_solr_response_cache($set = FALSE) {
+  static $cache = NULL;
+  if ($set !== FALSE) {
+    $cache = $set;
+  }
+  return $cache;
+}
+
+//----------------------------------------
+// Blocks
+//----------------------------------------
+
+/**
+ * Implementation of hook_block().
+ */
+function project_solr_block($op = 'list', $delta = 0, $edit = array()) {
+  if ($op == 'list') {
+    return array(
+      'project_solr_categories' => array(
+        'info' => t('Project: categories'),
+        'cache' => BLOCK_CACHE_PER_PAGE,
+      ),
+      'project_solr_order' => array(
+        'info' => t('Project: ordering'),
+        'cache' => BLOCK_CACHE_PER_PAGE,
+      ),
+      'project_solr_compability' => array(
+        'info' => t('Project: core compatibility'),
+        'cache' => BLOCK_CACHE_PER_PAGE,
+      ),
+      'project_solr_text' => array(
+        'info' => t('Project: text search'),
+        'cache' => BLOCK_CACHE_PER_PAGE,
+      ),
+    );
+  }
+
+  if ($op == 'view' && ($search = project_solr_response_cache())) {
+    list($query, $response, $parent_term) = $search;
+
+    if ($delta == 'project_solr_categories') {
+      $facet = 'im_vid_'.  _project_get_vid();
+      $terms = array();
+
+      // Get the terms at the current depth.
+      $current_tid = $parent_term->tid;
+      foreach ($query->get_filters() as $filter) {
+        if ($filter['#name'] == 'tid') {
+          $current_tid = $filter['#value'];
+          break;
+        }
+      }
+      $current_level_terms = array();
+      $tree = taxonomy_get_tree(_project_get_vid(), $current_tid, -1, 1);
+      foreach ($tree as $term) {
+        $current_level_terms[$term->tid] = $term;
+      }
+
+      foreach ($response->facet_counts->facet_fields->$facet as $tid => $count) {
+        $active = $query->has_filter('tid', $tid);
+        if (!isset($current_level_terms[$tid]) && (!$active || $tid != $current_tid)) {
+          continue;
+        }
+        $unclick_link = '';
+        $term = taxonomy_get_term($tid);
+        $new_query = clone $query;
+        
+        $path = 'project/' . drupal_strtolower($parent_term->name);
+        $options = array();
+        if ($active) {
+          $new_query->remove_filter('tid', $term->tid);
+          $options['query'] = $new_query->get_url_queryvalues();
+          $link = theme('apachesolr_unclick_link', $term->name, $path, $options);
+        }
+        else {
+          $new_query->add_filter('tid', $term->tid);
+          $options['query'] = $new_query->get_url_queryvalues();
+          $link = theme('apachesolr_facet_link', $term->name, $path, $options, $count, $active, $response->numFound);
+        }
+        $countsort = $count == 0 ? '' : 1 / $count;
+        // if numdocs == 1 and !active, don't add.
+        if ($response->numFound == 1 && !$active) {
+          // skip
+        }
+        else {
+          $terms[$active ? $countsort . $term->name : 1 + $countsort . $term->name] = $link;
+        }
+      }
+      $vocab = taxonomy_vocabulary_load(_project_get_vid());
+
+      if (!empty($terms)) {
+        ksort($terms);
+
+        // The currently selected term should be first.
+        if (isset($terms[$current_tid])) {
+          $current_term = $terms[$current_tid];
+          unset($terms[$current_tid]);
+          $terms = array_merge(array($current_tid => $current_term), $terms);
+        }
+
+        return array(
+          'subject' => $vocab->name,
+          'content' => theme('apachesolr_facet_list', $terms, 200),
+        );
+      }
+      return;
+    }
+    else if ($delta == 'project_solr_order') {
+      $sorts = $query->default_sorts();
+      $solrsort = $query->get_solrsort();
+
+      $sort_links = array();
+      $path = 'project/' . drupal_strtolower($parent_term->name);
+      $new_query = clone $query;
+      $toggle = array('asc' => 'desc', 'desc' => 'asc');
+      foreach ($sorts as $name => $sort) {
+        $active = $solrsort['#name'] == $name;
+        $direction = $active ? $solrsort['#direction'] : '';
+        $new_direction = $active ? $toggle[$direction] : $sort['default'];
+        $new_query->set_solrsort($name, $new_direction);
+        $sort_links[] = theme('apachesolr_sort_link', $sort['title'], $path, array('query' => $new_query->get_url_queryvalues()), $active, $direction);
+      }
+      return array(
+        'subject' => t('Sort by'),
+        'content' => theme('apachesolr_sort_list', $sort_links),
+      );
+    }
+    else if (module_exists('project_release') && $delta == 'project_solr_compability') {
+      $vid = _project_release_get_api_vid();
+      $facet = 'im_project_release_api_tids';
+      $terms = array();
+      $active_terms = array_reverse(project_release_compatibility_list(FALSE), TRUE);
+
+      $active_term_counts = array();
+      foreach ($response->facet_counts->facet_fields->$facet as $tid => $count) {
+        if (!empty($active_terms[$tid])) {
+          $active_term_counts[$tid] = $count;
+        }
+      }
+
+      foreach ($active_terms as $tid => $term_name) {
+        if (!empty($active_term_counts[$tid])) {
+          $active = $query->has_filter('im_project_release_api_tids', $tid);
+          $path = 'project/' . drupal_strtolower($parent_term->name);
+          $new_query = clone $query;
+          $new_query->remove_filter('im_project_release_api_tids', $term->tid);
+          $options = array();
+          if ($active) {
+            $options['query'] = $new_query->get_url_queryvalues();
+            $link = theme('apachesolr_unclick_link', $term_name, $path, $options);
+          }
+          else {
+            $new_query->add_filter('im_project_release_api_tids', $tid);
+            $options['query'] = project_solr_append_api_term($new_query->get_url_queryvalues(), $tid);
+            $link = theme('project_solr_no_count_facet_link', $term_name, $path, $options, $active, $response->response->numFound);
+          }
+          $terms[$term_name] = $link;
+        }
+      }
+
+      if (!empty($terms)) {
+        return array(
+          'subject' => t('Filter by compatibility'),
+          'content' => theme('apachesolr_facet_list', $terms, 200),
+        );
+      }
+      return;
+    }
+    else if ($delta == 'project_solr_text') {
+      return array(
+        'subject' => t('Search @project_type', array('@project_type' => drupal_strtolower($parent_term->name))),
+        'content' => drupal_get_form('project_sort_freetext'),
+      );
+    }
+  }
+}
+
+/**
+ * Append the API tid to selected fields that might be in the string.
+ */
+function project_solr_append_api_term($values, $tid) {
+  $api_fields = array('ds_project_latest_release', 'sis_project_release_usage', 'ds_project_latest_activity');
+  foreach($values as $k => $v) {
+    if (in_array($k, $api_fields)) {
+      unset($values[$k]);
+      $values[$k . '_' . $tid] = $v;
+    }
+  }
+  return $values;
+}
+
+/**
+ * Form callback; display a free text form.
+ */
+function project_sort_freetext() {
+  list($query, $response, $parent_term) = project_solr_response_cache();
+
+  $form = array();
+  $form['text'] = array(
+    '#type' => 'textfield',
+    '#default_value' => $_GET['querypath'],
+    '#size' => 20,
+  );
+  $form['path'] = array(
+    '#type' => 'value',
+    '#value' => 'project/' . drupal_strtolower($parent_term->name),
+  );
+  $form['query'] = array(
+    '#type' => 'value',
+    '#value' => $query,
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+  return $form;
+}
+
+/**
+ * Submit handler for project_sort_freetext().
+ */
+function project_sort_freetext_submit($form, &$form_state) {
+  $query = $form_state['values']['query'];
+  $queryvalues = $query->get_url_queryvalues();
+  $queryvalues['text'] = $form_state['values']['text'];
+  unset($queryvalues['solrsort']);
+  $form_state['redirect'] = array($form_state['values']['path'], $queryvalues);
+}
+
+//----------------------------------------
+// Theme-related functions
+//----------------------------------------
+
+/**
+ * Perform the business logic to 
+ */
+function project_solr_render_search_result($result) {
+  $project = node_load($result->nid);
+  $project = node_build_content($project, TRUE, FALSE);
+  $project->body = $project->teaser;
+  $project->solr_result = $result;
+
+  if (!empty($project->project_release['releases'])) {
+    $project->download_table = project_release_table($project, 'recommended', 'all', t('Version'), FALSE, FALSE);
+  }
+  
+  $project->links = array();
+  $project->links['read_more'] = array(
+    'title' => t('Find out more'),
+    'href' => "node/$project->nid",
+  );
+  if (!empty($project->project_issue['issues'])) {
+    $project->links['issues'] = array(
+      'title' => t('Bugs and feature requests'),
+      'href' => 'project/issues/'. $project->project['uri'],
+    );
+  }
+  return theme('project_summary', $project);
+}
+
+function theme_project_solr_no_count_facet_link($facet_text, $path, $options = array(), $active = FALSE, $num_found = NULL) {
+  $options['attributes']['class'][] = 'apachesolr-facet';
+  if ($active) {
+    $options['attributes']['class'][] = 'active';
+  }
+  $options['attributes']['class'] = implode(' ', $options['attributes']['class']);
+  return apachesolr_l($facet_text,  $path, $options);
+}
+

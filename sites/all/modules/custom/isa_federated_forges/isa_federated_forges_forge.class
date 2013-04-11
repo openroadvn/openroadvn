@@ -1,0 +1,202 @@
+<?php
+define('FEDERATED_FORGE_TYPE', 'federated_forge');
+
+class federated_forge {
+  public $title;                 // string
+  
+  public $added = array();       // array
+  public $changed = array();     // array
+  public $deleted = array();     // array
+
+  private $nid;                   // int
+  private $user = array();        // array
+
+  private $xml;                   // string
+  private $projects_db = array(); // array
+  private $projects_xml = array(); // array
+  private $connection;
+
+
+
+  public function __construct() {
+    module_load_include('class', 'isa_federated_forges', 'isa_federated_forges_connection');
+    $this->connection = new isa_federated_forges_connection();
+  }
+
+
+
+  /**
+   * Loads a forge, based on its ID.
+   * Gets all the node details + all its projects
+   * @param int $nid The forge's node ID
+   */
+  public function load_from_nid($nid) {
+    $node = node_load($nid);
+    $this->load($node);
+  }
+
+
+
+  /**
+   * Loads a forge, based on its title.
+   * Gets all the node details + all its projects
+   * @param string $title The forge's title
+   */
+  public function load_from_title($title) {
+    $params = array('title' => $title);
+    $node = node_load($params);
+    $this->load($node);
+  }
+
+
+
+  public function load($node) {
+    if ($node->type == FEDERATED_FORGE_TYPE) {
+      $this->title = $node->title;
+      $this->nid = $node->nid;
+      $this->xml = $node->field_forges_xml[0]['url'];
+      $this->user['uid'] = $node->uid;
+      $this->user['name'] = strip_tags(theme('username',$node->uid));
+      $this->load_projects_from_db();
+    }
+  }
+
+  
+  /**
+   * Deletes all federated projects of the current federated forge
+   */
+public function delete_all_projects (){
+  if ($this->projects_db && !empty ($this->projects_db)){
+    foreach ($this->projects_db as $project_title => $project){
+      $project->delete ();
+    }
+  }
+}
+
+  /**
+   * Loads all projects related to this forge from the database.
+   * This is not a getter function (use get_projects_from_db().
+   */
+  private function load_projects_from_db() {
+    module_load_include('class', 'isa_federated_forges', 'isa_federated_forges_project');
+    //MODIF LCT: We need to check that this is the original (due to translation)
+    //$sql = "SELECT ctfp.nid AS nid FROM {content_type_federated_project} ctfp WHERE ctfp.field_fed_project_forge_nid = %d";
+    $sql = 'SELECT ctfp.nid AS nid
+      FROM {content_type_federated_project} ctfp
+        INNER JOIN {node} n USING (nid)
+      WHERE ctfp.field_fed_project_forge_nid = %d and ( n.nid = n.tnid OR n.tnid = 0 )';
+    $sql = db_query($sql, $this->nid);
+    while($pid = db_result($sql)) {
+      
+      $project = new federated_project();
+      $project->load_from_nid($pid);
+      $this->projects_db[$project->title] = $project;
+    }
+  }
+
+
+
+  /**
+   * Getter function for $projects_db
+   * @return array A list of projects as listed in the database 
+   */
+  public function get_projects_from_db() {
+    return $this->projects_db;
+  }
+
+
+
+  public function process_xml() {
+    if ( $this->xml == 'http://invalid.xml.eu' ) {
+      return FALSE;
+    }
+    $this->xml = $this->connection->load_url($this->xml);
+    $doc = new DOMDocument();
+    if ($doc->loadXML($this->xml)) {
+      $reader = new XMLReader();
+      $reader->XML($this->xml);
+
+      while($reader->read() && $reader->name !== 'item');
+
+      // Read all projects from the XML file and process them
+      while ($reader->name === 'item') {
+        $item = $this->build_item($reader);
+        $project = new federated_project();
+        $project->fid = $this->nid;
+        $project->load_from_title($item['title']);
+        (!$project->nid)?$this->add_project($item, $project):$this->compare_project($item, $project);
+        $this->projects_xml[$project->title] = $project;
+        $reader->next('item');
+      }
+
+      $reader->close();
+
+      // Delete the leftovers from the database
+      $to_delete = array_diff_key($this->projects_db, $this->projects_xml);
+
+      foreach($to_delete as $project) {
+        $this->deleted[$project->title] = $project;
+        $project->delete();
+      }
+    }
+  }
+
+
+
+ /**
+  * Gets the info from an XML reader's current position and puts it in an array
+  * Mainly used to avoid every value being SimpleXMLObject, but an actual string
+  * @param object $reader An XML reader object
+  * @return array An array containing all values from the read XML node
+  */
+  private function build_item($reader) {
+    $doc = new DOMDocument;
+    $item = simplexml_import_dom($doc->importNode($reader->expand(), true));
+    $result = array();
+    foreach($item as $key => $value) {
+      $result[$key] = (string) $value;
+    }
+    $result['fid'] = $this->nid;
+    return $result;
+  }
+
+
+
+  private function add_project($item, &$project) {
+    $project->title = $item['title'];
+    $project->link = $item['link'];
+    $project->fid = $item['fid'];
+    $project->desc = $item['description'];
+    $project->user = $this->user;
+    $project->save();
+    $this->added[$project->title] = $project;
+  }
+
+
+
+  private function compare_project($item, &$project) {
+    if(array_key_exists($item['title'], $this->projects_db)) {
+      $project = $this->projects_db[$item['title']];
+      if($item['link'] != $project->link || $item['description'] != $project->desc) {
+        $project->link = $item['link'];
+        $project->desc = $item['description'];
+        $project->save();
+        $this->changed[$project->title] = $project;
+      }
+    }
+  }
+
+
+
+  public function get_projects_from_xml() {
+    return $this->projects_xml;
+  }
+
+  public function get_nid (){
+    return $this->nid;
+  }
+  
+  
+ 
+  
+}

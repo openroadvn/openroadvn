@@ -1,0 +1,12 @@
+name = "Content locking (edit lock)"
+description = "Prevents multiple users from trying to edit a single node simultaneously to prevent edit conflicts."
+core = 6.x
+project = "content_lock"
+package = "Drupal Wiki"
+
+; Information added by drupal.org packaging script on 2011-03-17
+version = "6.x-2.6"
+core = "6.x"
+project = "content_lock"
+datestamp = "1300371067"
+

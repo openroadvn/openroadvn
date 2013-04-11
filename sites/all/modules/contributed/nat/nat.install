@@ -1,0 +1,82 @@
+<?php
+// $Id: nat.install,v 1.9.2.3 2010/11/21 19:10:01 karthik Exp $
+
+/*
+ * @file
+ * NAT - node auto term - install file.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function nat_install() {
+  drupal_install_schema('nat');
+
+  $t = get_t();
+  drupal_set_message($t('NAT module: Installation script complete.'));
+}
+
+/**
+ * Implementation of hook_install().
+ */
+function nat_schema() {
+  $schema['nat'] = array(
+    'description' => 'NAT module: establish relationship between nids and tids.',
+    'fields' => array(
+      'nid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Index: Node ID.'
+      ),
+      'tid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Term ID.'
+      ),
+      'vid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Vocabulary ID.'
+      ),
+    ),
+    'indexes' => array('nid' => array('nid'))
+  );
+
+  return $schema;
+}
+
+/**
+ * Add a vid column to the NAT table.
+ */
+function nat_update_2() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysqli':
+    case 'mysql':
+      $ret[] = update_sql("ALTER TABLE {nat} ADD vid int NOT NULL DEFAULT 0");
+      break;
+    case 'pgsql':
+      db_add_column($ret, 'nat', 'vid', 'int', array('not null' => TRUE, 'default' => 0));
+      break;
+  }
+
+  $result = db_query('SELECT n.nid, n.tid, td.vid FROM {nat} n INNER JOIN {term_data} td USING (tid)');
+  while ($node = db_fetch_array($result)) {
+    db_query('UPDATE {nat} SET vid = %d WHERE nid = %d AND tid = %d', $node['vid'], $node['nid'], $node['tid']);
+  }
+
+  return $ret;
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function nat_uninstall() {
+  variable_del('nat_config');
+  drupal_uninstall_schema('nat');
+
+  $t = get_t();
+  drupal_set_message($t('NAT module: Uninstallation script complete.'));
+}

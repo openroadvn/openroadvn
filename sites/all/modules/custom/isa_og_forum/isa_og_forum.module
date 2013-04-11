@@ -1,0 +1,250 @@
+<?php
+
+define('TITLE_MAX_LENGTH', 20);
+
+/**
+ * Implementation of hook_menu().
+ */
+function isa_og_forum_menu() {
+  $items[ISA_COMMUNITY_TYPE.'/%/forum/all'] = array(
+      'title' => 'displays forum of a community',
+      'access callback' => 'isa_og_forum_access_page',
+      'page callback' => 'isa_og_forum_get_page',
+      'page arguments' => array(1),
+  );
+    $items[ISA_SOFTWARE_TYPE.'/%/forum/all'] = array(
+      'title' => 'displays forum of a software',
+      'access callback' => 'isa_og_forum_access_page',
+      'page callback' => 'isa_og_forum_get_page',
+      'page arguments' => array(1),
+  );
+    $items[ISA_ASSET_TYPE.'/%/forum/all'] = array(
+      'title' => 'displays forum of an asset',
+      'access callback' => 'isa_og_forum_access_page',
+      'page callback' => 'isa_og_forum_get_page',
+      'page arguments' => array(1),
+  );
+  return ($items);
+}
+
+/**
+ *  Function of access callback for check the permission to access a forum list
+ *
+ * @param integer $community_nid
+ * @return boolean TRUE if the current user can access the forum in a communtiy, FALSE otherwise.
+ *
+ * @see isa_og_forum_menu
+ */
+function isa_og_forum_access_page() {
+  $community_nid = node_load(variable_get('current_group',isa_toolbox_get_community_nid()));
+  if (isa_toolbox_is_omnipotent()){
+    return TRUE;
+  }
+  // actually, this function can also accept a community node as first parameter
+  /*if (is_numeric($community_nid)) {
+    $community_node = node_load(array('nid' => $community_nid));
+  } else*/if (is_object($community_nid)) {
+    $community_node = $community_nid;
+    $community_nid = $community_node->nid;
+  } else {
+    return (FALSE);
+  }
+  if (!$community_node || ($community_node->type != ISA_COMMUNITY_TYPE && $community_node->type != ISA_PROJECT_TYPE )) {
+    drupal_set_message(t('The required community does not exist.'), 'error');
+    return (FALSE);
+  }
+  return user_access('access community');
+}
+
+/**
+ *
+ * @param integer $community_nid
+ * @return html for the forum list (community/%/forum/%)
+ * 
+ * @see forum.tpl.php
+ * @see isa_og_forum_menu
+ */
+function isa_og_forum_get_page($community_short_name) {
+  $community_nid = node_load(variable_get('current_group',isa_toolbox_get_community_nid()));
+  /*if (is_numeric($community_nid)) {
+    $community_node = node_load(array('nid' => $community_nid));
+  } else*/if (is_object($community_nid)) {
+    $community_node = $community_nid;
+    $community_nid = $community_node->nid;
+  }
+//  if (!$community_node || $community_node->type != ISA_COMMUNITY_TYPE) {
+//    drupal_not_found();
+//    return;
+//  }
+
+  $terms = taxonomy_get_tree(variable_get('forum_vid',NULL));
+  foreach ($terms as $id => $term) {
+    $topics = isa_og_forum_get_topics($term->tid, $community_nid);
+    $topics_number = count($topics);
+    // link to term
+    $terms[$id]->url = "{$community_node->group_type}/{$community_short_name}/forum/{$term->name}";
+    if ($topics_number == 0) {
+      $terms[$id]->topics_number = 0;
+      $terms[$id]->posts_number = 0;
+    } else {
+      $terms[$id]->topics_number = $topics_number;
+      $comments_number = isa_og_forum_get_post_number($topics);
+      $terms[$id]->posts_number = $comments_number + $topics_number;
+      $last_post = isa_og_forum_get_last_post($topics);
+
+      if ($last_post != NULL) {
+        $last_post_date = date("D, d/m/Y - H:i", $last_post->last_post_timestamp);
+        $terms[$id]->last_post_timestamp = $last_post_date;
+        $terms[$id]->last_post_user = theme('username', $last_post->last_post_uid);
+
+        //prepare last topic link
+        $last_post_title = substr($last_post->title, 0, TITLE_MAX_LENGTH);
+        if (strlen($last_post->title) > TITLE_MAX_LENGTH) {
+          $last_post_title .= "...";
+        }
+        $options = array('attributes' => array('title' => $last_post->title));
+
+        $last_post_node = node_load($last_post->nid);
+        $last_post_url = $last_post_node->path;//"{$community_node->group_type}/{$last_post->gid}/topic/{$last_post->title}";
+
+        $terms[$id]->last_post_url = l($last_post_title, $last_post_url, $options);
+      }
+    }
+  }
+
+  drupal_set_title(t('Forums of the ":title"', array(':title' => $community_node->title)).' '.$community_node->group_type);
+  $output = theme("isa_og_forum", $community_nid, $terms);
+  return $output;
+}
+
+/**
+ *
+ * implementation hook_theme
+ */
+function isa_og_forum_theme() {
+  return array(
+      'isa_og_forum' => array(
+          'template' => 'isa_og_forum',
+          'arguments' => array('community_nid' => NULL, 'terms' => NULL),
+      )
+  );
+}
+
+/**
+ * Process variables for isa_og_forum.tpl.php
+ *
+ * The $variables array contains the following arguments:
+ * - $community_nid
+ *
+ * @see isa_og_forum.tpl.php
+ */
+function template_preprocess_isa_og_forum(&$variables) {
+  $community_nid = $variables['community_nid'];
+  if (og_is_group_member($community_nid)) {
+    $options = array('query' => array('gids[]' => $community_nid));
+//    $group = node_load ($community_nid);
+//    // create content only if the group is validated
+//    if ($group->_workflow == ISA_SID_COMMUNITY_VALIDATED &&
+//      (($group->type == 'community' && $group->field_community_forum_creation[0]['value'] == 'Activated') ||
+//       ($group->type == 'project_project' && $group->field_project_forum_creation[0]['value'] == 'Activated'))) {
+//      $variables['create_topic_link'] = l(t("Create topic"), "node/add/topic", $options);
+//    }
+  }
+}
+
+/**
+ * This function return nodes (topics) for a community and a term
+ * This function sorts the nodes by last_comment_timestamp DESC
+ *
+ * @param integer $tid term id
+ * @param integer $community_nid group id
+ * @return array the topics associate with community and term
+ * 
+ * @uses isa_og_forum_get_page
+ */
+function isa_og_forum_get_topics($tid, $community_nid) {
+  $hl_tid = isa_highlight_get_community_tid($community_nid);
+  $query_result = db_query('SELECT n.nid ,
+                            n.title ,
+                            ncs.comment_count ,
+                            ncs.last_comment_timestamp as last_post_timestamp ,
+                            ncs.last_comment_uid as last_post_uid ,
+                            og.group_nid as gid
+                            FROM {node} n
+                            LEFT JOIN {term_node} r
+                            ON n.vid = r.vid
+                            LEFT JOIN {og_ancestry} og
+                            ON og.nid = n.nid
+                            LEFT JOIN {isa_highlight} hl
+                            ON hl.nid = n.nid
+                            LEFT JOIN {node_comment_statistics} ncs
+                            ON ncs.nid = n.nid
+                            WHERE r.tid = %d
+                            AND ((og.group_nid = %d OR hl.tid = %d))
+                            GROUP BY n.nid
+                            ORDER BY ncs.last_comment_timestamp DESC',
+                  $tid,
+                  $community_nid, $hl_tid);
+  $result = array();
+  while ($db_result = db_fetch_object($query_result)) {
+    $result[$db_result->nid] = $db_result;
+  }
+  return $result;
+}
+
+/**
+ * This function return the number of post (comment + topics)
+ *
+ * @param object $topics
+ * @return number The number of post for a group and term
+ *
+ * @uses isa_og_forum_get_page
+ */
+function isa_og_forum_get_post_number($topics) {
+  if (empty($topics)) {
+    return 0;
+  }
+  $result = 0;
+  foreach ($topics as $key => $value) {
+    $result += $value->comment_count;
+  }
+  return $result;
+}
+
+/* * This function return the last post from a topics list
+ *
+ * @param object $topics
+ * @return object the last forum topic
+ */
+
+function isa_og_forum_get_last_post($topics) {
+//  $hl_tid = isa_highlight_get_community_tid($community_nid);
+//  $max_timestamp = db_result(db_query_range("SELECT MAX(ncs.last_comment_timestamp)
+//                            FROM {node} n
+//                            LEFT JOIN {term_node} r
+//                            ON n.vid = r.vid
+//                            LEFT JOIN {og_ancestry} og
+//                            ON og.nid = n.nid
+//                            LEFT JOIN {isa_highlight} hl
+//                            ON hl.nid = n.nid
+//                            LEFT JOIN {node_comment_statistics} ncs
+//                            ON ncs.nid = n.nid
+//                            WHERE r.tid = %d
+//                            AND ((og.group_nid = %d OR hl.tid = %d))
+//                            ",
+//                          $tid, $community_nid, $hl_tid, 0, 1));
+//  if ($max_timestamp != NULL) {
+//    $nid = db_result(db_query_range('SELECT n.nid
+//                          FROM {node} n
+//                          LEFT JOIN {node_comment_statistics} ncs
+//                          ON ncs.nid = n.nid
+//                          WHERE ncs.last_comment_timestamp = %d ', $max_timestamp, 0, 1));
+//  }else{
+//    return NULL;
+//  }
+  // the topics is sorted by ncs.last_comment_timestamp descendant, the first element is the last post
+  $last_topic = array_shift($topics);
+  return $last_topic;
+
+  //return $topics[$nid];
+}

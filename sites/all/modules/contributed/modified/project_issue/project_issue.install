@@ -1,0 +1,448 @@
+<?php
+// $Id: project_issue.install,v 1.64 2009/08/21 22:51:31 dww Exp $
+
+/**
+ * Implementation of hook_schema().
+ */
+function project_issue_schema() {
+  $schema['project_issue_projects'] = array(
+    'description' => 'Table containing per-project issue-related settings.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'Primary Key: The {project_projects}.nid of the project.',
+        'type' => 'int',
+        'unsigned' => 1,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'issues' => array(
+        'description' => 'Boolean value indicating whether or not issue-tracking is enabled for this project.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'components' => array(
+        'description' => 'A serialized array defining the components for this project.',
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'default_component' => array(
+        'description' => 'The default component for new issues of this project, or an empty string if the user needs to select a component.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'help' => array(
+        'description' => 'Submission guidelines for issues added to this project.',
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'mail_digest' => array(
+        'description' => 'E-mail address for the weekly critical issues report.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'mail_copy' => array(
+        'description' => 'E-mail address to send a copy of all issues to.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'mail_copy_filter' => array(
+        'description' => 'A serialized array containing the types of issues to include in the e-mail sent to {project_projects}.mail_copy.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'mail_copy_filter_state' => array(
+        'description' => 'A serialized array containing the statuses to include in the e-mail sent to {project_projects}.mail_copy.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'mail_reminder' => array(
+        'description' => 'Boolean indicating whether or not users with open issues should receive a monthly reminder.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('nid'),
+  );
+
+  $schema['project_issues'] = array(
+    'description' => 'The base table for issues.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'Primary Key: The {node}.nid of this project_issue node.',
+        'type' => 'int',
+        'unsigned' => 1,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'pid' => array(
+        'description' => 'The {project_projects}.nid of the project to which this issue belongs.',
+        'type' => 'int',
+        'unsigned' => 1,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'category' => array(
+        'description' => 'Category of the issue.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'component' => array(
+        'description' => 'Component of the issue as defined per-project in {project_issue_projects}.components.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'priority' => array(
+        'description' => 'The priority for this issue.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => 1,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'rid' => array(
+        'description' => 'The {project_release_nodes}.rid (version identifier) for this issue (only used in conjunction with the project_release module).',
+        'type' => 'int',
+        'unsigned' => 1,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'assigned' => array(
+        'description' => 'The {users}.uid of the user to which this issue is currently assigned.',
+        'type' => 'int',
+        'unsigned' => 1,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'sid' => array(
+        'description' => 'Current {project_issue_state}.sid of this issue.',
+        'type' => 'int',
+        'unsigned' => 1,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'original_issue_data' => array(
+        'description' => 'A serialized object containing the original metadata values that were used when this issue was created.',
+        'type' => 'text',
+        'not null' => TRUE,
+      ),
+      'last_comment_id' => array(
+        'description' => '{comments}.cid of the most recent comment added to the issue. 0 if no comment has been added yet.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'db_lock' => array(
+        'description' => 'Row-lock indicator to prevent race conditions when determining sequential comment number (http://drupal.org/node/180866).',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array(
+      'project_issues_pid' => array('pid'),
+      'project_issues_sid' => array('sid'),
+      'project_issues_nid_assigned' => array('nid', 'assigned'),
+    ),
+    'primary key' => array('nid'),
+  );
+
+  $schema['project_issue_comments'] = array(
+    'description' => 'The base table for comments added to issues.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'References {project_issues}.nid, the issue to which this comment was added.',
+        'type' => 'int',
+        'not null' => FALSE,
+      ),
+      'cid' => array(
+        'description' => 'Primary Key: The {comments}.cid for this comment.',
+        'type' => 'int',
+        'not null' => FALSE,
+      ),
+      'rid' => array(
+        'description' => 'The {project_release_nodes}.rid (version identifier) after this comment was made (only used in conjunction with the project_release module).',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'component' => array(
+        'description' => 'Component of the issue after this comment was made. Components are defined per-project in {project_issue_projects}.components.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'category' => array(
+        'description' => 'Category of this issue after this comment was made.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'priority' => array(
+        'description' => 'The priority for this issue after this comment was made.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'assigned' => array(
+        'description' => 'The {users}.uid of the user to which this issue was assigned after this comment was made.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'sid' => array(
+        'description' => 'The {project_issue_state}.sid of this issue after this comment was made.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'pid' => array(
+        'description' => 'The {project_projects}.nid of the project to which this issue belongs after this comment was made.',
+        'type' => 'int',
+        'unsigned' => 1,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'title' => array(
+        'description' => 'The title of the issue after this comment was made.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'timestamp' => array(
+        'description' => 'Timestamp for this comment.',
+        'type' => 'int',
+        'unsigned' => 1,
+        'not null' => TRUE,
+      ),
+      'comment_number' => array(
+        'description' => 'The sequential number for this comment in the issue.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('cid'),
+    'indexes' => array(
+      'nid_timestamp' => array('nid', 'timestamp'),
+      'comment_number' => array('comment_number'),
+    ),
+  );
+
+  $schema['project_subscriptions'] = array(
+    'description' => 'Table keeping track of per-user project_issue subscriptions.',
+    'fields' => array(
+      'nid' => array(
+        'description' => '{project_projects}.nid of the project to which the user is subscribed.',
+        'type' => 'int',
+        'unsigned' => 1,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'uid' => array(
+        'description' => 'The {users}.uid for this subscriber.',
+        'type' => 'int',
+        'unsigned' => 1,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'level' => array(
+        'description' => 'The type of subscription for the project. Possible values are: 0 = not subscribed, 1 = subscribed to own issues or 2 = subscribed to all issues.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => 1,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array(
+      'project_subscriptions_nid_uid_level' => array('nid', 'uid', 'level'),
+    ),
+  );
+
+  $schema['project_issue_state'] = array(
+    'description' => 'Table that holds all possible values for issue statuses.',
+    'fields' => array(
+      'sid' => array(
+        'description' => 'Primary Key: Unique id for this status.',
+        'type' => 'serial',
+        'unsigned' => 1,
+        'not null' => TRUE,
+      ),
+      'name' => array(
+        'description' => 'Display-friendly name for this status.',
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'weight' => array(
+        'description' => 'Weight for this status, used when ordering statuses',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'author_has' => array(
+        'description' => 'Boolean indicating whether or not the author of an issue may use this issue status in that issue, regardless of the permissions controlling site-wide use of this status.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'default_query' => array(
+        'description' => 'Boolean indicating whether or not issues with this status are included in default queries.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('sid'),
+  );
+
+  return $schema;
+}
+
+function project_issue_install() {
+  // We need to check this before we try to create the table, so that
+  // if it already exists, we don't attempt to insert our own values.
+  $project_issue_state_existed = db_table_exists('project_issue_state');
+
+  // Create tables.
+  drupal_install_schema('project_issue');
+
+  if (!$project_issue_state_existed) {
+    // sid, name, weight, author-can-set, in-default-queries
+    project_issue_init_state(1, 'active', -13, 0, 1);
+    project_issue_init_state(2, 'fixed', 1, 0, 1);
+    project_issue_init_state(3, 'duplicate', 4, 0, 0);
+    project_issue_init_state(4, 'postponed', 6, 0, 1);
+    project_issue_init_state(5, "won't fix", 9, 0, 0);
+    project_issue_init_state(6, 'by design', 11, 0, 0);
+    project_issue_init_state(7, 'closed', 13, 1, 0);
+    project_issue_init_state(8, 'needs review', -8, 0, 0);
+    project_issue_init_state(13, 'needs work', -6, 0, 0);
+    project_issue_init_state(14, 'ready to commit', -2, 0, 0);
+
+    // Since we're hacking in auto-increment values here,
+    // update the sequence value for Postgres -- ugly but necessary for now.
+    if ($GLOBALS['db_type'] == 'pgsql') {
+      db_query("SELECT setval('project_issue_state_sid_seq', 14)");
+    }
+  }
+
+  project_issue_add_missing_projects();
+
+  db_query("UPDATE {system} SET weight = 2 WHERE name = 'project_issue'");
+
+  // Set up future followups to be read/write.
+  if (module_exists('comment')) {
+    variable_set('comment_project_issue', COMMENT_NODE_READ_WRITE);
+  }
+  // Enable file attachments for followups.
+  variable_set('comment_upload_project_issue', 1);
+  // Enable file attachments for issues.
+  variable_set('upload_project_issue', 1);
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function project_issue_uninstall() {
+  // Remove tables.
+  drupal_uninstall_schema('project_issue');
+
+  $variables = array(
+    'project_issue_default_state',
+    'project_directory_issues',
+    'project_reply_to',
+    'project_issue_digest_last',
+    'project_issue_cockpit_categories',
+    'project_issue_digest_interval',
+    'project_issue_reminder_last',
+    'project_issue_reminder_interval',
+    'project_issue_show_comment_signatures',
+    'project_issue_site_help',
+    'project_issue_invalid_releases',
+    'project_issue_followup_user',
+    'project_issue_hook_cron',
+  );
+  foreach ($variables as $variable) {
+    variable_del($variable);
+  }
+}
+
+function project_issue_enable() {
+  project_issue_add_missing_projects();
+}
+
+/**
+ * Initialize a given issue state in the database.
+ */
+function project_issue_init_state($sid, $name, $weight, $author, $query) {
+  db_query("INSERT INTO {project_issue_state} (sid, name, weight, author_has, default_query) VALUES (%d, '%s', %d, %d, %d)", $sid, $name, $weight, $author, $query);
+}
+
+/**
+ * Check for existing project nodes that do not have an entry in the
+ * {project_issue_projects} table, and add them.
+ *
+ */
+function project_issue_add_missing_projects() {
+  $projects = db_query("SELECT n.nid, pip.nid AS pip_nid FROM {node} n LEFT JOIN {project_issue_projects} pip ON n.nid = pip.nid WHERE n.type = 'project_project' AND pip.nid IS NULL");
+  while ($project = db_fetch_object($projects)) {
+    db_query('INSERT INTO {project_issue_projects} (nid) VALUES (%d)', $project->nid);
+  }
+}
+
+/**
+ * Remove stale setting that's now provided by views.
+ */
+function project_issue_update_6000() {
+  variable_del('project_issues_per_page');
+  return array();
+}
+
+/**
+ * Add the 'default_component' field to {project_issue_projects}.
+ */
+function project_issue_update_6001() {
+  $ret = array();
+  db_add_field($ret, 'project_issue_projects', 'default_component',
+  array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''));
+  return $ret;
+}
+
+/**
+ * Make {project_issue_comments}.cid the primary key for that table.
+ */
+function project_issue_update_6002() {
+  $ret = array();
+  db_add_primary_key($ret, 'project_issue_comments', array('cid'));
+  if (empty($ret[0]['success'])) {
+    return array(array('success' => TRUE, 'query' => '<strong>' . t("It is safe to ignore warnings about 'Multiple primary key defined'.") . '</strong>'));
+  }
+  return $ret;
+}
+

@@ -1,0 +1,6 @@
+; $Id
+core            = "6.x"
+dependencies[]  = og
+description     = "Module for membership"
+name            = "OG helper"
+package         = "ISA Toolbox"

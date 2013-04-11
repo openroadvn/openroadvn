@@ -1,0 +1,12 @@
+; $Id:
+name = ISA Private Files
+description = This module handles access to system/files/* and save download statistics
+package = "ISA Toolbox"
+core = 6.x
+php = 5.0
+date = 1298378218
+dependencies[] = project
+version = "6.x-1.x"
+core = "6.x"
+project = "isa_private_files"
+

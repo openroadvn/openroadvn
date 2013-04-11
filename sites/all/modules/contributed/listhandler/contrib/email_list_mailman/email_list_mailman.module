@@ -1,0 +1,221 @@
+<?php
+
+// remember to set a new $db_url called 'mailman' in your settings.php
+
+$GLOBALS['email_list_mailman_types'] = array('nomail' => t('No mail'), 'N' => t('Many individual emails'), 'Y' => t('Digest'));
+
+function email_list_mailman_help($section) {
+  switch ($section) {
+    case 'admin/modules#description':
+      return t('Integrate Mailman lists with Drupal listhandler');
+  }
+}
+
+function email_list_mailman_menu($may_cache) {
+  if ($may_cache) {
+    $items[] = array('path' => 'admin/email_list_mailman', 'title' => 'email_list_mailman', 'callback' => 'email_list_mailman_admin', 'access' => 'access administration pages');
+  }
+  return $items;
+}
+
+// returns an array of terms
+function email_list_mailman_get_lists() {
+  /// get all mailboxes which map to terms
+  $result = db_query("SELECT * FROM mailhandler WHERE commands LIKE '%tid: %'");
+  while ($mbox = db_fetch_object($result)) {
+    // get the tid
+    foreach (explode("/n", $mbox->commands) as $line) {
+      if (substr($line, 0, 5) == 'tid: ') {
+        $tid = substr($line, 5);
+        $lists[$tid] = taxonomy_get_term($tid);
+        break;
+      }
+    }
+  }
+  return $lists ? $lists : array();
+}
+
+function email_list_mailman_user($type, &$edit, &$user, $category = NULL) {
+  switch ($type) {
+    case 'load':
+      if ($subs = email_list_mailman_load($user)) {
+        $user->email_list_subscriptions = $subs;
+      }
+      break;
+    case 'insert':
+    case 'update':
+      email_list_mailman_change($edit, $user);
+      $user->email_list_subscriptions = NULL;
+      break;
+    case 'delete':
+      email_list_mailman_delete($edit, $user);
+      break;
+    case 'register':
+    case 'form':
+      if ($category == 'account') {
+        $map = variable_get('email_list_map', array('no map'));
+        $lists = email_list_mailman_get_lists();
+        foreach ($map as $tid => $name) {
+          $term = $lists[$tid];
+          $list .= form_radios("'$term->name' email list", "email_list_subscriptions][$tid][subscribed", $_POST ? $edit['email_list_subscriptions'][$tid]['subscribed'] : $user->email_list_subscriptions[$tid]['subscribed'], $GLOBALS['email_list_mailman_types'], t('Choose a subscription type for our mailing list.'));
+          if (user_access('administer users')) {
+            $list .= form_checkbox(t('Moderation queue'), "email_list_subscriptions][$tid][moderate", 1, $user->email_list_subscriptions[$tid]['moderate'], t('Should messages from this user to this list be held in a moderation queue.'));
+            $output .= form_group("'$term->name' email list", $list);
+          }
+          else {
+            $output .= $list;
+          }
+        }
+        return array(array('title' => 'Wheresspot', 'data' => $output));
+      }
+      break;
+    case 'view':
+      if ($user->email_list_subscriptions && user_access('administer email lists')) {
+        foreach ($user->email_list_subscriptions as $tid => $val) {
+          $term = taxonomy_get_term($tid);
+          $items[] = l($term->name, "forum/$tid");
+        }
+        return array('Wheresspot' => form_group(t('Email subscriptions'), theme('item_list', $items)));
+      }
+      break;
+  }
+}
+
+function email_list_mailman_load($user) {
+  $map = variable_get('email_list_map', array('no map'));
+  $lists = email_list_mailman_get_lists();
+  db_set_active('mailman');
+  foreach ($map as $tid => $name) {
+    $sql = "SELECT * FROM $name WHERE address = '%s'";
+    $result = db_query($sql, $user->mail);
+    if ($sub = db_fetch_object($result)) {
+      if ($sub->delivery_status > 0) {
+        $val = 0;
+      }
+      else {
+        $val = $sub->digest;
+      }
+      $subs[$tid] = array('subscribed' => $val, 'moderate' => $sub->user_options);
+    }
+  }
+  db_set_active();
+  return $subs;
+}
+
+// set the moderation bit on this node if the author is set accordingly in mailman and this post is in a list
+function email_list_mailman_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
+  switch ($op) {
+    case 'validate':
+      $map = variable_get('email_list_map', array('no map'));
+      // $lists = email_list_mailman_get_lists();
+      foreach ((array) $node->taxonomy as $tid) {
+        if (in_array($tid, array_keys($map)))  {
+          $author = user_load(array('uid' => $node->uid));
+          if ($author->email_list_subscriptions[$tid]['moderate']) {
+            $node->moderate = TRUE;
+            $node->status = 0;
+          }
+        }
+      }
+      break;
+  }
+}
+
+// set the unpublished bit on this comment if the author is set accordingly in mailman and this post is in a list
+function email_list_mailman_comment($op, $comment) {
+  if ($op == 'insert' || $op == 'update') { 
+    $map = variable_get('email_list_map', array('no map'));
+    $terms = taxonomy_node_get_terms($comment['nid']);
+    foreach (array_keys($terms) as $tid) {
+      if (in_array($tid, array_keys($map)))  {
+        $author = user_load(array('uid' => $comment['uid']));
+        if ($author->email_list_subscriptions[$tid]['moderate']) {
+          $sql = "UPDATE {comments} SET status = %d WHERE cid = %d";
+          db_query($sql, COMMENT_NOT_PUBLISHED, $comment['cid']);
+        }
+      }
+    }
+  }
+}
+
+// map local email lists to mailman list (or other listserv)
+function email_list_mailman_admin() {
+  if ($edit = $_POST['edit']) {
+    foreach ($edit['rname'] as $key => $val)
+    if ($val) {
+      $map[$key] = $val;
+    }
+    variable_set('email_list_mailman_map', $map);
+    unset($edit['rname']);
+    foreach ($edit as $name => $val) {
+      variable_set($name, $val);
+    }
+    drupal_set_message(t('Settings saved'));
+  }
+
+  $map = variable_get('email_list_mailman_map', array());
+  $dlists = email_list_mailman_get_lists();
+  foreach ($dlists as $tid => $term) {
+    $list = $map[$tid];
+    $rname = form_textfield('', "rname][$tid", $list, 50, 200, NULL, NULL, TRUE);
+    $rows[] = array($term->name, array('data' => $rname, 'class' => 'container-inline'), $list ? l(t('manage subscribers'), variable_get('email_list_mailman_url', ''). "/$list/members/list") : '&nbsp;');
+  }
+  if (!$rows) {
+    $rows[] = array('data' => t('No lists defined.'), 'colspan' => 2);
+  }
+  $output .= theme('table', array(t('Drupal list name'), t('Mail server name'), t('Operations')), $rows);
+  $output .= form_textfield(t('Mailman Administrative URL'), "email_list_mailman_url", variable_get('email_list_mailman_url', ''), 50, 200, t('The URL for administering your Mailman list via Mailman\'s web UI. Omit the listname at the end.'), NULL, TRUE);
+  $output .= form_submit(t('Submit'));
+  return form($output);
+}
+
+function email_list_mailman_change($edit, $user) {
+  // print_r($edit);die();
+  db_set_active('mailman');
+  // TODO: $edit not showing any values so I use $_POST['edit'] instead
+  foreach ((array) $_POST['edit']['email_list_subscriptions'] as $tid => $subscription) {
+    $map = variable_get('email_list_map', array('no map'));
+    $list = $map[$tid];
+
+    // delete any existing subscription for this list. handles email address change as well
+    $mails = array($edit['mail'], $user->mail);
+    foreach ($mails as $mail) {
+      $sql = "DELETE FROM %s WHERE address = '%s'";
+      db_query($sql, $list, $mail);
+    }
+
+    // create subscription record
+    $digest = 'N';
+    $nomail = 'N';
+    $delivery_status = 0;
+    if ($subscription['subscribed'] == 'nomail') {
+      $nomail = 'Y';
+      $delivery_status = 2;
+    }
+    else {
+      $digest = $subscription['subscribed'];
+    }
+    // set the moderation bit
+    if ($subscription['moderate']) {
+      $user_options = 128;
+    }
+    else {
+      $user_options = 0;
+    }
+    
+    $sql = "INSERT INTO $list (address, nomail, digest, delivery_status, plain, user_options) VALUES ('%s', '%s', '%s', %d, '%s', %d)";
+    db_query($sql, $edit['mail'], $nomail, $digest, $delivery_status, 'Y', $user_options);
+  }
+  db_set_active();
+}
+
+// just delete user from every mailman list whether or not druapl thinks he is subscribed
+function email_list_mailman_delete($edit, $user) {
+  db_set_active('mailman');
+  $map = variable_get('email_list_map', array('no map'));
+  foreach ($map as $list) {
+    $sql = "DELETE FROM $list WHERE address = '%s'";
+    db_query($sql, $user->mail);
+  }
+  db_set_active();
+}

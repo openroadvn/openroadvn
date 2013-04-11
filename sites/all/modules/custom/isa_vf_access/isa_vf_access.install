@@ -1,0 +1,58 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_install().
+ */
+function isa_vf_access_install() {
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function isa_vf_access_uninstall() {
+}
+
+/**
+ * Implementation of hook_enable().
+ * (when the module is activated)
+ */
+function isa_vf_access_enable() {
+	// role creation for virtual forges administrators
+	$role = permissions_create_role('VF_admin');
+	variable_set('vf_admin_rid', $role->rid);
+	// grant "administer" permission to "administrator"
+	permissions_grant_permissions('VF_admin', array('administer virtual forge'));
+
+	// check if a vocabulary for Virtual forges already exists
+	$vocabs = taxonomy_get_vocabularies();
+	foreach ($vocabs as $v) {
+		if ($v->name == 'Virtual forge')
+			return;
+	}
+	// create a vocabulary for Virtual forges
+	module_load_include('module', 'taxonomy', 'taxonomy');
+	$vocabulary = array(
+		'name' => t('Virtual forge'), // human readable name of the vocabulary
+		'description' => t("Defines the virtual forges to be used for projects"), // description of the vocabulary
+		'multiple' => 1, // set 1 to allow multiple selection
+		'required' => 0, // set 1 to make the terms mandatory to be selected
+		'hierarchy' => 0, // set 1 to allow and create hierarchy of the terms within the vocabulary
+		'relations' => 0, // set 1 to set and allow relation amongst multiple terms
+		'module' => 'isa_vf_access', // provide the module name in which the vocabulary is defined and which is calling this function
+		'nodes' => array('project_project' => 1), // set the node to which this vocabulary will be attached to
+		'weight' => 0, // set the weight to display the vocabulary in the list
+	);
+	taxonomy_save_vocabulary($vocabulary);
+	// get the vid of the vocabulary we just created.
+	$vid = db_result(
+		db_query("SELECT vid FROM {vocabulary} WHERE name = '%s'", 'Virtual forge')
+	);
+	variable_set('isa_vf_access_vid_virtual_forge', $vid);
+}
+
+/**
+ * Implementation of hook_disable().
+ */
+function isa_vf_access_disable() {
+}

@@ -1,0 +1,13 @@
+; $Id: project_legacy_paths.info,v 1.1 2009/01/12 22:57:50 dww Exp $
+name = Project Legacy Paths
+description = Provides redirection from project browsing paths in the Drupal 5 version of the project module to equivalent paths in the Drupal 6 version.
+package = Project
+dependencies[] = project
+core = 6.x
+
+; Information added by drupal.org packaging script on 2010-01-30
+version = "6.x-1.0-alpha4"
+core = "6.x"
+project = "project"
+datestamp = "1264881619"
+

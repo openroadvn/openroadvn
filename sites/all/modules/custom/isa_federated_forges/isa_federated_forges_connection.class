@@ -1,0 +1,55 @@
+<?php
+class isa_federated_forges_connection {
+  private $proxy;
+  public $info;
+
+  public function  __construct() {
+    $this->proxy['server'] = variable_get('proxy_server', FALSE);
+    $this->proxy['port'] = variable_get('proxy_port', 8080);
+    $this->proxy['username'] = variable_get('proxy_username', FALSE);
+    $this->proxy['password'] = variable_get('proxy_password', '');
+    ($this->proxy['username']) ? $this->proxy['auth'] = $this->proxy['username'] . ':' . $this->proxy['password'] : $this->proxy['auth'] = FALSE;
+    $this->proxy['exceptions'] = variable_get('proxy_exceptions', FALSE);
+    $this->proxy['skip_selftest'] = variable_get('proxy_skip_selftest', FALSE);
+  }
+
+
+
+  /**
+   * Gets data from the given URL
+   * @param string $url The URL from which to load the data
+   * @return string The data from the URL
+   */
+  public function load_url($url) {
+    $curl_handle = curl_init($url);
+    curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, 1);
+    if (defined('CURLOPT_TIMEOUT_MS')) {
+      curl_setopt($curl_handle, CURLOPT_TIMEOUT_MS, 10000);
+    }
+    else {
+      curl_setopt($curl_handle, CURLOPT_TIMEOUT, 10);
+    }
+    // Read proxy configuration (see settings.php)
+    if ($this->proxy['server']) {
+      curl_setopt($curl_handle, CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
+      curl_setopt($curl_handle, CURLOPT_PROXY, $this->proxy['server'] . ':' . $this->proxy['port']);
+      curl_setopt($ch, CURLOPT_URL, $url);
+      if ($this->proxy['auth']) {
+        curl_setopt($curl_handle, CURLOPT_PROXYUSERPWD, $this->proxy['auth']);
+      }
+    }
+    $result = curl_exec($curl_handle);
+    $this->info = curl_getinfo($curl_handle);
+
+    return $result;
+  }
+
+
+
+  /**
+   * Getter for info returned by curl_getinfo
+   */
+  public function info() {
+    return $this->info;
+  }
+}

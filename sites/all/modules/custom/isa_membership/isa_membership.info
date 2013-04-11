@@ -1,0 +1,8 @@
+; $Id
+core            = "6.x"
+dependencies[]  = og
+dependencies[]  = og_user_roles
+dependencies[]  = isa_toolbox
+description     = "Module for manage user from a community"
+name            = "ISA Membership"
+package         = "ISA Toolbox"

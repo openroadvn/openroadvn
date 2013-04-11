@@ -1,0 +1,160 @@
+$Id: CHANGELOG.txt,v 1.131 2011/02/19 01:13:47 salvis Exp $
+
+CHANGELOG for Subscriptions 1.x for Drupal 6
+
+
+Subscriptions 6.x-1.x-dev:
+
+
+Subscriptions 6.x-1.4 (2011-02-19):
+  Enhancements:
+   - #1007566, #952170: Add ID mailvars: !recipient_uid, !nid, !sender_uid, !comment_uid, !comment_cid, !comment_nid.
+   - #928116: Add subscriptions_mail_trash_silently kill-switch.
+   - Default to suppress notifications on bulk node updates.
+   - #840812: Clarify "digest mode" description in the case where the "send interval" is inaccessible.
+   - Implement suspending sending of notifications and avoid using obsolete mail addresses.
+  Bugs fixed:
+   - Fix links in suspension message.
+
+
+Subscriptions 6.x-1.3 (2010-06-10):
+  Enhancements:
+   - #817342: Allow CCK to configure the position of the Subscribe fieldset within the node.
+   - Allow one level of recursion in mail template conditional expressions.
+   - #751870: Integration with realname module.
+   - #572216: Add CSS depth classes on the taxonomy subscription page.
+   - #761264: Set /Send subscriptions notifications/ /Publishing option/ defaults by content type.
+   - #761260: Add a /Send subscriptions notifications/ option to the comment's Administration fieldset (was lost when porting from D5).
+   - #756964: Add some helpful information to the admin/settings/subscriptions/intervals page.
+   - #727608: Add Arabic translation.
+  Bugs fixed:
+   - #817648: Update README.txt regarding API documentation.
+   - #792496: Fix taxonomy subscriptions creating multiple queue entries.
+   - #751212: Avoid rvalue->member construct, which is apparently not supported by PHP 4.x.
+   - Avoid double check_plain() causing taxonomy terms to be double-&quote;quoted&quote;.
+
+Subscriptions 6.x-1.2 (2010-02-17):
+  Enhancements:
+   - Some minor code tuning.
+   - #648600: Create new subscriptions_digest_alter().
+   - #401298: Provide !revision_name and !revision_log variables.
+   - #581042: Implement a pager query for user/UID/subscriptions/node.
+   - #590022: Reduce the footprint of subscriptions_mail.
+  Bugs fixed:
+   - Fix some strings.
+   - #611850: Really keep users from getting notifications from blocked content types.
+   - #591470: Avoid iterating over all thread subscriptions when preparing the node subscribe form.
+   - Tune a string.
+   - #590738: Ensure that subscriptions_update_6101() runs successfully and remove the obsolete {subscriptions_user}.last_sent column.
+
+Subscriptions 6.x-1.1 (2009-09-28):
+  Enhancements:
+   - Update .pot file and German translation, tune some strings.
+   - #581644: Provide a (temporary) work-around for bug in D6.14, which disables the cron job, and improve warning messages.
+   - #505480: Display number of entries in the queue and provide a button to clear the queue.
+   - #560146: Allow specifying a cron job time percentage (including 0 to temporarily disable notifications).
+  Bugs fixed:
+   - Primary key fields in newly created {subscriptions_last_sent} table must be 'not null'.
+   - #560146: Fix digest Subscriptions don't send if not set to "published" before cron runs.
+   - #350077: Fix maximum number of notification to send per cron job breaks Digest mode.
+
+
+Subscriptions 6.x-1.0 (2009-08-26):
+   - #528136: Remove HTML tags from CCK fields.
+
+Subscriptions 6.x-1.0-RC1 (2009-08-22):
+   - Add a system option to append the mailkey in use to each mail message, for development/testing.
+   - Add a !has_files variable to help with conditional text for the !files variable.
+   - #259377: Add some new French strings, corrected plural formula.
+
+Subscriptions 6.x-1.0-BETA6 (2009-07-22):
+   - #367093: Don't suppress "On comments" checkboxes.
+   - #259377: French translation.
+   - #500148: Mention 'comment' in the node-nid template description; also change 'Pages' to 'Pages/Threads'; update .pot and de.po.
+   - #524362: Fix empty subscriptions_content_node_form().
+   - Fix the fix: MySQL doesn't like CAST(... AS VARCHAR).
+   - #524332: PostgreSQL fixes.
+   - #524332-5: Undo the taxa optimization; it destroys potentially useful data and is non-conformant SQL.
+   - #507898: Avoid creating duplicate entries in {subscriptions_queue} for new comments.
+   - #507898: Avoid creating duplicate taxa entries in {subscriptions_queue}.
+   - Add img_assist module support (provide URLs of embedded pictures).
+   - Add the !files variable to list attached files.
+   - Define new hook_subscriptions_ui() to allow arbitration of multiple node UIs.
+   - #301229: Remove subscriptions_moderate_content_notifications module.
+   - Update strings, .pot file and German translation.
+   - #430870: Check the syntax of the blocked node input field.
+   - #324716: Allow modifying the "From" e-mail name.
+   - #427642: Add Hungarian translation.
+   - Minor clean-up (mostly strings).
+   - #356964: Add "Latest activity, authored, commented" information on the page/thread subscriptions page.
+   - #356964: Add select/unselect all checkbox on the subscriptions pages.
+   - #373130: Avoid mentioning 'red' formatting because this is theme-dependent.
+   - #372490: Add tag symbol to links that are visible only due to the 'subscribe to all content types' permission.
+   - #373128: Fix notice (Trying to get property of non-object).
+   - #371701: Add another pgsql CAST().
+   - #365682: Commit Brazilian Portuguese translation.
+   - #362533: Analyze and report faulty returns from hook_subscriptions().
+   - Move Danish translation to the correct directory (it's based on the D5 version even though it was uploaded to HEAD/D6, but it's better than nothing).
+   - #351753: Add any missing {subscriptions_user} records without complaint to support multi-site installations.
+   - Remove pre-D6 {subscriptions_mail_edit} table from database schema.
+   - Clean up database schema to keep schema module happy.
+   - #305235: Revert previous patch because it didn't work.
+ 
+Subscriptions 6.x-1.0-BETA5 (2008-12-27):
+   - #351606: Fix deprecated call-time pass-by-reference.
+
+Subscriptions 6.x-1.0-BETA4 (2008-12-27):
+   - #339076: Decode entities in CCK field values.
+   - #305235: Make 'Subscribe' links compatible with Pathauto.
+   - Provide an upgrade path for the D5 mail templates (requires latest mail_edit, see #318324).
+   - #336952: Warn about IP as site address.
+   - #333818: Fix E_NOTICE.
+   - #328341: Make pgsql CAST()s conditional on the database engine.
+   - #322131: Really fix user default subscriptions forms.
+   - #322131: Fix user default subscriptions forms.
+   - #318150: Get by without hook_nodeapi('prepare') for inserting nodes programmatically.
+ 
+Subscriptions 6.x-1.0-BETA3 (2008-10-14):
+   - #316367: Fix multiple-comments template garbage.
+   - #318236: Explanation of CCK variables missing from digest page in mail_edit.
+   - #311343: Warn about bad 'http://' site url.
+   - #315304: Avoid using empty anchor tag.
+   - Add missing hook_block('list') information.
+   - #308801: Fix enable-subscriptions-block-warning link.
+   - #299259: Add option to hide "Subscribe to this page", update .pot and de.po files.
+   - #302961: Fix bogus "error mailing notification" in watchdog log.
+   - #303298: Remove call-time pass-by-reference.
+
+Subscriptions 6.x-1.0-BETA2 (2008-08-30):
+   - Add subscriptions_cck.module for D6.
+   - Two missing pieces for mail_edit 6.x-1.x.
+   - Avoid potential naming conflicts.
+   - Clean up: eliminate notices.
+   - Implement support for mail_edit 6.x-1.x.
+   - Fix the anchor on the node form fieldset.
+   - #296995: Change defaults to send comments and updates.
+   - Remove obsolete database table backup function when upgrading from 5.x-1.x.
+   - #294381: Fine-tune the German translation, fix some replacable strings in all languages.
+   - #294381: Update German translation.
+   - #283721: Add a List-Id header according to RFC 2919.
+   - #291929: Use hook_taxonomy() and hook_node_type() to catch deletions and clean out orphaned subscriptions.
+   - #292654: On-comment subscriptions by author must check the node author, not the comment author.
+   - #290882: Fix prior patch for #289965.
+   - #289965: 'Blocked content types' must override 'Auto-subscribe'.
+   - #288553: Fix untranslated 'Auto-subscribe'.
+   - #280182: Split the checkboxes and their labels into two separate columns to avoid toggling the checkboxes when clicking a label link.
+   - Fix display of empty Page form.
+   - #287591: Don't display Subscribe UI for anonymous users.
+   - #269617: Fix pgsql section of contributed moderate_content_notifications_install().
+   - #281600: Add explanatory code comment for error message about missing {subscriptions_user} records (no significant functional changes).
+   - #284442: Fix call to undefined function language_initialize() for sites that have only one language.
+   - #282840: drupal_html_to_text() is now part of core, no more need for the HTML_to_text module.
+   - #278107: Check for the existence of the {mail_edit} table before attempting to remove entries in subscriptions_uninstall().
+   - Don't use drupal_goto() in a form submit handler.
+   - #273960: Fix multi-language support.
+   - #273537: Allow translating the entries in the 'Type' column of the Overview page.
+
+Subscriptions 6.x-1.0-BETA1 (2008-06-22):
+   - Various fixes.
+   - Initial port to D6 (ALPHA quality).
+   - Copied Subscriptions 5.x-2.1-dev (2008-05-18).

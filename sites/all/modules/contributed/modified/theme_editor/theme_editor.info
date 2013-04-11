@@ -1,0 +1,13 @@
+; $Id: theme_editor.info,v 1.1.2.1 2009/03/18 14:28:22 arcaneadam Exp $
+name =  Theme Editor
+description = Provides a Theme Editor Page similar to  the Wordpress theme editor.
+package = Theme
+core = 6.x
+
+
+; Information added by drupal.org packaging script on 2009-05-12
+version = "6.x-1.4"
+core = "6.x"
+project = "theme_editor"
+datestamp = "1242143536"
+

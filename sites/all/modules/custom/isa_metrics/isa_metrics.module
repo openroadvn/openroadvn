@@ -1,0 +1,165 @@
+<?php
+// $Id$
+
+
+/**
+ * Implementation of hook_menu().
+ */
+function isa_metrics_menu() {
+  $items = array();
+  $items['community/%/metrics'] = array(
+    'title' => 'Metrics',
+    'page callback' => 'isa_metrics_page',
+    'page arguments' => array('Community'),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+  $items['software/%/metrics'] = array(
+    'title' => 'Metrics',
+    'page callback' => 'isa_metrics_page',
+    'page arguments' => array('Software'),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+  $items['asset/%/metrics'] = array(
+    'title' => 'Metrics',
+    'page callback' => 'isa_metrics_page',
+    'page arguments' => array('Asset'),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+  $items['metrics'] = array(
+    'title' => 'Metrics',
+    'page callback' => 'isa_metrics_page',
+    'page arguments' => array(),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/*
+ * Return the content of the metrics page
+ * type : type of metrics
+ */
+function isa_metrics_page($type = null) {
+  $content = isa_metrics_get_general_content();
+  if ($type != null) {
+    $content .= isa_metrics_get_content($type);
+  }
+  return $content;
+}
+
+/*
+ * Return the metrics table of general content
+ */
+function isa_metrics_get_general_content() {
+  //number of communities
+  $query = "SELECT COUNT(nid) FROM {node}
+            INNER JOIN {workflow_node} USING (nid)
+            WHERE type = 'community' AND workflow_node.sid = %d";
+  $result = db_result(db_query($query, ISA_SID_COMMUNITY_VALIDATED));
+  $data[] = array('type' => t('Number of Communities'), 'nb' => $result);
+  //number of software, asset
+  $query = "SELECT field_project_common_type_value, COUNT(node.nid) AS nb FROM {node}
+            LEFT JOIN {workflow_node} ON node.nid = workflow_node.nid AND workflow_node.sid = %d
+            INNER JOIN {content_field_project_common_type} ON node.nid = content_field_project_common_type.nid
+            WHERE type = 'project_project'
+            GROUP BY field_project_common_type_value";
+  $results = db_query($query, ISA_SID_COMMUNITY_VALIDATED);
+  while ($result = db_fetch_object($results)) {
+    if ($result->field_project_common_type_value == 0) {
+      $data[] = array('type' => t('Number of Shared Assets'), 'nb' => $result->nb);
+    }
+    else {
+      $data[] = array('type' => t('Number of Software'), 'nb' => $result->nb);
+    }
+  }
+  //number of news & blogs
+  $query = "SELECT COUNT(DISTINCT node.nid) AS nb FROM {node}
+            LEFT JOIN {workflow_node} ON node.nid = workflow_node.nid 
+            WHERE type IN ('news', 'blog') AND ((workflow_node.sid = %d) OR (workflow_node.sid = %d) OR (node.type = 'blog'))";
+  $result = db_result(db_query($query, ISA_SID_NEWS_VALIDATED, ISA_SID_NEWS_PUBLISHED));
+  $data[] = array('type' => t('Number of News &amp; Blogs'), 'nb' => $result);
+
+  //number of elibrary
+  $query = "SELECT COUNT(DISTINCT node.nid) AS nb FROM {node}
+            LEFT JOIN {workflow_node} ON node.nid = workflow_node.nid
+            WHERE type IN ('document', 'wiki') AND ((workflow_node.sid = %d) OR (workflow_node.sid = %d) OR (node.type = 'wiki' AND node.nid NOT IN ('2048','2049','2051','2059','2060','2062','2063','2065','2066','2067','2074','2076','2068','2069','2070','2071','2072','2073','2079','2077')))";
+  $result = db_result(db_query($query, ISA_SID_NEWS_VALIDATED, ISA_SID_NEWS_PUBLISHED));
+  $data[] = array('type' => t('Number of Documents &amp; Wikis'), 'nb' => $result);
+
+  //number of events
+  $query = "SELECT COUNT(DISTINCT node.nid) AS nb FROM {node}
+            LEFT JOIN {workflow_node} ON node.nid = workflow_node.nid AND workflow_node.sid = %d
+            WHERE type = 'event'";
+  $result = db_result(db_query($query, ISA_SID_NEWS_VALIDATED));
+  $data[] = array('type' => t('Number of Events'), 'nb' => $result);
+
+  //number of members
+  $query = "SELECT COUNT(uid) AS nb FROM {users}";
+  $result = db_result(db_query($query));
+  $data[] = array('type' => t('Number of Members'), 'nb' => $result);
+  
+  //Creation of table
+  return theme_table(array(t('General Content'), t('Number')), $data);
+}
+
+
+/*
+ * Return the metrics table of the specific group
+ */
+function isa_metrics_get_content($type) {
+  $gid  = variable_get('current_group', isa_toolbox_get_community_nid());
+  //number of news & blogs
+  $query = "SELECT COUNT(DISTINCT node.nid) AS nb FROM {node}
+            LEFT JOIN {og_ancestry og_ancestry} ON node.nid = og_ancestry.nid
+            LEFT JOIN {isa_highlight isa_highlight} ON node.nid = isa_highlight.nid
+            WHERE type IN ('news', 'blog') AND (og_ancestry.group_nid = %d OR isa_highlight.tid = (SELECT tid FROM {nat} WHERE nid = %d))";
+  $result = db_result(db_query($query, $gid, $gid));
+  $data[] = array('type' => t('Number of News &amp; Blogs'), 'nb' => $result);
+
+  //number of document & news
+  $query = "SELECT COUNT(DISTINCT node.nid) AS nb FROM {node}
+            LEFT JOIN {og_ancestry og_ancestry} ON node.nid = og_ancestry.nid
+            LEFT JOIN {isa_highlight isa_highlight} ON node.nid = isa_highlight.nid
+            WHERE type IN ('document', 'wiki') AND (og_ancestry.group_nid = %d OR isa_highlight.tid = (SELECT tid FROM {nat} WHERE nid = %d))";
+  $result = db_result(db_query($query, $gid, $gid));
+  $data[] = array('type' => t('Number of Documents &amp; Wikis'), 'nb' => $result);
+
+  //number of events
+  $query = "SELECT COUNT(DISTINCT node.nid) AS nb FROM {node}
+            LEFT JOIN {isa_highlight isa_highlight} ON node.nid = isa_highlight.nid
+            WHERE type = 'event' AND isa_highlight.tid = (SELECT tid FROM {nat} WHERE nid = %d)";
+  $result = db_result(db_query($query, $gid));
+  $data[] = array('type' => t('Number of Events'), 'nb' => $result);
+
+  //number of members
+  $query = "SELECT COUNT(uid) AS nb FROM {og_uid}
+            WHERE is_active = 1 AND nid = %d";
+  $result = db_result(db_query($query, $gid));
+  $data[] = array('type' => t('Number of Members'), 'nb' => $result);
+
+  if ($type != 'Community') {
+    //number of developers
+    $query = "SELECT COUNT(uid) AS nb FROM {og_users_roles}
+              WHERE gid = %d AND rid = %d";
+    $result = db_result(db_query($query, $gid, variable_get("developer_rid", 9))) + 1; //+1 for the owner
+    $data[] = array('type' => t('Number of Developers'), 'nb' => $result);
+
+    //number of issues
+    $query = "SELECT COUNT(nid) AS nb FROM {project_issues}
+              WHERE pid = %d";
+    $result = db_result(db_query($query, $gid));
+    $data[] = array('type' => t('Number of Issues'), 'nb' => $result);
+
+    //number of releases
+    $query = "SELECT COUNT(nid) AS nb FROM {project_release_nodes}
+              WHERE pid = %d";
+    $result = db_result(db_query($query, $gid));
+    $data[] = array('type' => t('Number of Releases'), 'nb' => $result);
+  }
+  
+  //Creation of table
+  return theme_table(array(t("Content in this $type"), t('Number')), $data);
+}

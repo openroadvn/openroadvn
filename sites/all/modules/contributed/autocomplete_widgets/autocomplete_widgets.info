@@ -1,0 +1,13 @@
+; $Id: autocomplete_widgets.info,v 1.1.2.1 2009/02/24 01:44:29 markuspetrux Exp $
+name = Autocomplete Widgets
+description = Provides autocomplete widgets for CCK Text and Number fields.
+dependencies[] = content
+package = CCK
+core = 6.x
+
+; Information added by drupal.org packaging script on 2009-12-30
+version = "6.x-1.3"
+core = "6.x"
+project = "autocomplete_widgets"
+datestamp = "1262195403"
+

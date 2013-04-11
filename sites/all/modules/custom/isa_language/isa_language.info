@@ -1,0 +1,8 @@
+; $Id
+core            = "6.x"
+description     = "multilingual handling for ISA"
+name            = "Language"
+package         = "ISA Toolbox"
+
+dependencies[] = path
+dependencies[] = translation

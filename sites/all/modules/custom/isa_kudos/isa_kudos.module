@@ -1,0 +1,66 @@
+<?php
+//include_once('sites/all/modules/contributed/devel/krumo/class.krumo.php');
+
+/**
+ * Implementation of hook_form_alter
+ * @param $form_id String representing the name of the form itself. Typically this is the name of the function that generated the form.
+ * @param $form Nested array of form elements that comprise the form.
+ */
+function isa_kudos_form_alter(&$form, $form_state, $form_id) {
+  if ($form_id == 'profile_node_form') {
+    $form['#validate'][] = 'isa_kudos_form_validate';
+  }
+}
+
+/**
+ * Validate the profile form
+ */
+function isa_kudos_form_validate($form, &$form_state) {
+  if ($form_state['values']['field_completed_profile'][0]['value'] < 100) {
+    $node = $form['#node'];
+    //Add completed profile percentage
+    if (empty($node->field_photo[0]['filename']) && !empty($form_state['values']['field_photo'][0]['filename']) ) {
+      $form_state['values']['field_completed_profile'][0]['value'] += 10;
+    }
+    if (empty($node->field_street[0]['value']) && !empty($form_state['values']['field_street'][0]['value']) ) {
+      $form_state['values']['field_completed_profile'][0]['value'] += 10;
+    }
+    if (empty($node->field_company_name[0]['value']) && !empty($form_state['values']['field_company_name'][0]['value']) ) {
+      $form_state['values']['field_completed_profile'][0]['value'] += 10;
+    }
+    if (empty($node->field_number[0]['value']) && !empty($form_state['values']['field_number'][0]['value']) ) {
+      $form_state['values']['field_completed_profile'][0]['value'] += 10;
+    }
+    if (empty($node->field_city[0]['value']) && !empty($form_state['values']['field_city'][0]['value']) ) {
+      $form_state['values']['field_completed_profile'][0]['value'] += 10;
+    }
+    if (empty($node->field_zipcode[0]['value']) && !empty($form_state['values']['field_zipcode'][0]['value']) ) {
+      $form_state['values']['field_completed_profile'][0]['value'] += 10;
+    }
+    if (empty($node->field_company_phone[0]['value']) && !empty($form_state['values']['field_company_phone'][0]['value']) ) {
+      $form_state['values']['field_completed_profile'][0]['value'] += 10;
+    }
+
+    //Manage Kudos
+    if ($form_state['values']['field_completed_profile'][0]['value'] > 100) {
+      $form_state['values']['field_completed_profile'][0]['value'] = 100;
+    }
+    if ($form_state['values']['field_completed_profile'][0]['value'] == 100) {
+      //100 Kudos for profile completed
+      userpoints_userpointsapi(array('points' => 100, 'operation' => 'published', 'description' => 'Profile completed'));
+    }
+  }
+  // 20 Kudos for profile updated
+  if (date ('W' , $form_state ['values']['changed']) != date ('W',time())){   
+    userpoints_userpointsapi(array('points' => 20, 'operation' => 'published', 'description' => 'Profile updated'));
+  }
+}
+
+//Add 2 Kudos for each rating
+function isa_kudos_votingapi_insert($vote) {
+  userpoints_userpointsapi(array('points' => 2, 'operation' => 'published', 'description' => 'New vote'));
+}
+
+function isa_kudos_votingapi_calculate(&$results, $votes, $content_type, $content_id) {
+  userpoints_userpointsapi(array('points' => 2, 'operation' => 'published', 'description' => 'Update vote'));
+}

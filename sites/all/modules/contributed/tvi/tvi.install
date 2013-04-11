@@ -1,0 +1,143 @@
+<?php
+// $Id: tvi.install,v 1.3 2009/12/04 01:40:55 awebb Exp $
+
+//------------------------------------------------------------------------------
+// Drupal hooks
+//------------------------------------------------------------------------------
+
+/**
+ * Implementation of hook_schema().
+ * 
+ * @see http://api.drupal.org/api/function/hook_schema/6
+ */
+function tvi_schema() {
+	
+	$schema['tvi_settings'] = array(
+		'description' => 'Stores data relating a view display with a taxonomy term or vocabulary.',
+    'fields' => array(
+      'type' => array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => TRUE,
+        'default' => TVI_TYPE_TERM,
+        'description' => 'The type of taxonomy view setting. Can be; TVI_TYPE_TERM or TVI_TYPE_VOCAB.',
+      ),
+      'xid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Taxonomy vocabulary or term ID.',
+      ),
+      'view_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'The view id that is used for this taxonomy display.',
+      ),
+      'display' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => 'default',
+        'description' => 'The view display to use.',
+      ),
+      'status' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'A flag to indicate whether to use or not.',
+      ),
+    ),
+    'primary key' => array('type', 'xid'),
+  );
+	
+	return $schema;
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Implementation of hook_install().
+ * 
+ * @see http://api.drupal.org/api/function/hook_install/6
+ */
+function tvi_install() {
+	// Create tables.
+  drupal_install_schema('tvi');
+  
+	// Ensure weights are ok.
+	$view_info = db_fetch_object(db_query('SELECT s.weight FROM {system} s WHERE s.name = "views" LIMIT 1'));
+	db_query("UPDATE {system} SET weight = ".($view_info->weight + 5)." WHERE name = 'tvi'");
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Implementation of hook_uninstall().
+ * 
+ * @see http://api.drupal.org/api/function/hook_uninstall/6
+ */
+function tvi_uninstall() {
+  // Remove tables.
+  drupal_uninstall_schema('tvi');
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Implementation of tvi_hook_update_N().
+ * 
+ * @see http://api.drupal.org/api/function/hook_update_N/6
+ */
+function tvi_update_6001() {
+	
+	// Create new tvi schema.
+	$ret = drupal_install_schema('tvi');
+	
+	// Copy old table values into new table.
+	_tvi_update_move_6001($ret, 'tvi_vocab', 'vocid', TVI_TYPE_VOCAB);
+	_tvi_update_move_6001($ret, 'tvi_term', 'termid', TVI_TYPE_TERM);
+	
+	return $ret;
+}
+
+//------------------------------------------------------------------------------
+// Internal utilities
+//------------------------------------------------------------------------------
+
+/**
+ * Move all records from the previous table into the new one and remove the old
+ * table afterwords, if all records were transferred successfully.
+ */
+function _tvi_update_move_6001(&$ret, $table, $id_field, $type) {
+  
+  // Copy old table values into new table.
+  $results = db_query("SELECT * FROM {$table}");
+  while($settings = db_fetch_array($results)) {
+    
+  	$xid     = $settings[$id_field];
+    $view_id = $settings['viewid'];
+    
+    $display = $settings['display'];
+    $status  = $settings['status'];
+    
+    $result = update_sql(
+      'INSERT INTO {tvi_settings}'
+      . ' (`type`, `xid`, `view_id`, `display`, `status`)'
+      . " VALUES ('$type', $xid, $view_id, '$display', $status)"
+    );    
+    $ret[] = $result;
+    
+    if (!$result['success']) {
+    	$failed = TRUE;
+    }
+  }
+  if (!$failed) {
+    db_drop_table($ret, $table);
+  }	
+}
+
+//------------------------------------------------------------------------------

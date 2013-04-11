@@ -1,0 +1,153 @@
+/*  $Name: Variable Grid System - Based on 960 Grid System $
+	$File: grid.css $
+	$Date: 2011-01-17 $
+	$Modify date: 2011-08-09 $
+	$Version: 004 $
+	
+	$Column width: 40 $
+	$Gutter width: 20 $
+	$Number of columns: 16 $
+*/
+
+/*	CONTAINERS
+
+	Grid 16 columns */
+.grid16col { margin:0 auto; overflow: hidden; zoom:1; }
+/*	Show grid and background delimiter */
+.grid16col.showgrid { background:transparent url(../images/grid/bg.png) repeat 0 0; }
+.colspan-1.showbg, .colspan-2.showbg, .colspan-3.showbg, .colspan-4.showbg, .colspan-5.showbg, .colspan-6.showbg, .colspan-7.showbg, .colspan-8.showbg,
+.colspan-9.showbg, .colspan-10.showbg, .colspan-11.showbg, .colspan-12.showbg, .colspan-13.showbg, .colspan-14.showbg, .colspan-15.showbg, .colspan-16.showbg
+{ background-color:#F1F1F1; }
+
+/*	GRIDS
+
+	Global */
+.colspan-1, .colspan-2, .colspan-3, .colspan-4, .colspan-5, .colspan-6, .colspan-7, .colspan-8, .colspan-9, .colspan-10, .colspan-11, .colspan-12, .colspan-13, .colspan-14, .colspan-15, .colspan-16
+{ display:inline; float:left; position:relative; overflow: hidden; }
+.fluid-8 .colspan-1, .fluid-8 .colspan-2, .fluid-8 .colspan-3, .fluid-8 .colspan-4, .fluid-8 .colspan-5, .fluid-8 .colspan-6, .fluid-8 .colspan-7, .fluid-8 .colspan-8, .fluid .colspan-9, .fluid-8 .colspan-10, .fluid-8 .colspan-11, .fluid-8 .colspan-12, .fluid-8 .colspan-13, .fluid-8 .colspan-14, .fluid-8 .colspan-15, .fluid-8 .colspan-16,
+.right-sidebar-colspans-5 .colspan-5
+{ display:block; float:none; }
+.fluid .view-user-latest-content .colspan-4 { width:160px; }
+
+/*	Children (Alpha ~ First, Omega ~ Last) */
+.first { margin-left:0; } .last { margin-right:0; }
+/*	Columns Spans - (16 columns) */
+.fluid .colspan-2 { width:100px; min-height:50px; margin-right: 15px; display:block; float:left; position:relative; }
+.content .colspan-1, #content .colspan-1 { width:40px; min-height:20px; margin-right: 15px; display:block; float:left; position:relative; }
+.after-content-colspans-1-10 .colspan-10 { float: none; }
+
+.grid16col .colspan-1 { width:40px; } .grid16col .colspan-2 { width:100px; } .grid16col .colspan-3 { width:160px; } .grid16col .colspan-4 { width:220px; }
+.grid16col .colspan-5 { width:280px; } .grid16col .colspan-7 { width:400px; }
+.grid16col .colspan-9 { width:520px; } .grid16col .colspan-10 { width:580px; } .grid16col .colspan-11 { width:640px; } .grid16col .colspan-12 { width:700px; }
+.grid16col .colspan-13 { width:760px; } .grid16col .colspan-14 { width:820px; } .grid16col .colspan-15 { width:880px; } .grid16col .colspan-16 { width:940px; }
+
+/*	Append Extra Space - (16 columns) */
+.grid16col .append-1 { padding-right:60px; } .grid16col .append-2 { padding-right:120px; } .grid16col .append-3 { 	padding-right:180px; } .grid16col .append-4 { 	padding-right:240px; }
+.grid16col .append-5 { 	padding-right:300px; } .grid16col .append-6 { 	padding-right:360px; } .grid16col .append-7 { 	padding-right:420px; } .grid16col .append-8 { 	padding-right:480px; }
+.grid16col .append-9 { 	padding-right:540px; } .grid16col .append-10 { padding-right:600px; } .grid16col .append-11 { padding-right:660px; } .grid16col .append-12 { padding-right:720px; }
+.grid16col .append-13 { padding-right:780px; } .grid16col .append-14 { padding-right:840px; } .grid16col .append-15 { padding-right:900px; }
+/*	Push Space - (16 columns) */
+.grid16col .push-1 { left:60px; } .grid16col .push-2 { left:120px; } .grid16col .push-3 { left:180px; } .grid16col .push-4 { left:240px; } .grid16col .push-5 { left:300px; }
+.grid16col .push-6 { left:360px; } .grid16col .push-7 { left:420px; } .grid16col .push-8 { left:480px; } .grid16col .push-9 { left:540px; } .grid16col .push-10 { left:600px; }
+.grid16col .push-11 { left:660px; } .grid16col .push-12 { left:720px; } .grid16col .push-13 { left:780px; } .grid16col .push-14 { left:840px; } .grid16col .push-15 { left:900px; }
+/*	Pull Space - (16 columns) */
+.grid16col .pull-1 { left:-60px; } .grid16col .pull-2 { left:-120px; } .grid16col .pull-3 { left:-180px; } .grid16col .pull-4 { left:-240px; }
+.grid16col .pull-5 { left:-300px; } .grid16col .pull-6 { left:-360px; } .grid16col .pull-7 { left:-420px; } .grid16col .pull-8 { left:-480px; }
+.grid16col .pull-9 { left:-540px; } .grid16col .pull-10 { left:-600px; } .grid16col .pull-11 { left:-660px; } .grid16col .pull-12 { left:-720px; }
+.grid16col .pull-13 { left:-780px; } .grid16col .pull-14 { left:-840px; } .grid16col .pull-15 { left:-900px; }
+
+/*	BOXES
+
+	Columns Spans - (Alpha ~ First, Omega ~ Last) */
+.grid16col .box .colspan-1.first, .grid16col .box .colspan-1.last { width:29px; } .grid16col .box .colspan-2.first, .grid16col .box .colspan-2.last { width:89px; }
+.grid16col .box .colspan-3.first, .grid16col .box .colspan-3.last { width:149px; } .grid16col .box .colspan-4.first, .grid16col .box .colspan-4.last { width:209px; }
+.grid16col .box .colspan-5.first, .grid16col .box .colspan-5.last { width:269px; } .grid16col .box .colspan-6.first, .grid16col .box .colspan-6.last { width:329px; }
+.grid16col .box .colspan-7.first, .grid16col .box .colspan-7.last { width:389px; } .grid16col .box .colspan-8.first, .grid16col .box .colspan-8.last { width:449px; }
+.grid16col .box .colspan-9.first, .grid16col .box .colspan-9.last { width:509px; } .grid16col .box .colspan-10.first, .grid16col .box .colspan-10.last { width:569px; }
+.grid16col .box .colspan-11.first, .grid16col .box .colspan-11.last { width:629px; } .grid16col .box .colspan-12.first, .grid16col .box .colspan-12.last { width:689px; }
+.grid16col .box .colspan-13.first, .grid16col .box .colspan-13.last { width:749px; } .grid16col .box .colspan-14.first, .grid16col .box .colspan-14.last { width:809px; }
+.grid16col .box .colspan-15.first, .grid16col .box .colspan-15.last { width:869px; } .grid16col .box .colspan-16.first, .grid16col .box .colspan-16.last { width:929px; }
+
+/*	DEFINITION LIST (in boxes)
+
+	Global */
+.box dl dt, .box dl dd { display:block; float: left;position:relative; margin:0 10px; }
+.box dl dt { margin-left:0; } .box dl dd { margin-right:0; overflow: hidden; float: none; }
+/*	Children (Alpha ~ First, Omega ~ Last) */
+.box dl.first { margin-left:0; } .box dl.last { margin-right:0; overflow: hidden; }
+/*	Columns Spans - (16 columns) */
+.grid16col .box dl.colspans-1-1 { width:100px; } .grid16col .box dl.colspans-1-2, .grid16col .box dl.colspans-2-1 { width:160px; } .grid16col .box dl.colspans-1-3, .grid16col .box dl.colspans-2-2,
+.grid16col .box dl.colspans-3-1 { width:220px; } .grid16col .box dl.colspans-1-4, .grid16col .box dl.colspans-2-3, .grid16col .box dl.colspans-3-2, .grid16col .box dl.colspans-4-1 { width:280px; }
+.grid16col .box dl.colspans-1-5, .grid16col .box dl.colspans-2-4, .grid16col .box dl.colspans-3-3, .grid16col .box dl.colspans-4-2, .grid16col .box dl.colspans-5-1 { width:340px; }
+.grid16col .box dl.colspans-1-6, .grid16col .box dl.colspans-2-5, .grid16col .box dl.colspans-3-4, .grid16col .box dl.colspans-4-3, .grid16col .box dl.colspans-5-2, .grid16col .box dl.colspans-6-1 { width:400px; }
+.grid16col .box dl.colspans-1-7, .grid16col .box dl.colspans-2-6, .grid16col .box dl.colspans-3-5, .grid16col .box dl.colspans-4-4, .grid16col .box dl.colspans-5-3, .grid16col .box dl.colspans-6-2,
+.grid16col .box dl.colspans-7-1 { width:460px; }
+/*	Columns Spans - (16 columns) - (Alpha ~ First, Omega ~ Last) */
+.grid16col .box dl.colspans-1-1.first, .grid16col .box dl.colspans-1-1.last { width:89px; } .grid16col .box dl.colspans-1-2.first, .grid16col .box dl.colspans-2-1.first, .grid16col .box dl.colspans-1-2.last,
+.grid16col .box dl.colspans-2-1.last { width:149px; } .grid16col .box dl.colspans-1-3.first, .grid16col .box dl.colspans-2-2.first, .grid16col .box dl.colspans-3-1.first, .grid16col .box dl.colspans-1-3.last,
+.grid16col .box dl.colspans-2-2.last, .grid16col .box dl.colspans-3-1.last { width:209px; } .grid16col .box dl.colspans-1-4.first, .grid16col .box dl.colspans-2-3.first, .grid16col .box dl.colspans-3-2.first,
+.grid16col .box dl.colspans-4-1.first, .grid16col .box dl.colspans-1-4.last, .grid16col .box dl.colspans-2-3.last, .grid16col .box dl.colspans-3-2.last, .grid16col .box dl.colspans-4-1.last { width:269px; }
+.grid16col .box dl.colspans-1-5.first, .grid16col .box dl.colspans-2-4.first, .grid16col .box dl.colspans-3-3.first, .grid16col .box dl.colspans-4-2.first, .grid16col .box dl.colspans-5-1.first,
+.grid16col .box dl.colspans-1-5.last, .grid16col .box dl.colspans-2-4.last, .grid16col .box dl.colspans-3-3.last, .grid16col .box dl.colspans-4-2.last, .grid16col .box dl.colspans-5-1.last { width:329px; }
+.grid16col .box dl.colspans-1-6.first, .grid16col .box dl.colspans-2-5.first, .grid16col .box dl.colspans-3-4.first, .grid16col .box dl.colspans-4-3.first, .grid16col .box dl.colspans-5-2.first,
+.grid16col .box dl.colspans-6-1.first, .grid16col .box dl.colspans-1-6.last, .grid16col .box dl.colspans-2-5.last, .grid16col .box dl.colspans-3-4.last, .grid16col .box dl.colspans-4-3.last,
+.grid16col .box dl.colspans-5-2.last, .grid16col .box dl.colspans-6-1.last { width:389px; } .grid16col .box dl.colspans-1-7.first, .grid16col .box dl.colspans-2-6.first, .grid16col .box dl.colspans-3-5.first,
+.grid16col .box dl.colspans-4-4.first, .grid16col .box dl.colspans-5-3.first, .grid16col .box dl.colspans-6-2.first, .grid16col .box dl.colspans-7-1.first, .grid16col .box dl.colspans-1-7.last,
+.grid16col .box dl.colspans-2-6.last, .grid16col .box dl.colspans-3-5.last, .grid16col .box dl.colspans-4-4.last, .grid16col .box dl.colspans-5-3.last, .grid16col .box dl.colspans-6-2.last,
+grid16col .box dl.colspans-7-1.last { width:438px; }
+/*	Columns Spans - (16 columns) > Definition Term */
+.grid16col .box dl.colspans-1-1 dt, .grid16col .box dl.colspans-1-2 dt, .grid16col .box dl.colspans-1-3 dt, .grid16col .box dl.colspans-1-4 dt, .grid16col .box dl.colspans-1-5 dt, .grid16col .box dl.colspans-1-6 dt,
+.grid16col .box dl.colspans-1-7 dt { width:40px; }
+.grid16col .box dl.colspans-2-1 dt, .grid16col .box dl.colspans-2-2 dt, .grid16col .box dl.colspans-2-3 dt, .grid16col .box dl.colspans-2-4 dt, .grid16col .box dl.colspans-2-5 dt,
+.grid16col .box dl.colspans-2-6 dt { width:100px; }
+.grid16col .box dl.colspans-3-1 dt, .grid16col .box dl.colspans-3-2 dt, .grid16col .box dl.colspans-3-3 dt, .grid16col .box dl.colspans-3-4 dt, .grid16col .box dl.colspans-3-5 dt { width:160px; }
+.grid16col .box dl.colspans-4-1 dt, .grid16col .box dl.colspans-4-2 dt, .grid16col .box dl.colspans-4-3 dt, .grid16col .box dl.colspans-4-4 dt { width:220px; }
+.grid16col .box dl.colspans-5-1 dt, .grid16col .box dl.colspans-5-2 dt, .grid16col .box dl.colspans-5-3 dt { width:280px; }
+.grid16col .box dl.colspans-6-1 dt, .grid16col .box dl.colspans-6-2 dt { width:340px; }
+.grid16col .box dl.colspans-7-1 dt { width:400px; }
+/*	Columns Spans - (16 columns) > Definition Description */
+.grid16col .box dl.colspans-1-1 dd, .grid16col .box dl.colspans-2-1 dd, .grid16col .box dl.colspans-3-1 dd, .grid16col .box dl.colspans-4-1 dd, .grid16col .box dl.colspans-5-1 dd, .grid16col .box dl.colspans-6-1 dd,
+.grid16col .box dl.colspans-7-1 dd { width:40px; }
+.grid16col .box dl.colspans-1-2 dd, .grid16col .box dl.colspans-2-2 dd, .grid16col .box dl.colspans-3-2 dd, .grid16col .box dl.colspans-4-2 dd, .grid16col .box dl.colspans-5-2 dd, 
+.grid16col .box dl.colspans-6-2 dd { width:100px; }
+.grid16col .box dl.colspans-1-3 dd, .grid16col .box dl.colspans-2-3 dd, .grid16col .box dl.colspans-3-3 dd, .grid16col .box dl.colspans-4-3 dd, .grid16col .box dl.colspans-5-3 dd { width:160px; }
+.grid16col .box dl.colspans-1-4 dd, .grid16col .box dl.colspans-2-4 dd, .grid16col .box dl.colspans-3-4 dd, .grid16col .box dl.colspans-4-4 dd { width:220px; }
+.grid16col .box dl.colspans-1-5 dd, .grid16col .box dl.colspans-2-5 dd, .grid16col .box dl.colspans-3-5 dd { width:280px; }
+.grid16col .box dl.colspans-1-6 dd, .grid16col .box dl.colspans-2-6 dd { width:340px; }
+.grid16col .box dl.colspans-1-7 dd { width:400px; }
+/*	Columns Spans - (16 columns) > Definition Term (Alpha ~ First, Omega ~ Last) */
+.grid16col .box dl.colspans-1-1.first dt, .grid16col .box dl.colspans-1-2.first dt, .grid16col .box dl.colspans-1-3.first dt, .grid16col .box dl.colspans-1-4.first dt, .grid16col .box dl.colspans-1-5.first dt,
+.grid16col .box dl.colspans-1-6.first dt, .grid16col .box dl.colspans-1-7.first dt { width:29px; }
+.grid16col .box dl.colspans-2-1.first dt, .grid16col .box dl.colspans-2-2.first dt, .grid16col .box dl.colspans-2-3.first dt, .grid16col .box dl.colspans-2-4.first dt, .grid16col .box dl.colspans-2-5.first dt,
+.grid16col .box dl.colspans-2-6.first dt { width:89px; }
+.grid16col .box dl.colspans-3-1.first dt, .grid16col .box dl.colspans-3-2.first dt, .grid16col .box dl.colspans-3-3.first dt, .grid16col .box dl.colspans-3-4.first dt, .grid16col .box dl.colspans-3-5.first dt { width:149px; }
+.grid16col .box dl.colspans-4-1.first dt, .grid16col .box dl.colspans-4-2.first dt, .grid16col .box dl.colspans-4-3.first dt, .grid16col .box dl.colspans-4-4.first dt { width:209px; }
+.grid16col .box dl.colspans-5-1.first dt, .grid16col .box dl.colspans-5-2.first dt, .grid16col .box dl.colspans-5-3.first dt { width:269px; }
+.grid16col .box dl.colspans-6-1.first dt, .grid16col .box dl.colspans-6-2.first dt { width:329px; }
+.grid16col .box dl.colspans-7-1.first dt { width:389px; }
+/*	Columns Spans - (16 columns) > Definition Description (Alpha ~ First, Omega ~ Last) */
+.grid16col .box dl.colspans-1-1.last dd, .grid16col .box dl.colspans-2-1.last dd, .grid16col .box dl.colspans-3-1.last dd, .grid16col .box dl.colspans-4-1.last dd, .grid16col .box dl.colspans-5-1.last dd,
+.grid16col .box dl.colspans-6-1.last dd, .grid16col .box dl.colspans-7-1.last dd { width:29px; }
+.grid16col .box dl.colspans-1-2.last dd, .grid16col .box dl.colspans-2-2.last dd, .grid16col .box dl.colspans-3-2.last dd, .grid16col .box dl.colspans-4-2.last dd, .grid16col .box dl.colspans-5-2.last dd, 
+.grid16col .box dl.colspans-6-2.last dd { width:89px; }
+.grid16col .box dl.colspans-1-3.last dd, .grid16col .box dl.colspans-2-3.last dd, .grid16col .box dl.colspans-3-3.last dd, .grid16col .box dl.colspans-4-3.last dd, .grid16col .box dl.colspans-5-3.last dd { width:149px; }
+.grid16col .box dl.colspans-1-4.last dd, .grid16col .box dl.colspans-2-4.last dd, .grid16col .box dl.colspans-3-4.last dd, .grid16col .box dl.colspans-4-4.last dd { width:209px; }
+.grid16col .box dl.colspans-1-5.last dd, .grid16col .box dl.colspans-2-5.last dd, .grid16col .box dl.colspans-3-5.last dd { width:269px; }
+.grid16col .box dl.colspans-1-6.last dd, .grid16col .box dl.colspans-2-6.last dd { width:329px; }
+.grid16col .box dl.colspans-1-7.last dd { width:389px; }
+/*	Push Space - (16 columns) */
+.grid16col .box dl.push-1 { left:39px; } .grid16col .box dl.push-2 { left:99px; } .grid16col .box dl.push-3 { left:159px; } .grid16col .box dl.push-4 { left:219px; } .grid16col .box dl.push-5 { left:279px; }
+.grid16col .box dl.push-6 { left:339px; }
+/*	Pull Space - (16 columns) */
+.grid16col .box dl.pull-1 { right:39px; } .grid16col .box dl.pull-2 { right:99px; } .grid16col .box dl.pull-3 { right:159px; } .grid16col .box dl.pull-4 { right:219px; } .grid16col .box dl.pull-5 { right:279px; }
+.grid16col .box dl.pull-6 { right:339px; }
+
+/*	CLEARERS
+
+	Clear Floated Elements [http://sonspring.com/journal/clearing-floats] */
+.clear { clear:both; display:block; overflow:hidden; visibility:hidden; width:0; height:0; }
+/*	Clear Floated Elements [http://perishablepress.com/press/2008/02/05/lessons-learned-concerning-the-clearfix-css-hack] */
+.clearfix:after { clear:both; content:' '; display:block; font-size:0; line-height:0; visibility:hidden; width:0; height:0; }
+.clearfix { display: inline-block; }
+* html .clearfix { height:1%; }
+.clearfix { display:block; }

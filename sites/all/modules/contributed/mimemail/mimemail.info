@@ -1,0 +1,10 @@
+name = Mime Mail
+description = E-mail with HTML and attachments
+package = Mail
+core = 6.x
+; Information added by drupal.org packaging script on 2011-06-04
+version = "6.x-1.0-beta1"
+core = "6.x"
+project = "mimemail"
+datestamp = "1307191921"
+

@@ -1,0 +1,27 @@
+<?php
+function autotagging_install() {
+  drupal_install_schema('autotagging');
+}
+
+function autotagging_schema() {
+  $schema['term_autotagging_data'] = array(
+    'description' => 'Defines references to what api created a particular term',
+    'fields' => array(
+      'tid' => array(
+        'description' => 'The term id of the referenced term',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE
+      ),
+      'module' => array(
+        'description' => 'the autotagging module that created the term',
+        'type' => 'varchar',
+        'length' => 100,
+        'default' => '',
+      ),
+    ),
+    'primary key' => array('tid'),
+  );
+  return $schema;
+}
+

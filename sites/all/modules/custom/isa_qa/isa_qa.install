@@ -1,0 +1,98 @@
+<?php
+// $Id: isa_highlight.install,v 1.1.2.2 2009/07/04 19:46:42 gunzip Exp $
+
+/**
+ * @file
+ * Flag note module install/schema/update hooks.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function isa_qa_install() {
+  $success = drupal_install_schema('isa_qa');
+  drupal_set_message('Tables qa_question and qa_answer have been created');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function isa_qa_uninstall() {
+  drupal_uninstall_schema('isa_qa');
+   drupal_set_message('Tables qa_question and qa_answer have been deleted');
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function isa_qa_schema() {
+  $schema['qa_question'] = array(
+  'description' => t('TODO: please describe this table!'),
+  'fields' => array(
+    'qid' => array(
+      'description' => t('TODO: please describe this field!'),
+      'type' => 'serial',
+      'not null' => TRUE,
+    ),
+    'form_name' => array(
+      'description' => t('TODO: please describe this field!'),
+      'type' => 'varchar',
+      'length' => '200',
+      'not null' => TRUE,
+    ),
+    'weight' => array(
+      'description' => t('TODO: please describe this field!'),
+      'type' => 'int',
+      'not null' => TRUE,
+    ),
+    'label' => array(
+      'description' => t('TODO: please describe this field!'),
+      'type' => 'text',
+      'not null' => TRUE,
+    ),
+  ),
+  'primary key' => array('qid'),
+);
+  
+  
+  
+$schema['qa_answer'] = array(
+  'description' => t('TODO: please describe this table!'),
+  'fields' => array(
+    'aid' => array(
+      'description' => t('TODO: please describe this field!'),
+      'type' => 'serial',
+      'not null' => TRUE,
+    ),
+    'uid' => array(
+      'description' => t('TODO: please describe this field!'),
+      'type' => 'int',
+      'not null' => TRUE,
+    ),
+    'nid' => array(
+      'description' => t('TODO: please describe this field!'),
+      'type' => 'int',
+      'not null' => TRUE,
+    ),
+    'qid' => array(
+      'description' => t('TODO: please describe this field!'),
+      'type' => 'int',
+      'not null' => TRUE,
+    ),
+    'value' => array(
+      'description' => t('TODO: please describe this field!'),
+      'type' => 'int',
+      'not null' => TRUE,
+    ),
+    'dateanswer' => array(
+      'description' => t('TODO: please describe this field!'),
+      'type' => 'int',
+      'not null' => TRUE,
+    ),
+  ),
+  'primary key' => array('aid'),
+);
+  
+  
+return $schema;
+}

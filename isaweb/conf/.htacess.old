@@ -1,0 +1,5 @@
+DirectoryIndex index.html
+AuthUserFile /data/openray-SVN/passwd.pw
+AuthType Basic
+AuthName "Openray Users"
+require valid-user

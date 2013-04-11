@@ -1,0 +1,7 @@
+; $Id
+core            = "6.x"
+description     = "Change workflows radio button to submit button"
+name            = "Workflow ISA"
+package         = "ISA Toolbox"
+dependencies[]  = "isa_workflow_buttons"
+dependencies[]  = "isa_workflow_mail"

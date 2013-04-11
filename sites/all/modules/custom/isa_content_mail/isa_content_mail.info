@@ -1,0 +1,6 @@
+; $Id
+core            = "6.x"
+dependencies[]  = isa_toolbox
+description     = "Module who send mails for the content creation"
+name            = "ISA Content Mail"
+package         = "ISA Toolbox"

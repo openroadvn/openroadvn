@@ -1,0 +1,105 @@
+<?php
+// $Id: autotagging.module,v 1.7 2009/07/24 17:38:20 acstewart Exp $
+/*
+ * @file autotagging.module
+ * Module for base Autotagging API.
+ */
+
+function autotagging_menu() {
+  $items = array();
+  $items['admin/settings/autotagging'] = array(
+    'title' => 'Autotagging',
+    'description' => t('Configure Autotagging of nodes'),
+    'access arguments' => array('administer autotagging'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('autotagging_settings_form'),
+    'file' => 'autotagging.admin.inc'
+  );
+  return $items;
+}
+
+function autotagging_help($section) {
+
+}
+
+function autotagging_perm() {
+  return array(
+    'administer autotagging',
+    'moderate autotagging'
+  );
+}
+
+function autotagging_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
+  // act on the node
+  //
+  switch ($op) {
+    case 'update':
+    case 'insert':
+      $terms = array();
+      // check that this node type is allowed for autotagging
+      //
+
+      (isset($node->field_autotag[0]['value']))?$autotag = $node->field_autotag[0]['value']:$autotag = 0; // ADDED BY RAF
+      if($autotag == 1) { // ADDED BY RAF
+        $allowed_types = variable_get('autotagging_allowed_types', array());
+
+        if (!in_array($node->type, $allowed_types)) {
+          return NULL;
+        }
+        // invoke autotagging api
+        //
+        $text = array();
+        $text[] = $node->title;
+        $body = str_replace("\n", ' ', $node->body); // ADDED BY RAF
+        $body = strip_tags($body); // ADDED BY RAF
+        //$text[] = str_replace("\n", ' ', $node->body); // ADDED BY RAF
+        $text[] = $body; // ADDED BY RAF
+        $text = implode(' ', $text);
+        $ignore_setting = variable_get('autotagging_error_handling', 'Defer');
+        foreach (module_implements('autotagging_api_' . $op) as $module_name) {
+          $terms = module_invoke($module_name, 'autotagging_api_'. $op, $node, $text);
+          if ($terms === FALSE) {
+            // error occurred processing this node for this service
+            if ($ignore_setting == 'Defer') {
+              // TODO: handle defer logic
+              //
+              break;
+            }
+          }
+          if (isset($terms) && is_array($terms) && !empty($terms)) {
+            // find the vocabulary with which to associate these terms
+            //
+            foreach ($terms as $vid => $termlist) {
+              if (empty($node->taxonomy['tags'][$vid])) {
+                $node->taxonomy['tags'][$vid] = implode(', ', $termlist);
+              }
+              else {
+                $node->taxonomy['tags'][$vid] .= ', '. implode(', ', $termlist);
+              }
+            }
+          }
+        }
+        // allows modules to act on terms before they're saved.
+        module_invoke_all('autotagging_api_presave', $node, $terms);
+        taxonomy_node_save($node, $node->taxonomy);
+        break;
+    }
+  } // ADDED BY RAF
+}
+
+function autotagging_requirements($phase) {
+  switch ($phase) {
+    case 'install':
+      $t = get_t();
+      $requirements['php'] = array(
+        'title' => $t('PHP'),
+        'value' => ($phase == 'runtime') ? l(phpversion(), 'admin/logs/status/php') : phpversion(),
+      );
+      if (version_compare(phpversion(), 5) < 0) {
+        $requirements['php']['description'] = $t('Your PHP installation is too old. Autotagging requires at least PHP %version.', array('%version' => 5));
+        $requirements['php']['severity'] = REQUIREMENT_ERROR;
+      }
+      return $requirements;
+      break;
+  }
+}

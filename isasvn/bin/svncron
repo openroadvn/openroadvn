@@ -1,0 +1,26 @@
+#!/usr/bin/php
+<?php
+// Note: you may have to modify the above shebang for this script to work in
+// any environment
+
+chdir(dirname(__FILE__) . '/..');
+require 'conf/isasvn-conf.inc.php';
+require 'lib/task-management.inc.php';
+require 'lib/svn-management.inc.php';
+
+$lock_name = 'svn';
+check_lock($lock_name);
+
+$mysql_connection = mysql_connect(ISA_SERVER, ISA_DB_USERNAME, ISA_DB_PASSWORD);
+if (!$mysql_connection) {
+	die(sprintf('Unable to connect to MySQL server %s as %s'."\n", ISA_SERVER, ISA_DB_USERNAME));
+}
+$db_selection = mysql_select_db(ISA_DB_NAME);
+if (!$db_selection) {
+	die(sprintf('Unable to access database %s as %s'."\n", ISA_DB_NAME, ISA_DB_USERNAME));
+}
+
+doSVNRepositoriesCreations();
+
+
+release_lock($lock_name);

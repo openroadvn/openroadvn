@@ -1,0 +1,125 @@
+<?php
+define('FEDERATED_PROJECT_TYPE', 'federated_project');
+
+class federated_project {
+  public $nid;
+  public $title;
+  public $link;
+  public $desc;
+  public $fid;
+  public $user = array();
+
+  private $node;
+
+  /**
+   * Loads a project, based on its ID.
+   * Gets all the node details
+   * @param int $nid The project's node ID
+   */
+  public function load_from_nid($nid) {
+    $node = node_load($nid);
+    $this->load($node);
+  }
+
+
+
+  /**
+   * Loads a project, based on its title.
+   * Gets all the node details
+   * @param string $title The project's title
+   */
+  public function load_from_title($title) {
+    /*
+     * Modif LCT
+     * We need to find the nid which:
+     *  - has the correct title
+     *  - has the correct type
+     *  - is the original translation
+     *  - comes from the same federated forge (to avoid duplicate name in different federated forges)
+     */
+    $request = "SELECT n.nid FROM {node} n
+      INNER JOIN {users} u ON u.uid = n.uid 
+      INNER JOIN {content_type_federated_project} fp ON fp.nid = n.nid
+      WHERE n.title = '%s' AND n.type = '%s'
+        AND ( n.tnid = n.nid OR n.tnid = 0 ) AND fp.field_fed_project_forge_nid = %d";
+
+    if( !($result = db_query( $request, $title, FEDERATED_PROJECT_TYPE, $this->fid )) ){
+      watchdog('isa_federated_forges',
+        'Impossible to load the project from the title %title in the federated forge with nid = %nid',
+        array( '%title' => $title, '%nid' => $this->fid ),
+        WATCHDOG_WARNING
+        );
+    }
+    $result = db_fetch_object( $result );
+    $this->load_from_nid($result->nid);
+
+//    $params = array('title' => $title );
+//    $node = node_load($params);
+//    $this->load($node);
+  }
+
+
+
+  private function load($node) {
+    if ($node->type == FEDERATED_PROJECT_TYPE) {
+      $this->title = $node->title;
+      $this->nid = $node->nid;
+      $this->link = $node->field_fed_project_link[0]['url'];
+      $this->desc = $node->body;
+      $this->fid = $node->field_fed_project_forge[0]['nid'];
+      $this->user['uid'] = $node->uid;
+      $this->user['name'] = strip_tags(theme('username',$node->uid));
+      $this->node = $node;
+    }
+  }
+
+
+
+  public function save() {
+    if(isset($this->title) && isset($this->fid) && isset($this->link) && isset($this->desc)) {
+      (isset($this->node))?$this->update():$this->add();
+    }
+  }
+
+
+
+  private function add() {
+    $node->uid = $this->user['uid'];
+    $node->created = time();
+    $node->type = 'federated_project';
+    $node->changed = NULL;
+    $node->title = $this->title;
+    $node->teaser_include = 1;
+    $node->body = $this->desc;
+    $node->format = 2;
+    $node->name = $this->user['name'];
+    $node->date = time();
+    $node->status = 1;
+    $node->field_fed_project_link[0]['url'] = $this->link;
+    $node->field_fed_project_link[0]['title'] = NULL;
+    $node->field_fed_project_link[0]['attributes'] = array();
+    $node->field_fed_project_forge[0]['nid'] = $this->fid;
+    $node->field_project_common_type[0]['value'] = 1;
+    node_save($node);
+    $this->nid = $node->nid;
+  }
+
+
+
+  private function update() {
+    $node = $this->node;
+    $node->nid = $this->nid;
+    $node->field_fed_project_link[0]['url'] = $this->link;
+    $node->body = $this->desc;
+    $node->teaser = $this->desc;
+    node_save($node);
+  }
+
+
+
+  public function delete() {
+    if(isset($this->node)) {
+      node_delete($this->nid);
+    }
+  }
+}

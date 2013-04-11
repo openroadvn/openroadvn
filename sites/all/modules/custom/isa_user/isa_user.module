@@ -1,0 +1,214 @@
+<?php
+
+/**
+Implementation of hook_user
+When user is created we insert value first_time_login to detect the first time login
+*/
+function isa_user_user ($op, &$edit, &$account, $category = NULL) {
+switch ($op) {
+    case 'insert':
+      $edit['first_time_login'] = 1;
+      break;
+	case 'update':
+	  $edit['first_time_login'] = 0;
+	break;
+}
+}
+
+
+/**
+ * Implementation of hook_form_alter
+ */
+function isa_user_form_alter(&$form, &$form_state, $form_id) {
+ if ($form_id == 'user_profile_form') {
+    $user = user_load($form['#uid']);
+    // first connection
+    if ( $user->first_time_login) {
+      $form['account']['pass']['#required'] = TRUE;
+    } else {
+      array_unshift($form['#submit'], 'isa_user_pwd_changed_submit');
+    }
+  }
+}
+
+/**
+ * Submit handler for send email when password is changed.
+ */
+function isa_user_pwd_changed_submit($form, &$form_state) {
+  $user = user_load($form['#uid']);
+  // no first login and pass is define
+  if (!$user->first_time_login && isset($form_state['values']['pass']) && !empty ($form_state['values']['pass'])) {
+    // password updated
+    if (md5($form_state['values']['pass']) != $user->pass) {
+      $params['uid'] = $user->uid;
+      drupal_mail('isa_user', 'user_change_password_mail', $user->mail, NULL, $params);
+    }
+  }
+}
+
+/**
+ * Implementation of hook_mail().
+ */
+function isa_user_mail($key, &$message, $params) {
+
+  $profile_node = content_profile_load('profile', $params['uid']);
+  $subject = variable_get($key . '_title', "message...");
+  $body = token_replace(variable_get($key . '_body', "message..."), 'node', $profile_node);
+
+  $message['subject'] = decode_entities($subject);
+  $message['body'] = "<html>\n" .
+          "<head>\n" .
+          "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" />\n" .
+          "</head>\n" .
+          "<body>" . $body . "</body>\n" .
+          "</html>\n";
+  $message['From'] = variable_get('site_mail', ini_get('sendmail_from'));
+  $message['headers'] = array(
+      'MIME-Version' => '1.0',
+      'Content-Type' => 'text/html; charset=UTF-8;',
+      'Content-Transfer-Encoding' => '8Bit',
+      'X-Mailer' => 'Drupal',
+      'From' => variable_get('site_mail', ini_get('sendmail_from')),
+  );
+}
+
+/*
+ * Implementation of hook_menu
+ * 
+ */
+
+function isa_user_menu() {
+  $items['admin/isa/isa_user_static_texts'] = array(
+      'title' => 'Manage user static texts',
+      'description' => 'Manage the static texts for user',
+      'access arguments' => array('administer ISA'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('isa_user_static_texts_form'),
+      'weight' => 0,
+          //'type' => MENU_LOCAL_TASK,
+  );
+  $items['admin/isa/mail/user_form'] = array(
+      'title' => 'User account',
+      'description' => t('Messages template when user changes own account information'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('isa_user_mail_templates'),
+      'access arguments' => array('administer ISA mails'),
+      'type' => MENU_LOCAL_TASK,
+  );
+  return ($items);
+}
+
+// change javascripts settings to include variables
+// replace user.js by user-custom.js
+function isa_user_preprocess_page(&$vars) {
+  $javascript = drupal_add_js();
+
+  if (isset($javascript['module']['modules/user/user.js'])) {
+    $path_module = drupal_get_path('module', 'isa_user');
+    $javascript['module']["$path_module/user-custom.js"] = $javascript['module']['modules/user/user.js'];
+    unset($javascript['module']['modules/user/user.js']);
+
+    foreach ($javascript['setting'] as $key => $value) {
+      if (isset($value['password'])) {
+        $javascript['setting'][$key]['password']['needsMoreVariation'] = variable_get('user_message_needsMoreVariation', 'The password does not include enough variation to be secure. Try:');
+        $javascript['setting'][$key]['password']['needsMoreVariationFooter'] = variable_get('user_message_needsMoreVariationFooter', '');
+        $javascript['setting'][$key]['password']['addLetters'] = variable_get('user_message_addLetters', 'Adding both upper and lowercase letters.');
+        $javascript['setting'][$key]['password']['addNumbers'] = variable_get('user_message_addNumbers', 'Adding numbers.');
+        $javascript['setting'][$key]['password']['addPunctuation'] = variable_get('user_message_addPunctuation', 'Adding punctuation.');
+      }
+    }
+  }
+  $vars['scripts'] = drupal_get_js('header', $javascript);
+}
+
+
+/**
+ * Page callback of admin/isa/mail/user_form
+ * @see isa_user_menu
+ * 
+ */
+function isa_user_mail_templates() {
+    $form['token_list'] = array(
+      '#type' => 'item',
+      '#value' => theme('token_tree', array('node'), TRUE, FALSE),
+  );
+  $form = array();
+  // Template for news proposal (to moderators)
+  $form['user_change_password'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('User change password'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['user_change_password']['user_change_password_mail_title'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Mail title'),
+      '#default_value' => variable_get("user_change_password_mail_title", "title..."),
+      '#description' => t('mail title when user change his password.')
+  );
+  $form['user_change_password']['user_change_password_mail_body'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Mail body'),
+      '#default_value' => variable_get("user_change_password_mail_body", "body..."),
+      '#description' => t('mail body when user change his password.')
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Page callback of admin/isa/isa_user_static_texts
+ * @see isa_user_menu
+ * 
+ */
+function isa_user_static_texts_form() {
+  //Text in the users form
+  $form['user_form_password'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Messages when password needs more variation in the user form '),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+  );
+  $form['user_form_password']['info'] = array(
+      '#type' => 'item',
+      '#title' => t('Information'),
+      '#value' => t('This message is in 3 parts: 
+    </br> - Field "start of the message"
+    </br> - Fields : need to add Letters and/or Number and/or ponctuation
+    </br> - Field "End of the message"'),
+  );
+
+  $form['user_form_password']['user_message_needsMoreVariation'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Start of the message'),
+      '#default_value' => variable_get("user_message_needsMoreVariation", "The password does not include enough variation to be secure. Try:"),
+      '#description' => t('This text appears at the start of message when password needs more variation')
+  );
+  $form['user_form_password']['user_message_addLetters'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Text when the password doesn\'t have a Letters'),
+      '#default_value' => variable_get("user_message_addLetters", "Adding both upper and lowercase letters."),
+      '#description' => t('')
+  );
+  $form['user_form_password']['user_message_addNumbers'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Text when the password doesn\'t have a Numbers'),
+      '#default_value' => variable_get("user_message_addNumbers", "Adding numbers."),
+      '#description' => t('')
+  );
+  $form['user_form_password']['user_message_addPunctuation'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Text when the password doesn\'t have a Ponctuation'),
+      '#default_value' => variable_get("user_message_addPunctuation", "Adding punctuation."),
+      '#description' => t('')
+  );
+
+  $form['user_form_password']['user_message_needsMoreVariationFooter'] = array(
+      '#type' => 'textarea',
+      '#title' => t('End of the message'),
+      '#default_value' => variable_get("user_message_needsMoreVariationFooter", ""),
+      '#description' => t('This text appears at the end of message when password needs more variation')
+  );
+
+  return system_settings_form($form);
+}

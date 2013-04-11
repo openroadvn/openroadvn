@@ -1,0 +1,342 @@
+<?php
+
+
+function isa_workflow_form_alter(&$form, &$form_state, $form_id) {
+  switch ($form_id) {
+    case 'federated_project_node_form':
+      isa_workflow_manage_workflow_federated_project($form);
+      break;
+    case 'document_node_form':
+    case 'news_node_form':
+    case 'case_node_form':
+    case ISA_EVENT_TYPE.'_node_form':
+      isa_workflow_manage_workflow_news_moderation ($form);
+      break;
+    case 'project_release_node_form':
+      isa_workflow_manage_workflow_release_moderation ($form);
+      break;
+    case 'project_project_node_form':
+    case 'community_node_form':
+      isa_workflow_manage_workflow_community ($form);
+      break;
+    case 'node_delete_confirm':
+      isa_workflow_redirect_node_deletion($form,$form_state);
+      break;
+    case 'workflow_tab_form':
+      isa_workflow_manage_workflow_tab ($form);
+      break;
+  }
+}
+
+
+/**
+ * Remove fieldset workflow in workflow tab
+ *
+ * @param array $form
+ */
+function isa_workflow_manage_workflow_tab (&$form){
+  if ($form['node']['#value']->type == ISA_PROJECT_RELEASE_TYPE){
+    $pid = $form['node']['#value']->project_release['pid'];
+    $group = node_load ($pid);
+    if ($group->group_type == ISA_SOFTWARE_TYPE){
+      $form['workflow']['#access'] = FALSE;
+      $form['submit']['#access'] = FALSE;
+      }
+  }
+}
+/**
+ * This function manages workflow fields (for workflow 'news moderation')
+ *
+ * @global object $user current user
+ * @param array $form the form
+ */
+function isa_workflow_manage_workflow_news_moderation (&$form) {
+  //$path = explode('/', drupal_get_normal_path($_GET['q']));
+
+  //if ((!empty($_GET['gids']) && $path[1] == "add")) {
+  // if a node is posted in a group
+  if (isset ($form['workflow']['News_moderation'])) {
+    if (variable_get ('current_group',NULL)) {
+      //$form['workflow']['News_moderation']['#default_value'] = ISA_SID_NEWS_VALIDATED;
+      // hidden fieldset workflow
+      //$form['workflow']['#access'] = FALSE;
+
+      if  (count ($form['workflow']['News_moderation']['#options'])<2) {
+        $form['workflow']['#access'] = FALSE;
+      }
+      // state validate, draft and propose is only when news is created in meltin pot
+      unset ($form ['workflow']['News_moderation']['#options'][ISA_SID_NEWS_VALIDATED]);
+      unset ($form ['workflow']['News_moderation']['#options'][ISA_SID_NEWS_PROPOSED]);
+      unset ($form ['workflow']['News_moderation']['#options'][ISA_SID_NEWS_DRAFT]);
+      $button_name = NULL;
+      // if current state is requested publication, add and rename button for state created
+      if ($form['#node']->_workflow == ISA_SID_NEWS_PUBLISHED) {
+        $button_name = t("Unpublish");
+      }
+      if ($form['#node']->_workflow == ISA_SID_NEWS_REQUEST_PUBLICATION) {
+        $button_name = t("Don't publish");
+      }
+      if ($button_name && isset ($form['workflow']['News_moderation']['#options'][ISA_SID_NEWS_CREATED])) {
+        $button_submit = $form['buttons']['submit']['#submit'];
+        $form['buttons'][$value] = array(
+          '#type' => 'submit',
+          '#value' => $button_name,
+          '#access' => TRUE,
+          '#weight' => $weight,
+          '#submit' => $button_submit,
+          '#name' => ISA_SID_NEWS_CREATED,
+        );
+        unset ($form['workflow']['News_moderation']['#options'][ISA_SID_NEWS_CREATED]);
+      }
+      // revisioning : Create/update news in group = new published revision
+      $form['revision_information']['revision_moderation']['#default_value'] = FALSE;
+      if (isset($form['revision_moderation'])) {
+        $form['revision_moderation']['#value'] = FALSE;
+      }
+      $form['options']['status']['#default_value'] = 1;
+    }else {
+      // if a node is posted in melting pot, remove state validate for authenticated user
+      global $user;
+      // remove state validated for author
+//      $tid = workflow_get_transition_id(ISA_SID_NEWS_CREATION, ISA_SID_NEWS_VALIDATED);
+//      if (!workflow_transition_allowed($tid,array_keys($user->roles))) {s
+//        unset ($form ['workflow']['News_moderation']['#options'][ISA_SID_NEWS_VALIDATED]);
+//      }
+
+      // state create is for news in group
+      unset ($form ['workflow']['News_moderation']['#options'][ISA_SID_NEWS_CREATED]);
+
+      // isa_workflow_add_workflow_button ($form);
+      if ($form['#node']->_workflow == ISA_SID_NEWS_PROPOSED) {
+        $form['buttons']['delete']['#value'] = t('Reject');
+        $form['buttons']['delete']['#submit'][] = 'isa_workflow_submit_reject';
+      }
+      //New revision in draft only if item is validated
+      if ($form['#node']->_workflow != ISA_SID_NEWS_VALIDATED && $form['#node']->_workflow != ISA_SID_NEWS_PUBLISHED) {
+        $form['revision_information']['revision']['#default_value'] = FALSE;
+        $form['revision_information']['revision_moderation']['#default_value'] = FALSE;
+      }
+    }
+  }
+}
+
+/**
+ * This function manages workflow fields 'release moderation'
+ * @global object $user current user
+ * @param array $form the form
+ */
+function isa_workflow_manage_workflow_release_moderation (&$form) {
+  global $user;
+  if (isset($form['workflow']['Release_moderation'])) {
+    $pid = $form ['project_release']['pid']['#value'];
+    $project = node_load($pid);
+    // if release is created in software
+    if ($project->group_type == ISA_SOFTWARE_TYPE) {
+
+      // in software, a release is crerated in state "created"
+      $form['workflow']['Release_moderation']['#default_value'] = ISA_SID_RELEASE_CREATED;
+      // remove useless states
+      unset ($form ['workflow']['Release_moderation']['#options'][ISA_SID_RELEASE_REQUESTED]);
+      unset ($form ['workflow']['Release_moderation']['#options'][ISA_SID_RELEASE_APPROVED]);
+      $form['workflow']['#access'] = FALSE;
+    }else {
+      // if current state is requested assessment, add and rename button for state created
+      if ($form['#node']->_workflow == ISA_SID_RELEASE_REQUESTED) {
+        $button_name = t("Refuse assessment");
+      }
+
+      if ($button_name && isset ($form['workflow']['Release_moderation']['#options'][ISA_SID_RELEASE_CREATED])) {
+        $button_submit = $form['buttons']['submit']['#submit'];
+        $form['buttons'][$value] = array(
+          '#type' => 'submit',
+          '#value' => $button_name,
+          '#access' => TRUE,
+          '#weight' => $weight,
+          '#submit' => $button_submit,
+          '#name' => ISA_SID_RELEASE_CREATED,
+        );
+        unset ($form['workflow']['Release_moderation']['#options'][ISA_SID_RELEASE_CREATED]);
+      }
+    }
+  }
+}
+
+/**
+ * This function manages workflow fields 'community moderation' for asset & software
+ *
+ * @global object $user current user
+ * @param array $form the form
+ */
+function isa_workflow_manage_workflow_community (&$form) {
+  global $user;
+
+  if (isset ($form ['workflow']['Community_moderation'])) {
+    // Project translation is directly created in state validate
+    if (isset ($_GET['translation']) && isset ($_GET['language'])) {
+      if (isset ($form['workflow'])) {
+        $form['workflow']['Community_moderation']['#default_value'] = ISA_SID_COMMUNITY_VALIDATED;
+        // hidden fieldset workflow
+        $form['workflow']['#access'] = FALSE;
+        $form['workflow']['Community_moderation']['#access'] = FALSE;
+      }
+    }else {
+      // remove state validate for author
+      $tid = workflow_get_transition_id(ISA_SID_COMMUNITY_CREATION, ISA_SID_COMMUNITY_VALIDATED);
+      if (!workflow_transition_allowed($tid,array_keys($user->roles))) {
+        unset ($form ['workflow']['Community_moderation']['#options'][ISA_SID_COMMUNITY_VALIDATED]);
+      }
+      if ($form['#node']->_workflow == ISA_SID_COMMUNITY_PROPOSED) {
+        $form['buttons']['delete']['#value'] = t('Reject');
+        $form['buttons']['delete']['#submit'][] = 'isa_workflow_submit_reject';
+      }
+      //replace workflow fieldset by buttons
+      //isa_workflow_add_workflow_button ($form);
+    }
+  }
+  //New revision in draft only if item is validated
+  if ($form['#node']->_workflow != ISA_SID_COMMUNITY_VALIDATED) {
+    $form['revision_information']['revision']['#default_value'] = FALSE;
+    $form['revision_information']['revision_moderation']['#default_value'] = FALSE;
+  }
+}
+
+/**
+ * This function manages fields of workflow 'federated project moderation'
+ * @param array $form the form
+ */
+function isa_workflow_manage_workflow_federated_project(&$form) {
+  global $user;
+  // Project translation is directly created in state validate
+  if (isset ($_GET['translation']) && isset ($_GET['language'])) {
+    if (isset ($form['workflow'])) {
+      $form['workflow']['federated project moderation']['#default_value'] = ISA_SID_FEDPROJ_PUBLISHED;
+      $form['workflow']['federated project moderation']['#value'] = ISA_SID_FEDPROJ_PUBLISHED;
+      // hidden fieldset workflow
+      $form['workflow']['federated project moderation']['#access'] = FALSE;
+      $form['workflow']['#access'] = FALSE;
+    }
+  } else {
+    // remove state validate for author
+    $tid = workflow_get_transition_id(ISA_SID_FEDPROJ_CREATED, ISA_SID_FEDPROJ_PUBLISHED);
+    if (!workflow_transition_allowed($tid,array_keys($user->roles))) {
+      unset ($form['workflow']['federated project moderation']['#options'][ISA_SID_FEDPROJ_PUBLISHED]);
+    }
+    //replace workflow fieldset by buttons
+    //isa_workflow_add_workflow_button ($form);
+  }
+}
+
+
+
+
+/**
+ * Redirect users to the releases list after a release is deleted
+ * @param array $form the node deletion form
+ */
+function isa_workflow_redirect_node_deletion(&$form,&$form_state) {
+  $node = node_load($form['nid']['#value']);
+  switch ($node->type) {
+    case ISA_NEWS_TYPE:
+    case ISA_DOCUMENT_TYPE:
+    case ISA_COMMUNITY_TYPE:
+    case ISA_PROJECT_TYPE:
+      if(arg(3)=='reject' && arg(4)=='1') {
+        $form_state['nid'] = $node->nid;
+        array_unshift($form['#submit'], 'isa_workflow_news_community_submit_delete');
+      }
+      break;
+  }
+}
+
+
+/**
+ * send a email to the author with the comment when deleting (reject) a community or a news
+ */
+function isa_workflow_news_community_submit_delete(&$form, &$form_state) {
+  //param
+  $conf['news']['rejected_mail_body'] =  'news_rejected_mail_body';
+  $conf['news']['workflow'] =  'workflow_news_rejected';
+  $conf['news']['rejected_mail_title'] =  'news_rejected_mail_title';
+  $conf['community']['rejected_mail_body'] =  'community_rejected_mail_body';
+  $conf['community']['workflow'] =  'workflow_community_rejected';
+  $conf['community']['rejected_mail_title'] =  'community_rejected_mail_title';
+  $vf_vid = variable_get('isa_vf_access_vid_virtual_forge');
+  $nid = $form_state['nid'];
+  $comment = $_SESSION['comment'];
+  $node = node_load($nid);
+  $uid = $node->uid;
+  $params['nid'] = $nid;
+  $params['uid'] = $uid;
+  $node->workflow = $node->_workflow;
+  $node->workflow_comment = $comment;
+  $profile_node = content_profile_load('profile', $params['uid']);
+
+  $addr_mail = isa_toolbox_get_mail_address_from_user($uid);
+
+  if ($node->type == ISA_COMMUNITY_TYPE || $node->type == ISA_PROJECT_TYPE) {
+    $params['subject'] = variable_get($conf['community']['rejected_mail_title'], "Title...");
+    $body_token_converted = token_replace(variable_get($conf['community']['rejected_mail_body'], "message..."), 'node', $node);
+    $params['message'] = token_replace($body_token_converted, 'node', $profile_node);
+    drupal_mail('isa_workflow_mail', $conf['community']['workflow'], $addr_mail , NULL, $params, $from, TRUE);
+    
+    // if community/project is created in VF
+      if (isset($node->taxonomy[$vf_vid])) { // if propose node with node editing
+        foreach ($node->taxonomy[$vf_vid] as $key => $value) {
+          $term = taxonomy_get_term($value);
+          $vf[$key] = $term->name;
+        }
+      } else { // if propose node with workflow
+        foreach ($node->taxonomy as $tid => $term) {
+          if ($term->vid == $vf_vid) {
+            $vf[$tid] = $term->name;
+          }
+        }
+      }
+      if (isset($vf)) {
+        $params['subject'] = variable_get('community_rejected_vf_mail_title', "Title...");
+        $body_token_converted = token_replace(variable_get('community_rejected_vf_mail_body', "message..."), 'node', $node);
+        $params['message'] = token_replace($body_token_converted, 'node', $profile_node);
+        foreach ($vf as $key => $term_name) {
+          $params['virtual_forge_name'] = $term_name;
+          $vf_admins = isa_toolbox_get_users_by_vf_roles(variable_get("vf_admin_rid", NULL), $term_name);
+          foreach ($vf_admins as $uid => $user) {
+            $addr_mail = $user->mail;
+            drupal_mail('isa_workflow_mail', 'workflow_community_rejected', $addr_mail, NULL, $params, $from, TRUE);
+          }
+        }
+        drupal_set_message(t('A notification has been sent to virtual forge administrators'));
+      }
+      // END if community/project is created in VF
+    
+  }elseif ($node->type == ISA_NEWS_TYPE || $node->type == ISA_DOCUMENT_TYPE) {
+    $params['subject'] = variable_get($conf['news']['rejected_mail_title'], "Title...");
+    $body_token_converted = token_replace(variable_get($conf['news']['rejected_mail_body'], "message..."), 'node', $node);
+    $params['message'] = token_replace($body_token_converted, 'node', $profile_node);
+    drupal_mail('isa_workflow_mail', $conf['news']['workflow'], $addr_mail , NULL, $params, $from, TRUE);
+  }
+  drupal_set_message(t('A notification has been sent to author.'));
+  unset($_SESSION['comment']);
+}
+
+
+/**
+ * Implementation of submit when using the button reject
+ * @param type $form
+ * @param array $form_state
+ */
+function isa_workflow_submit_reject(&$form,&$form_state) {
+  $form_state['redirect'][0] .= "/reject/1"; //add information to path
+  $_SESSION['comment'] = "";
+  $_SESSION['comment'] = $form_state['values']['workflow_comment'];
+}
+
+function isa_workflow_enable () {
+  $query_result = db_query("SELECT weight FROM {system} WHERE name ='isa_workflow_button'");
+  $weight = db_result($query_result);
+  $query_result = db_query("SELECT weight FROM {system} WHERE name ='isa_workflow'");
+  $my_weight = db_result($query_result);
+  if ($my_weight>$weight) {
+    $weight--;
+    db_query("UPDATE {system} SET weight = %d WHERE name = '%s'", $weight, "isa_workflow");
+  }
+}

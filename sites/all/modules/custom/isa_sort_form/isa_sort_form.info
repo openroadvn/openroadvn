@@ -1,0 +1,5 @@
+; $Id
+core            = "6.x"
+description     = "Sort form ISA, module who create combo lists for sort the result of view"
+name            = "Sort Form"
+package         = "ISA Toolbox"

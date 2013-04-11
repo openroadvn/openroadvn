@@ -1,0 +1,86 @@
+<?php
+// $Id: active_translation.install,v 1.7 2008/06/19 18:31:02 drewish Exp $
+
+/**
+ * Implementation of hook_install().
+ */
+function active_translation_install() {
+  // The schema installation happens in active_translation_enable().
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function active_translation_uninstall() {
+  variable_del('active_translation_show_status');
+}
+
+/**
+ * Implementation of hook_enable().
+ */
+function active_translation_enable() {
+  drupal_install_schema('active_translation');
+
+  require_once drupal_get_path('module', 'active_translation') .'/active_translation.batch.inc';
+  batch_set(active_translation_build_batch_all());
+}
+
+/**
+ * Implementation of hook_disable().
+ */
+function active_translation_disable() {
+  drupal_uninstall_schema('active_translation');
+}
+
+/**
+ * Implementation of hook_requirements().
+ */
+function active_translation_requirements($phase) {
+  $requirements = array();
+
+  if (module_exists('i18n') && variable_get('i18n_selection_mode', 'simple') != 'off') {
+    $requirements['active_translation_i18n'] = array(
+      'title' => t('Active Translation'),
+      'value' => t('Incompatible with i18n query rewriting'),
+      'severity' => REQUIREMENT_ERROR,
+      'description' => t("The active translation module is incompatible with the Internationalization module's query rewriting. Change the <em>Content selection</em> setting to <em>All content</em> in the <a href='!i18n-settings-link'>Multilingual system settings</a> page.", array('!i18n-settings-link' => url('admin/settings/i18n'))),
+    );
+  }
+
+  return $requirements;
+}
+
+
+/**
+ * Implementation of hook_schema().
+ */
+function active_translation_schema() {
+  // The primary field/index.
+  $schema['active_translation'] = array(
+    'description' => t('The table for tracking which node is the active translation for a given language.'),
+    'fields' => array(
+      'atid' => array(
+        'description' => t('The identifier for a node or set of node translations.'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('atid'),
+  );
+
+  // And dynamically assemble the table with a column per languages. Call
+  // language_list() with $reset = TRUE in case the languages have changed.
+  foreach (language_list('language', TRUE) as $lang_code => $language) {
+    $field = db_escape_table($lang_code);
+    $schema['active_translation']['fields'][$field] = array(
+      'description' => t('The node id of the that should be used when %language is the active language.', array('%language' => t($language->name))),
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+    );
+    $schema['active_translation']['indexes'][$field] = array($field);
+  }
+
+  return $schema;
+}

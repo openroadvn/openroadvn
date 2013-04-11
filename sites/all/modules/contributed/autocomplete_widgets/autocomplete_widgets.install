@@ -1,0 +1,78 @@
+<?php
+// $Id: autocomplete_widgets.install,v 1.1.2.2 2009/10/04 16:18:26 markuspetrux Exp $
+
+/**
+ * @file
+ * Module installation/uninstallation hooks.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function autocomplete_widgets_install() {
+  // Make sure this module is loaded after CCK Text/Number fields.
+  // See autocomplete_widgets_form_alter().
+  db_query("UPDATE {system} SET weight = 1 WHERE name = 'autocomplete_widgets'");
+
+  // Notify content module when this module is installed.
+  drupal_load('module', 'content');
+  content_notify('install', 'autocomplete_widgets');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function autocomplete_widgets_uninstall() {
+  // Notify content module when this module is uninstalled.
+  drupal_load('module', 'content');
+  content_notify('uninstall', 'autocomplete_widgets');
+}
+
+/**
+ * Implementation of hook_enable().
+ */
+function autocomplete_widgets_enable() {
+  // Notify content module when this module is enabled.
+  drupal_load('module', 'content');
+  content_notify('enable', 'autocomplete_widgets');
+}
+
+/**
+ * Implementation of hook_disable().
+ */
+function autocomplete_widgets_disable() {
+  // Notify content module when this module is disabled.
+  drupal_load('module', 'content');
+  content_notify('disable', 'autocomplete_widgets');
+}
+
+/**
+ * Update all Autocomplete Widgets for new case sensitive option.
+ */
+function autocomplete_widgets_update_6001() {
+  drupal_load('module', 'content');
+
+  if ($abort = content_check_update('autocomplete_widgets')) {
+    return $abort;
+  }
+
+  $ret = array();
+  $result = db_query("SELECT field_name, type_name, widget_settings FROM {content_node_field_instance} WHERE (widget_type = 'autocomplete_widgets_allowvals' OR widget_type = 'autocomplete_widgets_flddata')");
+  while ($field = db_fetch_object($result)) {
+    $widget_settings = unserialize($field->widget_settings);
+    if (!isset($widget_settings['autocomplete_case'])) {
+      $widget_settings['autocomplete_case'] = 1;
+      $widget_settings = serialize($widget_settings);
+      $success = db_query("UPDATE {content_node_field_instance} SET widget_settings = '%s' WHERE type_name = '%s' AND field_name = '%s'", $widget_settings, $field->type_name, $field->field_name);
+      $ret[] = array(
+        'success' => $success !== FALSE,
+        'query' => strtr('Updating definition of the Autocomplete Widget for field %field-name in type %type-name.', array('%field-name' => $field->field_name, '%type-name' => $field->type_name)),
+      );
+    }
+  }
+
+  if (!empty($ret)) {
+    content_clear_type_cache();
+  }
+  return $ret;
+}

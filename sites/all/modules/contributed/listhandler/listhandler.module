@@ -1,0 +1,677 @@
+<?php
+// $Id: listhandler.module,v 1.85 2008/10/27 20:09:29 philipnet Exp $
+
+/**
+ * @file
+ * Listhandler main module.
+ */
+
+/**
+ * To do:
+ *   Does attachment handling screw up druapl_html_to_text or vise-versa?
+ *   listhandler_update_5000 needs testing with the new db_drop_index code
+ *   5.x to 6.x migration needs testing
+ *   Descriptions for database schema
+ *   Check attachment handling after admin screen UI improvement.
+ */
+
+/**
+ * Implementation of hook_help().
+ */
+function listhandler_help($path, $arg) {
+  $output = '';
+  switch ($path) {
+    case 'admin/help#listhandler':
+      $output = '<p>'. t('The listhandler module allows you to connect mailing lists to forums and vice versa.  It works in conjunction with the mailhandler module.   Mailhandler receives an email and then asks listhandler if the received email is part of a list.  If the email is from a mailing list associated with a forum on your site, then listhandler adds the recieved email to the forum.') .'</p>';
+      $output .= '<p>'. t('Listhandler administration allows you to set the email address of the list administrator. The email address is used as the From: field to check the address of messages sent by anonymous users.  You can also enable and disable the listhandler for a list.') .'</p>';
+      $output .= t('<p>You can:</p>
+<ul>
+<li>administer listhandler <a href="!admin-listhandler">administer &gt;&gt; listhandler</a>.</li>
+<li>administer mailhandler <a href="!admin-mailhandler">administer &gt;&gt; mailhandler</a> to create a mailbox which list handler can work with.</li>
+<li>administer forum <a href="!admin-forum">administer &gt;&gt; forum</a>.</li>
+', array('!admin-listhandler' => url('admin/content/listhandler'), '!admin-mailhandler' =>
+url('admin/content/mailhandler'), '!admin-forum' => url('admin/content/forum'))) .'</ul>';
+      $output .= '<p>'. t('For more information please read the configuration and customization handbook <a href="!listhandler">Listhandler page</a>.', array('!listhandler' => 'http://www.drupal.org/handbook/modules/listhandler/')) .'</p>';
+      return $output;
+    case 'admin/build/modules#description':
+      $output = t('Connect your mailing lists to your drupal site and your drupal site to your mailing lists.');
+      break;
+    case 'admin/content/listhandler':
+      $output = t("First go to the <a href='!url'>mailhandler configuration screen</a> and add some mailboxes. A mailbox becomes recognised as a mailing list if the 'Second E-mail address' is set.", array('!url' => url('admin/content/mailhandler')));
+      break;
+  }
+  return $output;
+}
+
+/**
+ * Implementation of hook_perm().
+ * Permissions for this module
+ */
+function listhandler_perm() {
+  return array('administer listhandler');
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function listhandler_menu() {
+  $items = array();
+  $items['admin/content/listhandler'] = array(
+    'title' => 'Listhandler',
+    'description' => 'Manage mailing-lists subscriptions.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('listhandler_admin_settings'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer listhandler')
+  );
+
+  return $items;
+}
+
+/**
+ * Implementation of hook_theme().
+ */
+function listhandler_theme() {
+  return array(
+    'listhandler_admin_settings' => array(
+      'arguments' => array('form' => NULL)
+    )
+  );
+}
+
+/**
+ * Configuration options for this module
+ */
+function listhandler_admin_settings() {
+  // This is the first chance we get to identify any new Mailhandler mailboxes.
+  // We need to check for:
+  //   * new mailboxes
+  //   * removed mailboxes
+
+
+
+  $form = array();
+  $form['listhandler_from'] = array(
+    '#type' => 'textfield',
+    '#title' => t("'Anonymous user' email address"),
+    '#default_value' => variable_get('listhandler_from', ''),
+    '#size' => 50,
+    '#maxlength' => 100,
+    '#description' => t('Used as the From address of messages sent by anonymous users; this is usually the mailing list administrator. However, if it is not then please ensure this email address can post to the list otherwise a bounce message will be generated'));
+  $form['listhandler_strip_title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Strip title'),
+    '#default_value' => variable_get('listhandler_strip_title', 'Re: , AW:,[my list]'),
+    '#size' => 50,
+    '#maxlength' => 1024,
+    '#description' => t("A comma delimited sequence of strings that should be stripped from the titles of topics and comments posted to the forums. You can use it to remove certain tags like 'Re: ' or '[My Mailinglist]'."));
+  $form['listhandler_attachments_as_link'] = array(
+    '#type' => 'radios',
+    '#title' => t('Attachment handling'),
+    '#options' => array(0 => t('Links at the bottom of emails'), 1 => t('Attachments in emails')),
+    '#default_value' => variable_get('listhandler_attachments_as_link', 0),
+    '#description' => t('Send attachments as links or MIME attachments. It only affects mails generated by forum posts.'));
+  $form['listhandler_accountstatus'] = array(
+    '#type' => 'radios',
+    '#title' => t('Account status'),
+    '#default_value' => variable_get('listhandler_accountstatus', 0),
+    '#options' => array(0 => t('blocked'), 1 => t('active')),
+    '#description' => t('The status of accounts created by Listhandler.'));
+  $form['listhandler_htmltotext'] = array(
+    '#type' => 'radios',
+    '#title' => t('HTML to text converter'),
+    '#default_value' => variable_get('listhandler_htmltotext', 0),
+    '#options' => array(0 => t('Fancy'), 1 => t('Standard')),
+    '#description' => t('If forums posts will be made using a WYSIWYG editor (i.e. TinyMCE) then the Fancy converter offers a more accurate convertion.'));
+
+  $form['listhandler_list'] = array(
+      '#tree' => TRUE,
+    );
+
+  $form['listhandler_prefix'] = array(
+      '#tree' => TRUE,
+    );
+
+  $result = db_query("
+    SELECT {mailhandler}.mid AS mid, {listhandler_prefix}.prefix AS prefix, {mailhandler}.mailto AS mailto FROM {mailhandler}
+    LEFT OUTER JOIN {listhandler_prefix}
+    ON {mailhandler}.mid = {listhandler_prefix}.mid
+    ORDER BY mailto");
+
+  while ($mailbox = db_fetch_object($result)) {
+    $form['listhandler_list'][$mailbox->mid] = array(
+      '#value' => '<div><a href="mailto:'. $mailbox->mailto .'">'. $mailbox->mailto .'</a></div>');
+    $form['listhandler_prefix'][$mailbox->mid] = array(
+      '#type' => 'textfield',
+      '#default_value' => $mailbox->prefix,
+      '#size' => 50,
+      '#maxlength' => 100);
+  }
+
+  $form=system_settings_form($form);
+
+  $form['#submit'][] = 'listhandler_admin_settings_submit';
+  $form['#theme'] = 'listhandler_admin_settings';
+  return $form;
+}
+
+/**
+ * Theme call to render the tabular form of mailing lists and prefixes
+ */
+function theme_listhandler_admin_settings($form) {
+  $output = '';
+  $output .= drupal_render($form['listhandler_from']);
+  $output .= drupal_render($form['listhandler_strip_title']);
+  $output .= drupal_render($form['listhandler_accountstatus']);
+  $output .= drupal_render($form['listhandler_attachments_as_link']);
+  $output .= drupal_render($form['listhandler_htmltotext']);
+  if (count($form['listhandler_list'])) {
+    $rows = array();
+    foreach (element_children($form['listhandler_list']) as $mid) {
+      $row = array();
+      $row[] = drupal_render($form['listhandler_list'][$mid]);
+      $row[] = drupal_render($form['listhandler_prefix'][$mid]);
+      $rows[] = $row;
+    }
+    $header = array(t('Mailing list'), t('Prefix'));
+    $output .= theme('table', $header, $rows);
+    $output .= '<div>'. t("The prefix will be prepended to all outgoing mail subjects for the specified list. It is a good idea to put the prefix in the 'strip title' field.") .'</div>';
+  }
+  else {
+    $output .= '<div>'. t("No mailing lists have been defined. Please go to the <a href='!url'>mailhandler configuration screen</a> and add some mailboxes. A mailbox becomes recognised as a mailing list if the 'Second E-mail address' is set.", array('!url' => 'admin/content/mailhandler')) .'</div>';
+  }
+  $output .= drupal_render($form);
+  return $output;
+}
+
+/**
+ * Writes configuration settings as Drupal variables and entries in
+ * the listhandler and mailhandler tables
+ */
+function listhandler_admin_settings_submit($form, &$form_state) {
+  // Drupal can save the standard options, it's just the table it can't:
+  if (isset($form_state['values']['listhandler_prefix'])) {
+    foreach ($form_state['values']['listhandler_prefix'] as $key => $value) {
+      $result = db_query("SELECT {listhandler_prefix}.mid FROM {listhandler_prefix} WHERE mid = %d", $key);
+      if (!db_fetch_array($result)) {
+        db_query("INSERT INTO {listhandler_prefix} (prefix,mid) VALUES ('%s', '%d')", $value, $key);
+      }
+      else {
+        db_query("UPDATE {listhandler_prefix} SET prefix = '%s' WHERE mid = %d", $value, $key);
+      }
+    }
+  }
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ */
+function listhandler_nodeapi(&$node, $op, $arg = 0) {
+  switch ($op) {
+    case 'update': // what to do with updates?
+      break;
+    case 'insert': // mail new forum topics to mailing list.
+      if ($node->type == 'topic') {
+        if ($node->sentbylisthandler) { // avoid running an infinite loop.
+          // save ids in listhandler table.
+          db_query("INSERT INTO {listhandler} (msgid, nid, cid, pid, uid, mid, tid) VALUES ('%s','%s','%s','%s','%s','%s','%s')", $node->message_id, $node->nid, 0, 0, $node->uid, $node->mid, $node->tid);
+          // call watchdog
+          watchdog('listhandler', "Forum '%s' inserted.", array("%s" => $node->title), WATCHDOG_NOTICE);
+        }
+        else {
+          $node->subject = $node->title;
+          $node->comment = $node->body;
+          listhandler_send_mail((array) $node);
+        }
+      }
+      break;
+  }
+}
+
+/**
+ * Called by comment.module after submitting a comment.
+ * Sends comments to specified addresses.
+ *
+ * $type: type of call, here insert is expected.
+ *
+ * $edit: Array containing the comment.
+ * Important fields:
+ * $edit["subject"]: Oh well.
+ * $edit["comment"]: The text
+ * $edit["nid"]: commented node id
+ * $edit["cid"]: comment id
+ * $edit["pid"]: cid of parent
+ * $edit["uid"]: user id
+ * $edit["mid"]: id of mailbox
+ * $edit["tid"]: taxo id of the forum
+ */
+function listhandler_comment($edit = array(), $type) {
+  if ($type == "insert") { // only accept calls by the comment insert hook.
+    if ($edit["sentbylisthandler"]) { // avoid running an infinite loop.
+      // save comment ids in listhandler table.
+      db_query("INSERT INTO {listhandler} (msgid, nid, cid, pid, uid, mid, tid) VALUES ('%s','%s','%s','%s','%s','%s','%s')", $edit["message_id"], $edit["nid"], $edit["cid"], $edit["pid"], $edit["uid"], $edit["mid"], $edit["tid"]);
+      // call watchdog
+      watchdog('listhandler', "Comment '%s' inserted.", array("%s" => $edit["subject"]), WATCHDOG_NOTICE);
+    }
+    else {
+      if (filter_access($edit['format']) && $edit['subject'] == truncate_utf8(decode_entities(strip_tags(check_markup($edit['comment'], $edit['format']))), 29, TRUE)) {
+        // subject was autogenerated, get it from parent instead
+        if ($edit['pid']) {
+          $parent = db_fetch_object(db_query('SELECT * FROM {comments} WHERE cid = %d', $edit['pid']));
+          $edit['subject'] = truncate_utf8(decode_entities(check_plain(t('Re: ') . $parent->subject)), 29, TRUE);
+        }
+        // no parent, get node title
+        else {
+          $parent = db_fetch_object(db_query('SELECT title FROM {node} WHERE nid = %d', $edit['nid']));
+          $parent->subject =  truncate_utf8(decode_entities(strip_tags(check_markup($parent->title, $edit['format']))), 29, TRUE);
+          $edit['subject'] = t('Re: ') . $parent->subject;
+        }
+        db_query("UPDATE {comments} SET subject = '%s' WHERE cid = %d", $parent->subject, $edit['cid']);
+      }
+
+      listhandler_send_mail($edit);
+    }
+  }
+}
+
+/**
+ * Send email to mailing list.
+ * Includes a References/In_reply-To header if possible.
+ */
+function listhandler_send_mail($edit) {
+  // yeah, that's nice but it does not fit our model at all
+  return;
+  global $user, $base_url, $language;
+
+  if (!$user->uid) {
+    $edit['name'] = variable_get('anonymous', 'Anonymous');
+    $edit['mail'] = variable_get('listhandler_from', '');
+  }
+  else {
+    $edit["name"] = $user->name;
+    $edit["mail"] = $user->mail;
+  }
+  // Find the list to send to.
+  $mboxen = array();
+
+  // taxo terms of the node.
+  if (count($edit['taxonomy'])) {
+    foreach ($edit['taxonomy'] as $taxoterm) {
+      // Now for the mailbox.
+      switch ($GLOBALS['db_type']) {
+        case 'mysql':
+        case 'mysqli':
+          $result2 = db_query("SELECT * FROM {mailhandler} m WHERE m.commands REGEXP '%s'", 'tid:[[:blank:]]*'. $taxoterm .'[[:>:]]');
+          break;
+        case 'pgsql':
+          $result2 = db_query("SELECT * FROM {mailhandler} m WHERE m.commands ~ '%s'", 'tid:[[:blank:]]*'. $taxoterm .'[[:>:]]');
+      }
+      while ($mbox = db_fetch_object($result2)) {
+        $mboxen[] = array($mbox->mid, $mbox->mailto, $taxoarr->tid);
+      }
+    }
+  }
+  else {
+    $result = db_query("SELECT t.tid FROM {term_node} t WHERE t.nid = %d", $edit["nid"]);
+    while ($taxoarr = db_fetch_object($result)) {
+      // Now for the mailbox.
+      switch ($GLOBALS['db_type']) {
+      case 'mysql':
+      case 'mysqli':
+        $result2 = db_query("SELECT * FROM {mailhandler} m WHERE m.commands REGEXP '%s'", 'tid:[[:blank:]]*'. $taxoarr->tid .'[[:>:]]');
+        break;
+      case 'pgsql':
+        $result2 = db_query("SELECT * FROM {mailhandler} m WHERE m.commands ~ '%s'", 'tid:[[:blank:]]*'. $taxoarr->tid .'[[:>:]]');
+      }
+      while ($mbox = db_fetch_object($result2)) {
+        $mboxen[] = array($mbox->mid, $mbox->mailto, $taxoarr->tid);
+      }
+    }
+  }
+  // Find parent's MsgID if received by listhandler.
+  if ($edit["pid"]) {
+    // We should get only one or no result.
+    $result = db_fetch_object(db_query("SELECT * FROM {listhandler} WHERE cid = %d", $edit['pid']));
+  }
+  else {
+    $result = db_fetch_object(db_query("SELECT * FROM {listhandler} WHERE nid = %d", $edit['nid']));
+    $edit['pid']=0;
+  }
+  $mid=array();
+  if ($result) {// Parent was sent or received by listhandler
+    $mid['References'] = $result->msgid;
+    $mid['In-Reply-To'] = $result->msgid;
+  }
+  //common headers
+  $dir = str_replace("/", ".", substr(strchr(str_replace("http://", "", $base_url), "/"), 1));
+  foreach ($mboxen as $mbox) {
+    $edit["mid"] = $mbox[0];
+    $to = $mbox[1];
+    $edit["tid"] = $mbox[2];
+
+    // The below is required for EZMLM
+    // It sets the Return Path to the Listhandler subscribed email address (rather than the webserver)
+    // so that EZMLM (and everybody else) knows that we sent it
+    $mid['Return-Path'] = $edit['mail'];
+
+    // We add tokens to the MID. Replies to comments sent by listhandler can thus be classified easier.
+    $msgid = "<listhandler=". $edit["mid"] ."&site=". $dir . $_SERVER["SERVER_NAME"] ."&nid=". $edit["nid"] ."&pid=". $edit["pid"] ."&cid=".  $edit["cid"] ."&uid=". $user->uid ."&tid=".  $edit["tid"] ."&". md5($edit["nid"] . $edit["cid"]) ."@". $dir . strtolower($_SERVER["SERVER_NAME"]) .">";
+    $mid['Message-Id'] = $msgid;
+
+    // Ensure emails are treated as mailing list posts, not junk
+    $mid['Precedence'] = "list";
+
+    if (variable_get('listhandler_htmltotext', 0)) {
+      $subject = decode_entities(strip_tags($edit['subject']));
+      $body = decode_entities(strip_tags($edit['comment'])); }
+    else {
+      $subject = drupal_html_to_text($edit['subject']);
+      $body = drupal_html_to_text($edit['comment']);
+    }
+
+    // Add attachments
+    $fragment = NULL;
+    $lfiles = FALSE;
+    if ($edit['cid']) {
+      $fragment = "comment-" . $edit['cid'];
+      //attachment comments are already created
+      if (function_exists('comment_upload_load_files')) {
+        $lfiles = comment_upload_load_files($edit['cid']);
+      }
+    }
+    else {
+      $lfiles = $edit['files'];
+    }
+    if ($lfiles) {
+      // add $fragment to arguments: needed to build proper URL back
+      // to comments, which can contain attachments too
+      if (variable_get('listhandler_attachments_as_link', 0)) {
+        $body .= _listhandler_mail_links($lfiles, $edit['nid'], $fragment);
+      }
+      else {
+        $body = _listhandler_mail_attachments($body, $lfiles, $mid, $fragment);
+      }
+    }
+
+    // send email
+    $params = array(
+      'body' => $body,
+      'subject' => $subject,
+      'mid' => $mid
+    );
+    $ok = drupal_mail('listhandler', 'mail', $to, $language, $params, $edit["mail"] /* from */);
+
+    // save comment ids in listhandler table.
+    // Not strictly needed, the same info is stored in the msgid.
+    db_query("INSERT INTO {listhandler} (msgid, nid, cid, pid, uid, mid, tid) VALUES ('%s','%s','%s','%s','%s','%s','%s')", $msgid, $edit["nid"], $edit["cid"], $edit["pid"], $user->uid, $edit["mid"], $edit["tid"]);
+
+    // Call watchdog
+    if ($ok) {
+      watchdog('listhandler', "'!s' sent to '!a'.", array("!s" => $edit["subject"], "!a" => $to), WATCHDOG_NOTICE);
+    }
+    else {
+      watchdog('listhandler', "Error sending '!s' to '!a'.", array("!s" => $edit["subject"], "!a" => $to), WATCHDOG_WARNING);
+    }
+  }
+}
+
+/**
+ * Implements hook_mail.
+ */
+function listhandler_mail($key, &$message, $params) {
+  $message['subject'] = $params['subject'];
+  $message['body'][] = $params['body'];
+  $message['headers'] = array_merge($message['headers'], $params['mid']);
+}
+
+/**
+ * Called by mailhandler after a new mail has been received.
+ *
+ * Only the first and last argument are used.
+ *
+ * $node: The new node or comment
+ * $stream: The number of the opened imap stream.
+ * $msg_number: The number of the current message in the mailbox.
+ * $mailbox: Array containing info about the mailbox the message is from.
+ * $header: Some, but not all headers (From, To, message_id, ...) of the current message.
+ */
+function listhandler_mailhandler($node, $result, $msg_number, $header, $mailbox) {
+  global $base_url;
+
+  if ($node->tid) { // If no tid is assigned, then the mail is not comming through a mailhandler enabled list. Do nothing.
+    $node->cid = 0; // Might have a cid from the msg id. This will confuse comment_post. Updating comments via mail does not make sense anyway. GK
+    // Override value from msgid. Might be crossposted.
+    $node->mid = $mailbox['mid'];
+    // We need to ensure that no messages that have been sent by listhandler on this site (!)
+    // get processed. We would get an infinite loop on a mailing list.
+    $dir = str_replace("/", ".", substr(strchr(str_replace("http://", "", $base_url), "/"), 1));
+    $regex = "<listhandler=[[:print:]]+@". $dir . strtolower($_SERVER["SERVER_NAME"]) .">";
+    if (ereg($regex, $header->message_id)) {
+      // Sent by listhandler on this site. Destroy the node.
+      watchdog('listhandler', "Discarded message '!s' to avoid loop.", array("!s" => $node->title), WATCHDOG_NOTICE);
+      unset($node);
+      return;
+    }
+    else {
+      // Debug
+      //if($node->site != $dir . $_SERVER["SERVER_NAME"]) { // parent (!) not sent by listhandler on this site.
+      if ($node->uid == 0) { // mailhandler did not find the author, create a new account
+        $node = listhandler_create_author($node, $header);
+      }
+      //}
+      // Strip stuff from title
+      $replace = explode(',', variable_get('listhandler_strip_title', ''));
+        //print_r($replace);
+      $replacements = array();
+        //print_r($replacements);
+      foreach ($replace as $v) {
+        $replacements[trim($v)] = '';
+      }
+        //print_r($replacements);
+      unset($replacements['']);
+        //print_r($node->title);
+      if (count($replacements)) {
+        $node->title = trim(strtr($node->title, $replacements));
+      }
+        //print_r($node->title);
+      if (trim($node->title) == '') {
+        $node->title = truncate_utf8(decode_entities(strip_tags(check_markup($node->body, 1))), 29, TRUE);
+      }
+      $node = listhandler_find_parent($node, $header);
+
+      $node->message_id = $header->message_id;
+      $node->sentbylisthandler = TRUE;
+
+      return $node;
+    }
+  }
+  else { // allow other modules to have that node unaltered.
+    return $node;
+  }
+}
+
+/**
+ * Create account for unknown authors of a new mailsubmitted node or comment.
+ * Admin is able to choose if it will be
+ * a real account or a blocked one (see conf).
+ * if no account can be created (email or name already taken) the name and address
+ * are prepended to the node body and posted as anonymous.
+ */
+function listhandler_create_author($node, $header) {
+  $from = $header->from;
+  $from_address = strtolower(sprintf("%s@%s", $from[0]->mailbox, $from[0]->host));
+  // decode encoded author name
+  $from_name = '';
+  $from_arr = imap_mime_header_decode($header->from[0]->personal);
+  for ($i = 0; $i < count($from_arr); $i++) {
+    if ($from_arr[$i]->charset != 'default') {
+      $from_name .=  drupal_convert_to_utf8($from_arr[$i]->text, $from_arr[$i]->charset);
+    }
+    else {
+      $from_name .=  $from_arr[$i]->text;
+    }
+  }
+  $from_name = trim($from_name, '"');
+  if ($from_name == '') {
+    $from_name = $from_address;
+  }
+  // check if name is available
+  if (db_result(db_query("SELECT COUNT(name) FROM {users} WHERE LOWER(name) = LOWER('%s')", $from_name)) > 0) {
+    $node->body = t('Message from !n !a', array('!n' => $from_name, '!a' => $from_address)) ."\n\n". $node->body;
+    watchdog('listhandler', "Cannot create account: The name '!s' is already taken.", array("!s" => $from_name), WATCHDOG_WARNING);
+  }
+  // check if address is valid
+  elseif (!valid_email_address($from_address)) {
+    $node->body = t('Message from !n !a', array('!n' => $from_name, '!a' => $from_address)) ."\n\n". $node->body;
+    watchdog('listhandler', "Cannot create account: The email address '!s' is not valid.", array("!s" => $from_address), WATCHDOG_WARNING);
+  }
+  // create account
+  else {
+    $empty_account = new stdClass();
+    $from_user = user_save($empty_account, array('name' => $from_name, 'pass' => user_password(), 'init' => $from_address,  'mail' => $from_address, 'roles' => array(DRUPAL_AUTHENTICATED_RID), 'status' => variable_get('listhandler_accountstatus', 0)), 'account');
+    watchdog('listhandler', 'Created account for !fa, with roles !rid', array('!fa' => $from_address, '!rid' => implode(', ', $from_user->roles)), WATCHDOG_NOTICE);
+    mailhandler_switch_user($from_user->uid);
+  }
+  $node->uid = $from_user->uid;
+  $node->name = $from_user->name;
+
+  return $node;
+}
+
+/**
+ * Find the parent of a new mailsubmitted comment. First use some heuristics
+ * and assumptions about Message-ID, References, and In-Reply-To headers.
+ * Then try to find a parent based on Subject line.
+ * If all else fails, start a new forum topic.
+ */
+function listhandler_find_parent($node, $header) {
+
+  if ($node->threading) {
+    $parent = db_fetch_object(db_query("SELECT * FROM {listhandler} WHERE msgid = '<%s>'", $node->threading));
+    // Debug
+    // watchdog('listhandler', "Parent seek '". $node->threading ."\np.nid:".$parent->nid."\n p.cid".$parent->cid."\nSubject: ".$header->subject."'", array(), WATCHDOG_DEBUG);
+    if ($parent) { // parent (!) seen by listhandler on this site.
+      return listhandler_parent_thread($node, $parent);
+    }
+  }
+
+  // Still no parent.
+  // Now find the most recent matching subject in the current forum
+  $title = trim(substr($node->title, (strrpos($node->title, ':'))));
+    // watchdog ('listhandler', 'Now searching for title "'.$title.'"', array(), WATCHDOG_DEBUG);
+  $parent = db_fetch_object(db_query("SELECT * FROM {listhandler} l INNER JOIN {node} n ON l.nid = n.nid WHERE n.title LIKE '%%%s' AND mid = %d ORDER by n.nid DESC", $title, $node->mid));
+  if ($parent) {
+    return listhandler_parent_thread($node, $parent);
+  }
+  else {
+      // Could be a comment to a comment.
+      // watchdog ('listhandler', 'Could be a comment to a comment', array(), WATCHDOG_DEBUG);
+    $parent = db_fetch_object(db_query("SELECT * FROM {comments} c WHERE c.subject = '%s' ORDER BY cid DESC", $title));
+    if ($parent) {
+      return listhandler_parent_thread($node, $parent);
+    }
+    else {
+      // No parent found so new thread.
+      return listhandler_new_thread($node);
+    }
+  }
+}
+
+/**
+ * Convert upload files into links.
+ * Optional argument $fragment is used in supporting comments
+ */
+function _listhandler_mail_links($lfiles, $nid, $fragment=NULL) {
+  $body = '';
+  $attachments = '';
+  foreach ($lfiles as $key => $ufile) {
+    $ufile = (object) $ufile;
+    $href = file_create_url((strpos($ufile->fid, 'upload') === FALSE ? $ufile->filepath : file_create_filename($ufile->filename, file_create_path())));
+    $href = str_replace(' ', '%20', $href);
+    $text = $ufile->description ? $ufile->description : $ufile->filename ;
+    $attachments .= "\n\n"." [". $text ."]:\n". $href;
+  }
+  if (!empty($attachments)) {
+    // change set up for call to url() function. Drupal 6 wants it to have
+    // options array as second argument.
+    if ($fragment) {
+      $my_url_options = array('fragment' => $fragment, 'absolute' => TRUE);
+    }
+    else {
+      $my_url_options = array('absolute' => TRUE);
+    }
+    $url = url('node/'. $nid, $my_url_options);
+
+    $body .= "\n\n". t('File attachments') .":";
+    $body .= $attachments;
+    $body .= "\n----------\n". t("Original attachments can be found at:\n!u", array('!u' => $url));
+  }
+  return $body;
+}
+
+/**
+ * Convert upload files into mail attachments.
+ */
+function _listhandler_mail_attachments($body, $files, &$mid, $fragment=NULL) {
+  $trenner  = md5(uniqid(time()));
+  $mid['Content-Type'] = "multipart/mixed; boundary=$trenner";
+  $message  = "\n--$trenner\n";
+  $message .= "Content-Type: text/plain; charset=UTF-8; format=flowed;"."\n\n"; // sets the mime type
+
+  $message .= $body ."\n";
+  $message .= "\n\n";
+  foreach ($files as $key => $file) {
+    $file = (object) $file;
+    if ($file->filename) {
+      $file->filepath = str_replace("\\", "\\\\", $file->filepath);
+      $message  .= "--". $trenner ."\n";
+      $message  .= "Content-Type:". $file->filemime .";\n\tname=\"". $file->filename ."\"\n";
+      $message  .= "Content-Transfer-Encoding: base64\n";
+      $message  .= "Content-Disposition: attachment;\n\tfilename=\"". $file->filename ."\"\n\n";
+      $filedata  = fread(fopen($file->filepath, "rb"), $file->filesize);
+      $message  .= chunk_split(base64_encode($filedata));
+      $message  .= "\n\n";
+    }
+  }
+  $message .= "--". $trenner ."--";
+  return $message;
+}
+
+/**
+ * Sets $node-> attributes to that of the parent thread.
+ */
+function listhandler_parent_thread($node, $parent) {
+  // Debug
+  // watchdog('listhandler', "Parent found '". $node->threading ."\np.nid:".$parent->nid."\np.cid".$parent->cid."\nSubject:".$node->title."'", array(), WATCHDOG_DEBUG);
+  $node->pid = $parent->cid;
+  if ($node->cid) unset($node->cid);
+  $node->nid = $parent->nid;
+  $node->type = 'comment';
+
+  // for comments, 0 means published and 1 means "waiting for validation"
+  $node->status = 0;
+
+  return $node;
+}
+
+/**
+ * Sets $node-> attributes to create a new thread.
+ */
+function listhandler_new_thread($node) {
+  $node->type = 'topic';
+  $node->nid = 0;
+  $node->taxonomy[] = $node->tid;
+  $node->pid = 0;
+  $node->comment = 2;
+
+  return $node;
+}
+
+/**
+ * Implementation of hook_simpletest().
+ */
+function listhandler_simpletest() {
+  $dir = drupal_get_path('module', 'listhandler') .'/tests';
+  $tests = file_scan_directory($dir, '\.test$');
+  return array_keys($tests);
+}

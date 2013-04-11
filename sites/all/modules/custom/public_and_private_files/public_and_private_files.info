@@ -1,0 +1,4 @@
+name = Public & Private Files
+description = Public & Private Files improve the default system of private files offered by DRUPAL Core
+package = "File management"
+core = 6.x

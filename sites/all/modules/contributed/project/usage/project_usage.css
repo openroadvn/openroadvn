@@ -1,0 +1,7 @@
+/* $Id: project_usage.css,v 1.2 2008/10/24 02:56:05 dww Exp $ */
+
+th.project-usage-numbers, th.project-usage-numbers a, 
+td.project-usage-numbers, td.project-usage-numbers a {
+  text-align: right;
+  padding: 0 .1em 0 .5em;
+}

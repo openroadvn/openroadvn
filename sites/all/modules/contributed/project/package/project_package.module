@@ -1,0 +1,84 @@
+<?php
+// $Id: project_package.module,v 1.2 2009/12/01 02:39:20 dww Exp $
+
+/**
+ * @file project_package.module
+ * Provides packages made up of releases of other projects.
+ */
+
+/**
+ * Implement hook_views_api().
+ */
+function project_package_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'project_package') .'/views',
+  );
+}
+
+/**
+ * Implement hook_nodeapi().
+ */
+function project_package_nodeapi(&$node, $op, $arg) {
+  switch ($node->type) {
+    case 'project_release':
+      project_package_release_nodeapi($node, $op, $arg);
+      break;
+
+  }
+}
+
+/**
+ * hook_nodeapi implementation specific to "project_release" nodes.
+ *
+ * @see project_package_nodeapi().
+ */
+function project_package_release_nodeapi(&$node, $op, $arg) {
+  switch ($op) {
+    case 'insert':
+    case 'update':
+      // We can't rely on $node->project_package since nodeapi() doesn't have
+      // a fully loaded $node object. :(
+      $count = db_result(db_query("SELECT COUNT(*) FROM {project_package_local_release_item} WHERE package_nid = %d", $node->nid));
+      if (!empty($count)) {
+        project_package_set_update_status($node->nid);
+      }
+      break;
+
+    case 'load':
+      $count = db_result(db_query("SELECT COUNT(*) FROM {project_package_local_release_item} WHERE package_nid = %d", $node->nid));
+      if (!empty($count)) {
+        $node->project_package['count'] = $count;
+      }
+      break;
+      
+  }
+}
+
+/**
+ * Set the {prn}.update_status for a package based on security updates.
+ */
+function project_package_set_update_status($package_nid) {
+  $max = db_result(db_query("SELECT MAX(prn.update_status) FROM {project_release_nodes} prn INNER JOIN {project_package_local_release_item} pp ON prn.nid = pp.item_nid WHERE pp.package_nid = %d", $package_nid));
+  if ($max == PROJECT_RELEASE_UPDATE_STATUS_NOT_SECURE) {
+    // Something included in this package is insecure, so we are, too.
+    db_query("UPDATE {project_release_nodes} SET update_status = %d WHERE nid = %d", PROJECT_RELEASE_UPDATE_STATUS_NOT_SECURE, $package_nid);
+  }
+}
+
+/**
+ * Fix the {prn}.update_status column whenever the status changes on items.
+ */
+function project_package_check_update_status($item_nids) {
+  $affected_packages = array();
+  $placeholders = db_placeholders($item_nids);
+  $query = db_query("SELECT * FROM {project_package_local_release_item} WHERE item_nid IN ($placeholders) GROUP BY package_nid", $item_nids);
+  while ($package = db_fetch_object($query)) {
+    $affected_packages[] = $package->package_nid;
+  }
+  if (!empty($affected_packages)) {
+    $placeholders = db_placeholders($affected_packages);
+    db_query("UPDATE {project_release_nodes} SET update_status = %d WHERE nid IN ($placeholders)", array_merge(array(PROJECT_RELEASE_UPDATE_STATUS_NOT_SECURE), $affected_packages));
+  }
+}
+

@@ -1,0 +1,1025 @@
+<?php
+
+/**
+ * Implementation of hook_perm
+ * 20/1/2013: SWS: Modified to fix imagecache problem 
+ */
+function isa_blocks_perm() {
+  return (
+  array(
+    'display Call for review quick action', // permission granted to "Clearing Process Manager"
+    // and "Moderator" roles
+    'display I use this project quick action', // permission granted to authenticated users
+  )
+  );
+}
+
+/**
+ * Implementation of hook_block
+ */
+function isa_blocks_block($op = 'list', $delta = 0, $edit = array()) {
+  switch ($op) {
+    case 'list':
+      $blocks[0]['info'] = t('Context help teaser');
+      $blocks[1]['info'] = t('Introduction details');
+      $blocks[3]['info'] = t('Community details');
+      $blocks[8]['info'] = t('Highlights');
+      $blocks[9]['info'] = t('Dashboard user details');
+      $blocks[13]['info'] = t('Newsletters view header');
+      $blocks[14]['info'] = t('Software related projects');
+      $blocks[15]['info'] = t('Members links');
+      $blocks[16]['info'] = t('Node details');
+      $blocks[18]['info'] = t('e-Library list header');
+      $blocks[20]['info'] = t('Events calendar header');
+      $blocks[22]['info'] = t('Dashboard comment moderation (facilitator)');
+      $blocks[23]['info'] = t('Recommended Items');
+      $blocks[24]['info'] = t('My Page');
+      $blocks[25]['info'] = t('User Profile');
+      $blocks[26]['info'] = t('People List Header');
+      $blocks[27]['info'] = t('Admin pages');
+      $blocks[28]['info'] = t('News List Header');
+      $blocks[29]['info'] = t('Communities List Header');
+      $blocks[30]['info'] = t('Information pages');
+      $blocks[31]['info'] = t('Software List Header');
+      $blocks[32]['info'] = t('Asset List Header');
+      $blocks[33]['info'] = t('Node translations');
+      $blocks[34]['info'] = t('Add project Header');
+      $blocks[35]['info'] = t('Homepage Header');
+      $blocks[36]['info'] = t('Last update footer');
+      return $blocks;
+      break;
+    case 'view':
+      switch ($delta) {
+        //////////////////////////////
+        // News context help teaser //
+        //////////////////////////////
+        case 0:
+          return isa_blocks_context_help_teaser();
+          break;
+
+        /////////////////////////////
+        // Introduction details block //
+        /////////////////////////////
+        case 1:
+        case 3:
+          return isa_blocks_introduction();
+          break;
+
+        ///////////////////////
+        // Highlights block //
+        /////////////////////
+        case 8:
+          return isa_blocks_highlights();
+          break;
+
+        //////////////////////////////////
+        // Dashboard user details block //
+        //////////////////////////////////
+        case 9:
+          global $user;
+          if (isset($user->node_profile)) {
+            $node = $user->node_profile;
+          }
+          elseif ($user > 0) {
+            $node = content_profile_load('profile', $user->uid);
+          }
+          if ($node) {
+            return isa_blocks_user_details($node);
+          }
+          break;
+
+        case 13 :
+          return isa_blocks_introduction_details('newsletter');
+          break;
+
+        case 14 :
+          $block ['content'] = isa_blocks_related_projects();
+          $block ['subject'] = 'Related projects';
+          return $block;
+          break;
+
+        case 15:
+          $nid = variable_get('current_group', NULL);
+          if (isset($nid)) {
+            $node = isa_blocks_community_get_node($nid);
+            if ($node) {
+              $block ['content'] = isa_blocks_members_links($node);
+              return $block;
+            }
+          }
+          break;
+
+        ///////////////////////
+        // Node details      //
+        ///////////////////////
+        case 16:
+          $nid = variable_get('current_group', NULL);
+          // don't display node details if you're in a group
+          // (ex.: event view and workflow tab)
+          if (!isset($nid)) {
+            $path = isa_toolbox_get_path();
+            if (isset($path['page_arguments']) && isset($path['page_arguments'][0]->nid)) {
+              $node = node_load($path['page_arguments'][0]->nid);
+              $block = isa_blocks_node_details($node);
+              return $block;
+            }
+          }
+          break;
+
+        ////////////////////////////////////
+        // e-Library list header          //
+        ////////////////////////////////////
+        case 18:
+          return isa_blocks_introduction_details('case');
+          break;
+
+        ////////////////////////////////////
+        // Event list header              //
+        ////////////////////////////////////
+        case 20:
+          return isa_blocks_introduction_details('event');
+          break;
+
+        case 22:
+          global $user;
+          $is_facilitator = 0;
+          foreach ($user->og_groups as $gid => $group) {
+            if ($group['is_admin']) {
+              $is_facilitator = 1;
+              break;
+            }
+          }
+          if ($is_facilitator) {
+            $block = isa_blocks_dashboard_comment_moderation_facilitator();
+          }
+          return $block;
+          break;
+
+        case 23:
+
+          $block = isa_block_get_recommended_items_block();
+          return $block;
+          break;
+        ////////////////////////////////////
+        // My Page                        //
+        ////////////////////////////////////
+        case 24:
+          return isa_blocks_introduction_details('my_page');
+          break;
+        ////////////////////////////////////
+        // User Profile                   //
+        ////////////////////////////////////
+        case 25:
+          return isa_blocks_introduction_details('user_profile');
+          break;
+        ////////////////////////////////////
+        // people list header          //
+        ////////////////////////////////////
+        case 26:
+          return isa_blocks_introduction_details('people');
+          break;
+        ////////////////////////////////////
+        // Administration pages           //
+        ////////////////////////////////////
+        case 27:
+          return isa_blocks_introduction_details('admin');
+          break;
+        ////////////////////////////////////
+        // news list header          //
+        ////////////////////////////////////
+        case 28:
+          return isa_blocks_introduction_details('news');
+          break;
+        ////////////////////////////////////
+        // communities list header          //
+        ////////////////////////////////////
+        case 29:
+          return isa_blocks_introduction_details('communities');
+          break;
+        ////////////////////////////////////
+        // Information pages              //
+        ////////////////////////////////////
+        case 30:
+          //the information page concern a software or a asset
+          //We want to keep the header of these group
+          if (arg(0) == 'node' && arg(2) == 'edit') {
+
+            if (ctype_digit(arg(1))) {
+              $node = node_load(arg(1));
+              $alias = isa_toolbox_alias_from_oss_or_asset($node);
+              switch ($alias) {
+                case 'sware_on_openray':
+                  $block = isa_blocks_introduction_details('software');
+                  break;
+                case 'assets_on_openray':
+                  $block = isa_blocks_introduction_details('asset');
+                  break;
+                default:
+                  $block = isa_blocks_introduction_details('information');
+                  break;
+              }
+            }
+          }
+          else {
+            $block = isa_blocks_introduction_details('information');
+          }
+          return $block;
+          break;
+        ////////////////////////////////////
+        // software list header              //
+        ////////////////////////////////////
+        case 31:
+          return isa_blocks_introduction_details('software');
+          break;
+        ////////////////////////////////////
+        // asset list header              //
+        ////////////////////////////////////
+        case 32:
+          return isa_blocks_introduction_details('asset');
+          break;
+        case 33:
+          $block = isa_block_tranlations();
+          return $block;
+          break;
+
+        ////////////////////////////////////
+        // asset list header              //
+        ////////////////////////////////////
+        case 34:
+          if ($_GET['type'] == 'asset') {
+            return isa_blocks_introduction_details('asset');
+          }
+          return isa_blocks_introduction_details('software');
+          break;
+
+        ////////////////////////////////////
+        //        Homepage header         //
+        ////////////////////////////////////
+        case 35:
+          return isa_blocks_homepage_details();
+          break;
+
+        case 36:
+          if (variable_get('last_update_display', 0)) {
+            $block['content'] = '<div id="last-update-footer">' . t('Last update: ') . date('m/d/Y', variable_get('last_update_date', null)) . ',&nbsp;' . variable_get('last_update_version', null) . '</div>';
+            return $block;
+          }
+          break;
+      }
+
+      break;
+  }
+}
+
+function isa_block_tranlations() {
+  $block = array();
+  $block['subject'] = t('Translations');
+  $gid = isa_toolbox_get_community_nid();
+  if ($gid == 0) {
+    $path = explode('/', drupal_get_normal_path($_GET['q']));
+    $gid = $path[1];
+  }
+  $translations = isa_toolbox_get_translations_list($gid);
+  if (!empty($translations)) {
+    $block['content'] .= '<dl>';
+    foreach ($translations as $language => $link) {
+      if ($link) {
+        $block['content'] .= '<dt>' . t($language) . '</dt>';
+        $block['content'] .= '<dd>' . $link . '</dd>';
+      }
+    }
+    $block['content'] .= '</dl>';
+  }
+  // get normal path pour passer le nid des federated project
+  return $block;
+}
+
+function isa_block_get_recommended_items_block() {
+  global $user;
+  /*if ($user->uid < 1) {
+    global $base_url;
+    $theme = variable_get('theme_default', NULL);
+    $theme_path = drupal_get_path('theme', $theme);
+    $alt_text = t('Default banner - This banner appears only for anonym user');
+    $block['content'] = theme_image(
+        $theme_path . '/images/banners/default_homepage_banner.png', $alt_text, NULL, array('id' => 'homepage-banner'), FALSE
+    );
+    $block['subject'] = t('Homepage Banner');
+  }
+  else {*/
+    $view = views_get_view('user_latest_content');
+
+    $block['content'] = views_embed_view('user_latest_content', 'block_1');
+    $block['subject'] = $view->display['block_1']->display_options['title'];
+  //}
+  return $block;
+}
+
+function isa_blocks_dashboard_comment_moderation_facilitator() {
+  $block['content'] = views_embed_view('Comment_moderated', 'block_2');
+  return $block;
+}
+
+/**
+ * @param $node : Community or project on witch you want to have the members links
+ * @return the block with the members links
+ */
+function isa_blocks_members_links($node) {
+  $path = isa_toolbox_get_path();
+  $last_map = $path['map'][count($path['map']) - 1];
+  $list_active = ($last_map == 'members') ? 'active' : '';
+  $add_active = ($last_map == 'add') ? 'active' : '';
+  $edit_active = ($last_map == 'edit') ? 'active' : '';
+
+  $group_type = $node->group_type;
+  if ($node->type == ISA_PROJECT_TYPE) {
+    $short_name = $node->project['uri'];
+  }
+  else {
+    $short_name = $node->field_community_short_name[0]['value'];
+  }
+  $nid = $node->nid;
+
+  $items[] = array(
+    'title' => l(t("Members list"), "{$group_type}/{$short_name}/members"),
+    'html' => TRUE,
+    'attributes' => array('class' => $list_active),
+  );
+  if ($node->_workflow == ISA_SID_COMMUNITY_VALIDATED) {
+    if (user_access('community add members')) {
+      $items[] = array(
+        'title' => l(t("Add members"), "{$group_type}/{$short_name}/members/add"),
+        'html' => TRUE,
+        'attributes' => array('class' => $add_active),
+      );
+    }
+    if (user_access('community approve membership')
+        || user_access('community assign facilitator role')
+        || user_access('community remove members')) {
+
+      // Checks to see if the group isn't closed registry
+      if ($node->og_selective < 3) {
+        $items[] = array(
+          'title' => l(t("Manage members"), "{$group_type}/{$short_name}/members/edit"),
+          'html' => TRUE,
+          'attributes' => array('class' => $edit_active),
+        );
+      }
+    }
+  }
+  $links = "<div id='tabs-wrapper'>" .
+      theme('links', $items, array('class' => 'tabs primary'))
+      . "</div>";
+
+  return $links;
+}
+
+function isa_blocks_related_projects() {
+
+  $gid = variable_get('current_group', isa_toolbox_get_community_nid());
+  $block .= '<div class="view">
+    <div class="view-filters">
+	  <div class="views-exposed-form">
+	    <div class="views-exposed-widgets clear-block">
+	      <div class="views-exposed-widget">
+		    <label>' . t("Display") . ':</label>
+			<select id="related-projects-select" class="form-select">
+			  <option value="related-projects-depends">' . t("Depends on") . '</option>
+			  <option value="related-projects-required">' . t("Required by") . '</option>
+			</select>
+		  </div>
+	    </div>
+	  </div>
+	</div>
+  </div>';
+
+  $block .= '<div class = "related-projects-information">' . variable_get("related_projects_information", "...") . '</div>';
+
+  $block .= '<div class="related-projects-depends" >';
+  $block .= views_embed_view('software_related_projects', 'block_5', $gid);
+  $block .= '</div>';
+  $block .= '<div class="accessibility-info related-projects-required" >';
+  $block .= views_embed_view('software_related_projects', 'block_6', $gid);
+  $block .= '</div>';
+
+  return $block;
+}
+
+/**
+ * Builds the block containing a list of comments for a group (for facilitators)
+ * @global object $user
+ * @return array The block to use in hook_block
+ */
+function isa_blocks_comments_fac() {
+  global $user;
+  $groups = $user->og_groups;
+
+  $list = array();
+  foreach ($groups as $group) {
+    if ($group['is_admin']) {
+      $gid = $group['nid'];
+      $list[$gid]['title'] = $group['title'];
+      $list[$gid]['view'] = views_embed_view('comment_moderation', 'block_1', $gid);
+    }
+  }
+  if (count($list) > 0) {
+    $block['content'] = theme('block_comments', $list);
+    return $block;
+  }
+}
+
+/**
+ * Builds a block with all highlights for the current group
+ * Switches display depending on whether or not the user is facilitator
+ * Block is currently not used -- keeping, in case it might be needed later on
+ * @global object $user
+ * @return array The block to use in hook_block
+ */
+function isa_blocks_highlights() {
+  global $user;
+  $gid = variable_get('current_group', NULL); // Get the current gid
+  // See if user is a facilitator of this community
+  if ($user->uid == 1)
+    $is_facilitator = TRUE;
+  else {
+    $facilitators = isa_highlight_get_facilitators($gid);
+    $is_facilitator = in_array($user->uid, $facilitators);
+  }
+
+  // Get the right display ID
+  ($is_facilitator) ? $display_id = 'block_2' : $display_id = 'block_1';
+
+  $block['content'] = views_embed_view('highlights', $display_id, $gid);
+  return $block;
+}
+
+/**
+ * Builds a block containing the current page's context help teaser
+ * @return array The block to use in hook_block
+ */
+function isa_blocks_context_help_teaser() {
+  $path = isa_toolbox_get_path();
+  $path = $path['path'];
+  $sql = "SELECT vid FROM {content_type_contexthelp} WHERE field_url_value = '%s'";
+  $nid = db_result(db_query($sql, $path));
+  $node = node_load($nid);
+  $block['content'] = $node->teaser;
+  return $block;
+}
+
+/**
+ * Builds a block containing a community's details
+ * @global object User object
+ * @param object Node object
+ * @return array The block to use in hook_block
+ */
+function isa_blocks_community_details($node) {
+  $original_node = isa_toolbox_get_original_node($node);
+  // PREPARE PICTURE
+  $type = $node->type;
+  if ($type == ISA_COMMUNITY_TYPE) {
+    if (isset($node->field_community_logo['0'])) {
+      $path = $node->field_community_logo['0']['filepath'];
+    }
+    else {
+      $picture = isa_toolbox_default_imagefield('field_community_logo', 'community');
+      $path = $picture['filepath'];
+    }
+  }
+  elseif ($type == ISA_PROJECT_TYPE) {
+    if (isset($node->field_project_soft_logo['0'])) {
+      $path = $node->field_project_soft_logo['0']['filepath'];
+    }
+    else {
+      $picture = isa_toolbox_default_imagefield('field_project_soft_logo', 'project_project');
+      $path = $picture['filepath'];
+    }
+  }
+  $picture = theme_imagecache('community_logo', $path, $node->title . ' logo');
+  $node->picture = l($picture, $node->path/* "$node->group_type/$node->nid/home" */, array('html' => TRUE));
+
+  // PREPARE TITLE (AS LINK TO COMMUNITY)
+  if (strlen($node->title) > 55) {
+    $node->title = substr($node->title, 0, 55);
+    $node->title .= ' (...)';
+  }
+  // PREPARE DATE
+  $node->created = date('d F Y', $node->created);
+
+  // PREPARE MANAGER
+  $manager = theme('username', $node);
+  $node->manager = $manager;
+
+  // PREPARE MAILING LIST
+  if ($type != ISA_COMMUNITY_TYPE) {
+    $ml = $node->project['uri'] . '@' . variable_get('isa_ml_domain', '');
+  }
+  $node->ml = $ml;
+
+  // PREPARE TAXONOMY
+
+  $include = array(variable_get('domains_vid', NULL), variable_get('keywords_vid', NULL));
+  isa_toolbox_create_taxonomy_list($node, $include);
+
+  // PREPARE STATUS
+  global $user;
+  $member = og_is_group_member($original_node->nid, FALSE); // Create an array containing all gids the user belongs to
+  if ($member) {
+    $node->user_status = "I'm a member";
+  }
+  if ($original_node->og_selective == 1) {
+    $node->group_status = 'Moderated';
+  }
+
+  // PREPARE THE NUMBER OF MEMBERS
+  $sql = og_list_users_sql();
+  $querry = db_query($sql, $original_node->nid);
+  while ($result = db_fetch_object($querry)) {
+    $results[] = $result;
+  }
+  $node->members_count = count($results);
+
+  //PREPARE FIVESTAR FORM
+  if ($node->type == ISA_PROJECT_TYPE) {
+    $node->rating = fivestar_widget_form($original_node);
+  }
+  if ($node->type == ISA_COMMUNITY_TYPE) {
+    $node->rating = fivestar_widget_form($node);
+  }
+
+  //PREPARE Virtual forges display
+  $vf_tid = variable_get('isa_vf_access_vid_virtual_forge', 0);
+  $node->vfs = '';
+  foreach ($node->taxonomy as $tid => $term) {
+    if ($term->vid == $vf_tid) {
+      $node->vfs .= $term->name . ', ';
+    }
+  }
+  if (strlen($node->vfs) > 2) {
+    $node->vfs = substr($node->vfs, 0, strlen($node->vfs) - 2);
+  }
+
+  //PREPARE DOWNLOAD BUTTON
+  if ($node->type == ISA_PROJECT_TYPE) {
+    $release_id = isa_toolbox_get_last_release($original_node->nid);
+    if ($release_id) {
+      $node->last_release_link = l("Download now", "{$node->group_type}/{$original_node->nid}/release/{$release_id}", array('attributes' => array('class' => "download-release")));
+    }
+  }
+
+  if ($node->group_type == ISA_ASSET_TYPE) {
+    $flag = flag_get_flag('call_for_review');
+    if ($flag) {
+      if ($flag->is_flagged($original_node->nid)) {
+        $node->flag = "Call for review";
+      }
+    }
+  }
+
+  $block['content'] = theme('block_introduction_details', $node);
+  return $block;
+}
+
+/**
+ * Loads a group node based on the given ID and access permissions
+ * @param int Node ID
+ * @return object Returns a node object or FALSE if failed
+ */
+function isa_blocks_community_get_node($nid) {
+  $ok = FALSE;
+
+  if (isset($nid)) {
+    $node = node_load($nid);
+    og_load_group($node);
+    if ($node) {
+      $ok = TRUE;
+    }
+  }
+
+  ($ok) ? $return = $node : $return = FALSE;
+  return $return;
+}
+
+/**
+ * Implementation of hook_theme
+ */
+function isa_blocks_theme() {
+  $items = array();
+  $items['block_comments'] = array(
+    'arguments' => array('list' => array()),
+    'template' => 'block-comments',
+  );
+  $items['block_user_details'] = array(
+    'arguments' => array('node' => NULL),
+    'template' => 'block_user_details',
+  );
+  $items['block_node_details'] = array(
+    'arguments' => array('node' => NULL),
+    'template' => 'block-node-details',
+  );
+  $items['block_introduction_details'] = array(
+    'arguments' => array('node' => NULL),
+    'template' => 'block-introduction-details',
+  );
+  return $items;
+}
+
+/**
+ * Builds a block containing a user's details
+ * @global object User object
+ * @param object Node object
+ * @return array The block to use in hook_block
+ */
+function isa_blocks_user_details($node) {
+  // PREPARE PICTURE
+  //krumo($node);
+  if (isset($node->field_photo['0'])) {
+    $path = $node->field_photo['0']['filepath'];
+  }
+  else {
+    $picture = isa_toolbox_default_imagefield('field_photo', 'profile', 'tests ' . $node->title);
+    $path = $picture['filepath'];
+  }
+  $picture = theme_imagecache('profile_photo', $path, $node->field_firstname['0']['value'] . ' ' . $node->field_lastname['0']['value']);
+  $node->picture = $picture;
+
+  // PREPARE TITLE (AS LINK TO COMMUNITY)
+  $title_link_path = "users/" . $node->nid;
+  $node->title = $node->field_firstname['0']['value'];
+  $node->title .= ' ' . $node->field_lastname['0']['value'];
+  $node->title .= '\'s Dashboard';
+  $node->title_link = l($node->title, $title_link_path);
+
+  // PREPARE DASHBOARD DESCRIPTION
+  $node->teaser = 'Your dashboard allows you to ...';
+
+  $block['content'] = theme('block_user_details', $node);
+  return $block;
+}
+
+/*
+ * Implementation of hook_form_alter
+ */
+
+function isa_blocks_form_alter(&$form, $form_state, $form_id) {
+  if ($form_id == 'flag_form'
+      && $form['name']['#default_value'] == 'call_for_review') {
+    $form['#validate'][] = 'isa_blocks_flag_call_for_review_conf_validate';
+    return;
+  }
+  if ($form_id == 'flag_form'
+      && $form['name']['#default_value'] == 'i_use_this_project') {
+    $form['#validate'][] = 'isa_blocks_flag_i_use_this_project_conf_validate';
+    return;
+  }
+  if ($form_id == 'user_profile_form') {
+    $form["#validate"][] = 'isa_blocks_user_page_contact_validate';
+  }
+}
+
+/*
+ * Validation callback for the hook_form_alter ("Call for review")
+ */
+
+function isa_blocks_flag_call_for_review_conf_validate($form, &$form_state) {
+  // Revoke permission from all roles
+  foreach (user_roles() as $role_name) {
+    permissions_revoke_permissions(
+        $role_name, array('display Call for review quick action'));
+  }
+  // Re-grant permission to new roles
+  foreach ($form['#post']['roles'] as $rid) {
+    $role = isa_toolbox_get_role_by_rid($rid);
+    permissions_grant_permissions(
+        $role['name'], array('display Call for review quick action'));
+  }
+}
+
+/*
+ * Validation callback for the hook_form_alter ("I use this project")
+ */
+
+function isa_blocks_flag_i_use_this_project_conf_validate($form, &$form_state) {
+  // Revoke permission from all roles
+  foreach (user_roles() as $role_name) {
+    permissions_revoke_permissions(
+        $role_name, array('display I use this project quick action'));
+  }
+  // Re-grant permission to new roles
+  foreach ($form['#post']['roles'] as $rid) {
+    $role = isa_toolbox_get_role_by_rid($rid);
+    permissions_grant_permissions(
+        $role['name'], array('display I use this project quick action'));
+  }
+}
+
+/**
+ * Implementation of hook_validate
+ * Validation callback for the user management
+ * @param type $form
+ * @param type $form_state 
+ */
+function isa_blocks_user_page_contact_validate($form, &$form_state) {
+  if (!filter_var($form_state['values']['mail'], FILTER_VALIDATE_EMAIL)) {
+    return form_set_error('mail', t('Your email must be valid'));
+  }
+}
+
+/**
+ * Builds a block containing the current node details
+ * @param object Node object
+ * @return array The block to use in hook_block
+ */
+function isa_blocks_node_details($node) {
+  $node_type = $node->type;
+  // Prepare the logo
+  if ($node_type == ISA_FEDERATED_PROJECT_TYPE) {
+    // Prepare Federated forge display
+    $fedforges = $node->field_fed_project_forge;
+    if ($fedforges) {
+      $fedforge = node_load($fedforges[0]['nid']);
+      $node->fedforge_title = l(
+          $fedforge->title, 'node/' . $fedforge->nid
+      );
+    }
+    if (isset($node->field_project_soft_logo['0'])) {
+      $path = $node->field_project_soft_logo['0']['filepath'];
+    }
+    else {
+      $picture = isa_toolbox_default_imagefield('field_project_soft_logo', $node_type);
+      $path = $picture['filepath'];
+    }
+    $original_node = isa_toolbox_get_original_node($node);
+    $node->rating = fivestar_widget_form($original_node);
+  }
+  elseif ($node_type == ISA_FEDERATED_FORGE_TYPE) {
+
+    if (isset($node->field_forges_logo['0'])) {
+      $path = $node->field_forges_logo['0']['filepath'];
+    }
+    else {
+      $picture = isa_toolbox_default_imagefield('field_forges_logo', $node_type);
+      $path = $picture['filepath'];
+    }
+  }
+  elseif ($node_type == ISA_EVENT_TYPE) {
+    if (isset($node->field_event_logo['0'])) {
+      $path = $node->field_event_logo['0']['filepath'];
+    }
+    else {
+      $picture = isa_toolbox_default_imagefield('field_event_logo', $node_type);
+      $path = $picture['filepath'];
+    }
+    $node->rating = fivestar_widget_form($node);
+  }
+  elseif ($node_type == ISA_DOCUMENT_TYPE) {
+    $theme = variable_get('theme_default', NULL);
+    $theme_path = drupal_get_path('theme', $theme);
+    $path = $theme_path . '/images/logo/Document.png';
+    $node->rating = fivestar_widget_form($node);
+  }
+  elseif ($node_type == ISA_CASE_TYPE) {
+    if (isset($node->field_case_logo['0'])) {
+      $path = $node->field_case_logo['0']['filepath'];
+    }
+    else {
+      $picture = isa_toolbox_default_imagefield('field_case_logo', $node_type);
+      $path = $picture['filepath'];
+    }
+    $node->rating = fivestar_widget_form($node);
+  }
+  elseif ($node_type == ISA_FACTSHEET_TYPE) {
+    $theme = variable_get('theme_default', NULL);
+    $theme_path = drupal_get_path('theme', $theme);
+    $path = $theme_path . '/images/logo/Factsheet.png';
+    $node->rating = fivestar_widget_form($node);
+  }
+  $picture = theme_imagecache('community_logo', $path, $node->title);
+  $node->picture = $picture;
+  // Prepare the title
+  if (strlen($node->title) > 55) {
+    $node->title = substr($node->title, 0, 55);
+    $node->title .= ' (...)';
+  }
+
+  // Prepare creation date
+  $node->created = date('d F Y', $node->created);
+  // Prepate author
+  $author = theme('username', $node);
+  $node->author = $author;
+
+  // Prepare taxonomies
+  $vocabulary_include = array(
+    variable_get('domains_vid', NULL),
+    variable_get('keywords_vid', NULL),
+  );
+  isa_toolbox_create_taxonomy_list($node, $vocabulary_include);
+
+  if ($node_type == ISA_FEDERATED_PROJECT_TYPE
+      || $node_type == ISA_FEDERATED_FORGE_TYPE) {
+    $block['content'] = theme('block_introduction_details', $node);
+  }
+  else {
+    $block['content'] = theme('block_node_details', $node);
+  }
+  return $block;
+}
+
+function _isa_blocks_get_link_with_flag_counts($nid, $flag_name) {
+  $flag_counts = flag_get_counts('node', $nid);
+  if (isset($flag_counts[$flag_name])) {
+    $flag_count = $flag_counts[$flag_name];
+    $link = flag_create_link($flag_name, $nid);
+    if (!$flag_count)
+      $flag_count = 0;
+    return (
+    preg_replace(
+        '/<a([^>]*)>([^<]*)<\/a>/', '<a\1>\2</a>'
+        . '<span class="counter">'
+        . ' (' . $flag_count
+        //. t(' people use it')
+        . ')'
+        . '</span>', $link
+    )
+    );
+  }
+}
+
+function isa_blocks_people_letter_links() {
+  $path = explode('/', $_GET['q']);
+  $url = $path[0] . '/' . $path[1];
+
+  $args = $_GET;
+  unset($args['q']);
+
+  for ($i = 65; $i < 91; $i++) {
+    $letter_upper = chr($i);
+    $letter_lower = chr($i + 26 + 6);
+    $letter[] = array(
+      "title" => $letter_upper,
+      "href" => $url . '/' . $letter_lower,
+      "html" => "true",
+      "query" => $args,
+      "attributes" => array("class" => "members-letter"),);
+  }
+  $letter[] = array("title" => "|");
+  $letter[] = array(
+    "title" => "All",
+    "href" => $url,
+    "html" => "true",
+    "query" => $args,
+    "attributes" => array("class" => "members-letter"),);
+
+  $links .= "<div class='alpha-sort'>" . theme("links", $letter) . "</div>";
+
+  return $links;
+}
+
+function isa_blocks_homepage_details() {
+  $node->title = variable_get('header_block_homepage_title', NULL);
+  $node->description = variable_get('site_mission', NULL);
+  if(!$node->description)
+  	$node->description = "<p>Share and reuse open-source software, shared assets, and other interoperability solutions for public administrations.<br />
+	<br /></p>";
+  $block['content'] = theme('block_introduction_details', $node);
+  return $block;
+}
+
+/*
+ * Check if the node is into a group or not
+ */
+
+function isa_blocks_introduction() {
+  $nid = variable_get('current_group', NULL);
+  //into a group
+  if (isset($nid)) {
+    $node = isa_blocks_community_get_node($nid);
+    if ($node) {
+      if ($node->type == ISA_COMMUNITY_TYPE || $node->type == ISA_PROJECT_TYPE) {
+        return isa_blocks_community_details($node);
+      }
+    }
+  }
+  // a node into the melting pot
+  else {
+    $path = explode('/', $_GET['q']);
+    if ($path[0] == 'node') {
+      if ($path[1] == 'add') {
+        return isa_blocks_introduction_details($path[2]);
+      }
+      $node = node_load($path[1]);
+      return isa_blocks_introduction_details($node->type);
+    }
+  }
+}
+
+/*
+ * Display the correct header introduction depend on type
+ */
+
+function isa_blocks_introduction_details($type) {
+  $theme = variable_get('theme_default', NULL);
+  $theme_path = drupal_get_path('theme', $theme);
+  switch ($type) {
+    case 'news' :
+    case 'blog' :
+      $path = $theme_path . '/images/logo/news.png';
+      //$picture = theme_imagecache('profile_photo', $path, 'News');
+      $picture = theme_image($path,'News','News');
+      $node->title = variable_get('header_block_news_list_title', NULL);
+      $node->description = variable_get('header_block_news_list_description', NULL);
+      break;
+    case 'newsletter' :
+      $path = $theme_path . '/images/logo/newsletter.png';
+      //$picture = theme_imagecache('community_logo', $path, 'Newsletters');
+      $picture = theme_image($path,'Newsletters','Newsletters');
+      $node->title = variable_get('header_block_' . ISA_NEWSLETTER_TYPE . 's_list_title', NULL);
+      $node->description = variable_get('header_block_' . ISA_NEWSLETTER_TYPE . 's_list_description', NULL);
+      break;
+    case 'video' :
+    case 'document' :
+    case 'case' :
+    case 'factsheet' :
+      $path = $theme_path . '/images/logo/elibrary.png';
+      //$picture = theme_imagecache('community_logo', $path, 'Elibrary');
+      $picture = theme_image($path,'Elibrary','Elibrary');
+      $node->title = variable_get('header_block_elibrary_list_title', NULL);
+      $node->description = variable_get('header_block_elibrary_list_description', NULL);
+      break;
+    case 'event' :
+      $path = $theme_path . '/images/logo/event.png';
+      //$picture = isa_toolbox_default_imagefield('field_event_logo', ISA_EVENT_TYPE);
+      //$path = $picture['filepath'];
+      //$picture = theme_imagecache('community_logo', $path, 'event');
+      $picture = theme_image($path,'Events','Events');
+      $node->title = variable_get('header_block_' . ISA_EVENT_TYPE . 's_calendar_title', NULL);
+      $node->description = variable_get('header_block_' . ISA_EVENT_TYPE . 's_calendar_description', NULL);
+      break;
+    case 'my_page' :
+      //$picture = isa_toolbox_default_imagefield('field_photo', 'profile');
+      //$path = $picture['filepath'];
+      //$picture = theme_imagecache('community_logo', $path, 'My page');
+      $path = $theme_path . '/images/logo/user.png';
+      $picture = theme_image($path,'profile','profile');
+      $node->title = variable_get('header_block_my_page_title', NULL);
+      $node->description = variable_get('header_block_my_page_description', NULL);
+      break;
+    case 'admin' :
+      $path = $theme_path . '/images/logo/admin.png';
+      //$picture = theme_imagecache('profile_photo', $path, 'Administration');
+      $picture = theme_image($path,'Administration','Administration');
+      $node->title = variable_get('header_block_admin_title', NULL);
+      $node->description = variable_get('header_block_admin_description', NULL);
+      break;
+    case 'information' :
+      $path = $theme_path . '/images/logo/info.png';
+      //$picture = theme_imagecache('profile_photo', $path, 'Information');
+      $picture = theme_image($path,'Information','Information');
+      $node->title = variable_get('header_block_information_title', NULL);
+      $node->description = variable_get('header_block_information_description', NULL);
+      break;
+    case 'user_profile' :
+      $path = $theme_path . '/images/logo/user.png';
+      //$picture = isa_toolbox_default_imagefield('field_photo', 'profile');
+      //$path = $picture['filepath'];
+      //$picture = theme_imagecache('community_logo', $path, 'Profile');
+      $picture = theme_image($path,'Profile','Profile');
+      $node->title = variable_get('header_block_user_profile_title', NULL);
+      $node->description = variable_get('header_block_user_profile_description', NULL);
+      break;
+    case 'people' :
+      $path = $theme_path . '/images/logo/community.png';
+      //$picture = theme_imagecache('profile_photo', $path, 'People');
+      $picture = theme_image($path,'People','People');
+      $node->title = variable_get('header_block_people_list_title', NULL);
+      $node->description = variable_get('header_block_people_list_description', NULL);
+      break;
+    case 'communities' :
+      $path = $theme_path . '/images/logo/community.png';
+      //$picture = theme_imagecache('profile_photo', $path, 'Communities');
+      $picture = theme_image($path,'Communities','Communities');
+      $node->title = variable_get('header_block_communities_list_title', NULL);
+      $node->description = variable_get('header_block_communities_list_description', NULL);
+      break;
+    case 'software' :
+    case 'study' :
+      $path = $theme_path . '/images/logo/project_project.png';
+      //$picture = theme_imagecache('profile_photo', $path, 'Software');
+      $picture = theme_image($path,'Software','Software');
+      $node->title = variable_get('header_block_software_list_title', NULL);
+      $node->description = variable_get('header_block_software_list_description', NULL);
+      break;
+    case 'asset' :
+      $path = $theme_path . '/images/logo/asset.png';
+      //$picture = theme_imagecache('profile_photo', $path, 'Assets');
+      $picture = theme_image($path,'Assets','Assets');
+      $node->title = variable_get('header_block_assets_list_title', NULL);
+      $node->description = variable_get('header_block_assets_list_description', NULL);
+      break;
+  }
+  if (!empty($node->title)) {
+    $node->picture = $picture;
+    $block['content'] = theme('block_introduction_details', $node);
+  }
+  return $block;
+}

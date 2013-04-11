@@ -1,0 +1,298 @@
+<?php
+
+/**
+ * @file
+ * Advanced aggregation bundler module.
+ *
+ */
+
+/**
+ * Default value of the maximum number of CSS bundles that can be generated in
+ * a single request.
+ */
+define('ADVAGG_BUNDLER_MAX_CSS', 4);
+
+/**
+ * Default value of the maximum number of JS bundles that can be generated in
+ * a single request.
+ */
+define('ADVAGG_BUNDLER_MAX_JS', 4);
+
+/**
+ * Default value of the last used time before the bundle is considered outdated.
+ * 2 weeks in seconds.
+ */
+define('ADVAGG_BUNDLER_OUTDATED', 1209600);
+
+/**
+ * Implementation of hook_menu
+ */
+function advagg_bundler_menu() {
+  $items = array();
+  $file_path = drupal_get_path('module', 'advagg_bundler');
+
+  $items['admin/settings/advagg/bundler'] = array(
+    'title' => 'Bundler',
+    'description' => 'Adjust Bundler settings.',
+    'page callback' => 'advagg_bundler_admin_page',
+    'type' => MENU_LOCAL_TASK,
+    'access arguments' => array('administer site configuration'),
+    'file path' => $file_path,
+    'file' => 'advagg_bundler.admin.inc',
+    'weight' => 10,
+  );
+
+  return $items;
+}
+
+/**
+ * Implement hook_advagg_filenames_alter.
+ */
+function advagg_bundler_advagg_filenames_alter(&$filenames) {
+
+  $max_css = variable_get('advagg_bundler_max_css', ADVAGG_BUNDLER_MAX_CSS);
+  $max_js = variable_get('advagg_bundler_max_js', ADVAGG_BUNDLER_MAX_JS);
+
+  $output = array();
+  foreach ($filenames as $values) {
+    // Set values.
+    $filetype = $values['filetype'];
+    $files = $values['files'];
+    $bundle_md5 = $values['bundle_md5'];
+    $cached_data_key = 'bundler_' . $bundle_md5;
+
+    // Try cache first; cache table is cache_advagg_bundle_reuse.
+    $cached_data = advagg_cached_bundle_get($cached_data_key, 'advagg_bundler_filnames_alter');
+    if (!empty($cached_data)) {
+      $output = array_merge($output, $cached_data);
+      continue;
+    }
+
+    if ($filetype == 'css') {
+      $max = $max_css;
+    }
+    if ($filetype == 'js') {
+      $max = $max_js;
+    }
+    if (empty($max) || $max == 1) {
+      $output[] = $values;
+      $data = array($values);
+      cache_set($cached_data_key, $data, 'cache_advagg_bundle_reuse', CACHE_TEMPORARY);
+      continue;
+    }
+
+    // Load up each file.
+    $groupings = array();
+    // Preserve the order while grouping.
+    $last_group = '';
+    foreach ($files as $key => $filename) {
+      // Assign each file to their group.
+      $group = advagg_bundler_analysis($filename);
+      if (empty($last_group)) {
+        $last_group = $group;
+      }
+
+      if ($last_group == $group) {
+        $groupings[$group][] = $filename;
+      }
+      else {
+        $groupings[$key . ' ' . $last_group] = $groupings[$last_group];
+        unset($groupings[$last_group]);
+        $groupings[$group][] = $filename;
+        $last_group = $group;
+      }
+    }
+
+    // If only one group then don't do any more processing.
+    if (count($groupings) == 1) {
+      $output[] = $values;
+      $data = array($values);
+      cache_set($cached_data_key, $data, 'cache_advagg_bundle_reuse', CACHE_TEMPORARY);
+      continue;
+    }
+
+    // Make sure we didn't go over the max; if we did merge the smallest bundles
+    // together.
+    advagg_bundler_merge($groupings, $max);
+
+
+    // If only one group then don't do any more processing.
+    if (count($groupings) == 1) {
+      $output[] = $values;
+      $data = array($values);
+      cache_set($cached_data_key, $data, 'cache_advagg_bundle_reuse', CACHE_TEMPORARY);
+      continue;
+    }
+
+    // Set groups.
+    $data = array();
+    foreach ($groupings as $bundle) {
+      $values['files'] = $bundle;
+      $values['bundle_md5'] = md5(implode('', $bundle));
+      $data[] = $values;
+      $output[] = $values;
+    }
+    cache_set($cached_data_key, $data, 'cache_advagg_bundle_reuse', CACHE_TEMPORARY);
+  }
+
+  // Return groupings.
+  $filenames = $output;
+}
+
+/**
+ * Given a filename return a bundle key.
+ *
+ * @param $filename
+ *   filename
+ * @return
+ *   string to be used for the grouping key.
+ */
+function advagg_bundler_analysis($filename = '') {
+  static $analysis;
+  if (empty($analysis)) {
+    $analysis = array();
+    $result = db_query("
+      SELECT
+        LPAD(COUNT(*), 8, '00000000') AS count,
+        bundle_md5,
+        filename
+      FROM {advagg_bundles} AS ab
+      INNER JOIN {advagg_files} AS af USING ( filename_md5 )
+      WHERE ab.root = 1
+      AND timestamp > %d
+      GROUP BY ( af.filename )
+    ", time() - variable_get('advagg_bundler_outdated', ADVAGG_BUNDLER_OUTDATED));
+
+    $counter = array();
+    while ($row = db_fetch_array($result)) {
+      $analysis[$row['filename']] = $row['count'] . ' ' . $row['bundle_md5'];
+    }
+  }
+
+  if (empty($filename)) {
+    return $analysis;
+  }
+
+  if (!empty($analysis[$filename])) {
+    return $analysis[$filename];
+  }
+  return 0;
+}
+
+/**
+ * Merge bundles together if too many where created.
+ *
+ * This preserves the order.
+ *
+ * @param $groupings
+ *   array of requested groups
+ * @param $max
+ *   max number of grouping
+ */
+function advagg_bundler_merge(&$groupings, $max) {
+  $group_count = count($groupings);
+
+  if (!empty($max)) {
+    // Keep going till array has been merged to the desired size.
+    while ($group_count > $max) {
+      // Get array sizes.
+      $counts = array();
+      foreach ($groupings as $key => $values) {
+        $counts[$key] = count($values);
+      }
+
+      // Create mapping.
+      $map = array();
+      $prev_key = '';
+      foreach ($counts as $key => $val) {
+        if (empty($prev_key)) {
+          $prev_key = $key;
+          $prev_val = $val;
+          continue;
+        }
+        $map[] = array(($prev_val + $val) => array($prev_key, $key));
+        $prev_key = $key;
+        $prev_val = $val;
+       }
+
+      // Get best merge candidate.
+      $min = 32767;
+      foreach ($map as $v) {
+        foreach ($v as $key => $values) {
+          $min = min($min, $key);
+          if ($min == $key) {
+            list($first, $last) = $values;
+          }
+        }
+      }
+
+//       watchdog('debug', $first . "<br>\n" . $last . "<br>\n" . str_replace('    ', '&nbsp;&nbsp;&nbsp;&nbsp;', nl2br(htmlentities(print_r(array($groupings, $map, $counts), TRUE)))));
+
+      // Move arrays around.
+      $a = $groupings[$first];
+      $b = $groupings[$last];
+      $new_set = array_merge($a, $b);
+      $new_groupings = array();
+      foreach ($groupings as $key => $files) {
+        if ($key == $first) {
+          $new_groupings[$first . ' ' . $last] = $new_set;
+        }
+        elseif ($key != $last) {
+          $new_groupings[$key] = $files;
+        }
+      }
+      $groupings = $new_groupings;
+      $group_count--;
+    }
+  }
+
+  // Make sure there isn't a group that has all files that don't exist or empty.
+  $bad_groups = array();
+  $counts = array();
+  foreach ($groupings as $key => $group) {
+    $missing_counter = 0;
+    $counts[$key] = count($group);
+    foreach ($group as $i => $file) {
+      if (!file_exists($file) || filesize($file) == 0) {
+        $missing_counter++;
+      }
+    }
+
+    // If all files are missing/empty in this group then it is a bad set.
+    if ($missing_counter == count($group)) {
+      $bad_groups[$key] = TRUE;
+    }
+  }
+
+  // Add the bad groups to the smallest grouping in this set.
+  if (!empty($bad_groups)) {
+    $merge_candidate_key = '';
+    $merge_candidate_count = 32767;
+    $bad_group = array();
+    foreach ($groupings as $key => $group) {
+      if (isset($bad_groups[$key])) {
+        // Merge all bad groups into one.
+        $bad_group = array_merge($bad_group, $group);
+
+        // Delete the bad group from the master set.
+        unset($groupings[$key]);
+        continue;
+      }
+
+      // Find the smallest good grouping.
+      $min = min($merge_candidate_count, count($group));
+      if ($min < $merge_candidate_count) {
+        $merge_candidate_key = $key;
+        $merge_candidate_count = $min;
+      }
+    }
+
+    // Move the bad files into the smallest good group.
+    $new_set = $groupings[$merge_candidate_key];
+    $new_set = array_merge($new_set, $bad_group);
+    $groupings[$merge_candidate_key] = $new_set;
+  }
+
+  // Output Debugging info to watchdog.
+  // watchdog('debug', str_replace('    ', '&nbsp;&nbsp;&nbsp;&nbsp;', nl2br(htmlentities(print_r($groupings, TRUE)))));
+}

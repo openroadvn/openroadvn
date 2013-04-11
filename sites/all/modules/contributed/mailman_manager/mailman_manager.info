@@ -1,0 +1,12 @@
+; $Id: mailman_manager.info,v 1.5 2008/12/21 05:51:01 taniwha Exp $
+name = Mailman Manager
+description = "Allows members to subscribe and change their subscriptions to Mailman mailing lists."
+package = MailmanManager
+core = 6.x
+
+; Information added by drupal.org packaging script on 2009-03-20
+version = "6.x-2.3"
+core = "6.x"
+project = "mailman_manager"
+datestamp = "1237544731"
+

@@ -1,0 +1,88 @@
+<?php
+/**
+ * @file
+ * Define the module "public & private files"
+ */
+
+/**
+ * define a new mode for downloading files
+ */
+define('FILE_DOWNLOADS_MIXED', 1);
+
+/**
+ * define the default private path
+ */
+define('PUBLIC_AND_PRIVATE_FILES_DEFAULT_PATH', 'sites/default/files/private');
+
+/**
+ * Implementation of hook_file_url_alter().
+ */
+function public_and_private_files_file_url_alter(&$path) {
+  // if the file system is set to private
+  if (variable_get('file_downloads', FILE_DOWNLOADS_PUBLIC) != FILE_DOWNLOADS_MIXED) {
+    return;
+  }
+
+  if (variable_get('public_and_private_files_path', '') != '') {
+    $pattern = str_replace(',', '|', trim(variable_get('public_and_private_files_path', ''), ','));
+    $pattern = '/^(' . str_replace('/', '\/', $pattern) . ').*/';
+    if (preg_match($pattern, $path)) {
+      $path = url('system/files/' . file_directory_strip($path), array('absolute' => TRUE));
+    }
+    else {
+      $path = url($path, array('absolute' => TRUE));
+    }
+  }
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function public_and_private_files_form_alter($form, $form_state, $form_id) {
+  // The objective here is just to set a new parameter which includes the private files
+  if ($form_id == 'system_file_system_settings') {
+    $form['public_and_private_files_path'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Private file system path'),
+      '#default_value' => variable_get('public_and_private_files_path', PUBLIC_AND_PRIVATE_FILES_DEFAULT_PATH),
+      '#maxlength' => 255,
+      '#weight' => 1,
+      '#description' => t('All the files which are private must be stored in those folders (separated by a comma). These directories must be relative to the Drupal installation directory.'),
+      '#after_build' => array('_public_and_private_files_check_directory'),
+    );
+
+    $form['file_downloads'] = array(
+      '#type' => 'radios',
+      '#title' => t('Download method'),
+      '#default_value' => variable_get('file_downloads', FILE_DOWNLOADS_PUBLIC),
+      '#options' => array(
+        FILE_DOWNLOADS_PUBLIC => t('Public - files are available using HTTP directly.'),
+        FILE_DOWNLOADS_PRIVATE => t('Private - files are transferred by Drupal.'),
+        FILE_DOWNLOADS_MIXED => t('Public & Private - public files are available using HTTP directly and private files are transferred by DRUPAL, it uses the private path defined.'),
+      ),
+      '#description' => t('Choose the <em>Public download</em> method unless you wish to enforce fine-grained access controls over file downloads. Changing the download method will modify all download paths and may cause unexpected problems on an existing site.'),
+    );
+
+    
+    $form['buttons']['#weight'] = 3;
+  }
+}
+
+/**
+ * Checks the existence of the directory specified in $form_element. This
+ * function is called from the system_settings form to check both the
+ * file_directory_path and file_directory_temp directories. If validation
+ * fails, the form element is flagged with an error from within the
+ * file_check_directory function.
+ *
+ * @param $form_element
+ *   The form element containing the name of the directory to check.
+ */
+function _public_and_private_files_check_directory($form_element) {
+  $form_element['#value'] = trim($form_element['#value'], ',');
+  $folders = split(',', $form_element['#value']);
+  foreach ($folders as $folder) {
+    file_check_directory($folder, 0, $form_element['#parents'][0]);
+  }
+  return $form_element;
+}

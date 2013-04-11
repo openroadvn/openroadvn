@@ -1,0 +1,472 @@
+<?php
+// $Id: tvi.module,v 1.6 2010/01/13 00:20:20 collectivecolors Exp $
+
+//------------------------------------------------------------------------------
+// Constants
+//------------------------------------------------------------------------------
+
+/**
+ * Default view display name
+ */
+define('TVI_DEFAULT_DISPLAY', 'default');
+
+/**
+ * Taxonomy setting types
+ */
+define('TVI_TYPE_TERM', 'term');
+define('TVI_TYPE_VOCAB', 'vocab');
+
+/**
+ * Used in tvi_get_term_info(...)
+ */
+define('TVI_DATATYPE_ALL', 'all');
+define('TVI_DATATYPE_TERM', 'term');
+define('TVI_DATATYPE_VIEW', 'view');
+define("TVI_DATATYPE_SETTINGS", 'settings');
+
+//------------------------------------------------------------------------------
+// Drupal hooks
+//------------------------------------------------------------------------------
+
+/**
+ * Implementation of hook_menu().
+ * 
+ * @see http://api.drupal.org/api/function/hook_menu/6
+ */
+function tvi_menu() {
+  
+	// Define a AHAH views display options callback.
+	$items['tvi/js/display_options'] = array(
+    'page callback' => 'tvi_display_options_ahah',
+    'access arguments' => array('administer taxonomy'),
+    'file' => 'includes/tvi.admin.inc',
+    'type' => MENU_CALLBACK,
+  );
+  return $items;	
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Implementation of hook_menu_alter().
+ * 
+ * @see http://api.drupal.org/api/function/hook_menu_alter/6
+ */
+function tvi_menu_alter(&$items) {
+	$items['taxonomy/term/%']['page callback']    = 'tvi_render_view';
+	$items['taxonomy/term/%']['page arguments']   = array(2);
+	$items['taxonomy/term/%']['access callback']  = 'tvi_render_view_access';
+  $items['taxonomy/term/%']['access arguments'] = array(2);
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Implementation of hook_form_alter().
+ * 
+ * Used to add some items to the taxonomy term and vocab edit pages  
+ *
+ * @see http://api.drupal.org/api/function/hook_form_alter/6
+ */
+function tvi_form_alter(&$form, $form_state, $form_id) {
+	
+	if ($form_id == 'taxonomy_form_term'
+	     && !isset($form_state['confirm_delete'])
+	     && !isset($form_state['confirm_parents'])) {
+	  
+		tvi_include('admin');
+		tvi_term_form($form);
+	}
+	elseif ($form_id == 'taxonomy_form_vocabulary') {
+	  
+		tvi_include('admin');
+		tvi_vocab_form($form);
+	}
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Implementation of hook_taxonomy().
+ * 
+ * @see http://api.drupal.org/api/function/hook_taxonomy/6
+ */
+function tvi_taxonomy($op, $type, $info = NULL) {
+	
+	switch ($op) {
+		// Remove TVI settings when vocabularies and terms are deleted.
+		case 'delete':
+			$type = ($type == 'vocabulary' ? TVI_TYPE_VOCAB : TVI_TYPE_TERM);
+			$xid  = ($type == TVI_TYPE_VOCAB ? $info['vid'] : $info['tid']);
+			
+			tvi_include('query');
+			tvi_remove_settings($xid, $type);			
+			break;
+	}	
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Implementation of hook_theme().
+ * 
+ * @see http://api.drupal.org/api/function/hook_theme/6
+ */
+function tvi_theme($existing, $type, $theme, $path) {
+  return array(
+    'tvi_title' => array(
+      'arguments' => array('term' => NULL, 'view' => NULL),
+    ),
+    'tvi_breadcrumb' => array(
+      'arguments' => array('term' => NULL, 'view' => NULL),
+    ),
+    'tvi_term_description' => array(
+      'arguments' => array('term' => NULL),
+    ),    
+  );
+}
+
+//------------------------------------------------------------------------------
+// Theme functions
+//------------------------------------------------------------------------------
+
+/**
+ * Return the taxonomy page title (for active view overrides).
+ * 
+ * We just default to letting views take care of that.  Override if you wish.
+ */
+function theme_tvi_title($term, $view) {
+	return $view->get_title();	
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Return the taxonomy page breadcrumb (for active view overrides).
+ * 
+ * The algorithm we use is based off of $views->get_breadcrumb(), but has a few
+ * important differences.  Override this if you have your own breadcrumb method. 
+ */
+function theme_tvi_breadcrumb($term, $view) {
+	return tvi_get_breadcrumb($term, $view);
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Return the taxonomy description (for active view overrides).
+ * 
+ */
+function theme_tvi_term_description($term) {
+  if (is_object($term)) {
+		return '<div class="tvi-term-desc">' . $term->description . '</div>';
+  }  
+}
+
+//------------------------------------------------------------------------------
+// TVI callbacks
+//------------------------------------------------------------------------------
+
+/**
+ * Check access for the current taxonomy page.
+ * 
+ * We start off by checking view overrides, then take the normal permission for
+ * taxonomy/term pages, if no view is found.
+ */
+function tvi_render_view_access($str_tids = '') {
+  
+	list($view, $display) = tvi_get_view_info($str_tids);
+  
+  if (is_object($view) && $display) {
+  	if ($view->access($display)) {
+      return TRUE; 	
+    }
+  	return FALSE;
+  }  
+  return user_access('access content');	
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Replacement taxonomy page callback
+ * 
+ * If more or less than one term is given then pass the request off 
+ * to the original taxonomy module page callback.
+ *
+ * @TODO: Enable support for > 1 term.
+ */
+function tvi_render_view($str_tids = '', $depth = 0, $op = 'page') {
+	
+  list($view, $display, $term, $settings) = tvi_get_view_info($str_tids);
+  
+  $desc = theme('tvi_term_description', $term);
+    
+  if (is_object($view) && $display) {
+  	$view->set_display($display);
+  	
+  	// Using the TVI selected view.
+    if (is_object($term) && is_object($settings) && $settings->status) {
+    	$depth = tvi_get_view_depth($view, $display);
+    	$view->set_arguments(array($term->tid, $depth));
+    }
+    else {
+      $view->set_arguments(array($str_tids, $depth));	
+    }
+    
+    $view->build();
+    drupal_set_title(theme('tvi_title', $term, $view));
+    drupal_set_breadcrumb(theme('tvi_breadcrumb', $term, $view));
+    
+    // We might be using the default view.    
+    return (($desc) ? $desc : '') . $view->preview();    
+  }
+  // Taxonomy is last resort - used if no standard views are found
+  module_load_include('inc', 'taxonomy', 'taxonomy.pages');
+  return taxonomy_term_page($str_tids, $depth, $op);
+}
+
+//------------------------------------------------------------------------------
+// Internal utilities
+//------------------------------------------------------------------------------
+
+/**
+ * Return information about the term, view, and settings found for the arguments
+ * given to the taxonomy term callback.
+ */
+function tvi_get_view_info($str_tids) {
+  
+  $terms = taxonomy_terms_parse_string($str_tids);
+    
+  if (count($terms['tids']) == 1) {    
+    $info = tvi_get_term_info($terms['tids'][0], TVI_DATATYPE_ALL);
+    
+    $term     = $info->term;
+    $view     = $info->view;
+    $settings = $info->settings;
+    
+    if (is_object($view) && is_object($settings) && $settings->status) {
+      $display = $settings->display;  
+    }
+  }
+  if (!($view && $display)) {
+    list($view, $display) = tvi_get_default_view($str_tids);
+  }
+  
+  // Important things to consider:
+  //
+  // * If this is a default view, then $settings will be NULL.
+  // * The variable $term might be NULL if this is a multi term request.
+  // * If $view or $display are NULL, then nothing was found.
+  
+  return array($view, $display, $term, $settings); 
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Return different data sets with the term, view, and settings information for
+ * a specified term id.
+ */
+function tvi_get_term_info($tid, $type = TVI_DATATYPE_VIEW) {
+  static $term_info = array();
+  
+  if (!array_key_exists($tid, $term_info)) {
+  	$term = taxonomy_get_term($tid);    
+      
+    // Try using term and vocabulary overrides.
+    tvi_include('query');
+  
+    $settings = tvi_load_settings($term->tid, TVI_TYPE_TERM, FALSE);
+    if (!$settings || !$settings->status) {
+      // Then vocabulary override.    
+      $settings = tvi_load_settings($term->vid, TVI_TYPE_VOCAB, FALSE);
+    }
+    
+    if ($settings && $settings->view_id) {
+      $view = views_get_view($settings->view_id);
+    }
+   
+    $term_info[$tid] = array(
+      'term'     => $term,
+      'settings' => $settings,
+      'view'     => $view,
+    );
+  }
+  
+  switch ($type) {
+  	case TVI_DATATYPE_ALL:
+  		return (object)$term_info[$tid];
+  		
+  	case TVI_DATATYPE_TERM:
+  		return $term_info[$tid]['term'];
+  		
+    case TVI_DATATYPE_VIEW:
+      return $term_info[$tid]['view'];
+      
+    case TVI_DATATYPE_SETTINGS:
+      return $term_info[$tid]['settings'];
+  }
+  return NULL;
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Find views in the system that can be used to display the specified taxonomy 
+ * term(s) and are outside of the TVI framework.
+ * 
+ * This is a helper function so that we can, in the case there 
+ * is no TVI view, pass the display off to an applicable view
+ * rather than simply using taxonomy displays alone.
+ */
+function tvi_get_default_view($str_tids) {
+  static $default_views = array();
+  
+  if (!array_key_exists($str_tids, $default_views)) {
+    $views = views_get_all_views();
+  
+    foreach ($views as $view) {
+      if (!$view->disabled) {
+        foreach ($view->display as $name => $display) {
+          // Each view can have multiple displays. These may have a path 
+          // specified.
+          $plugin = $display->display_plugin;
+        
+          // It has a path or it is not eligable.
+          if (!in_array($plugin, array('block', 'feed', 'default'))) {
+            $path = $display->display_options['path'];
+            
+            if (!$path) {
+              continue;
+            }          
+            // Exact match
+            if (preg_match("/^taxonomy\/term\/$str_tids/", $path)) {
+              $default_views[$str_tids] = array(
+                'view'    => $view,
+                'display' => $name,
+              );
+              $is_done = TRUE;
+              break;  // Return immediately     
+            }
+            // Generic match
+            elseif (preg_match("/^taxonomy\/term\/%/", $path)) {
+              $default_views[$str_tids] = array(
+                'view'    => $view,
+                'display' => $name,
+              );
+            }
+          } 
+        }        
+      }
+      if ($is_done) {
+        break;
+      }
+    }
+  }
+  $info = $default_views[$str_tids];  
+  if (is_array($info)) {
+    return array(
+      $info['view'], 
+      $info['display']
+    );
+  }
+  return array(); 
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Views only saves the depth to the default display if it is not overridden
+ * in other displays.
+ */
+function tvi_get_view_depth($view, $display) {
+  //  Depth set for preferred display plugin?
+  $view_depth = $view->display[$display]->display_options['arguments']['term_node_tid_depth']['depth'];
+  if (is_null($view_depth)) {
+    // Depth set for default?
+    $view_depth = $view->display[TVI_DEFAULT_DISPLAY]->display_options['arguments']['term_node_tid_depth']['depth'];
+    if ($view_depth && is_integer($view_depth)) {
+      return $view_depth; // Default plugin depth
+    }
+    return 0;
+  }
+  return $view_depth; // Preferred pugin depth
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Get the taxonomy page breadcrumb links.
+ * 
+ * This is based off of the code for [ $views->get_breadcrumb() ].
+ * 
+ * We needed a few modifications and the ability to use views by default, but
+ * allow for theme overrides of the breadcrumb trail for this module.
+ * 
+ * We also filter out links to the current override display page, so that we do 
+ * not get duplicate links, when the view path matches the current taxonomy
+ * override display path.
+ * 
+ * This also allows us to have view hierarchy in our breadcrumb, instead of the
+ * typical taxonomy breadcrumb that starts with Home, then lists the terms.
+ * 
+ * So for example, we might have something like this:
+ * 
+ * Home >> Vocab >> Parent term >> This term
+ */
+function tvi_get_breadcrumb($term, $view) {
+   
+  $breadcrumb = array();
+
+  if (!empty($view->build_info['breadcrumb'])) {
+    $curr_path = $view->get_url(array($term->tid));
+    $base      = TRUE;
+    
+    foreach ($view->build_info['breadcrumb'] as $path => $title) {
+      // Check to see if the frontpage is in the breadcrumb trail; if it
+      // is, we'll remove that from the actual breadcrumb later.
+      if ($path == variable_get('site_frontpage', 'node')) {
+        $base = FALSE;
+        $title = t('Home');
+      }
+      if ($title && $path != $curr_path) {
+        $breadcrumb[] = l($title, $path, array('html' => true));
+      }
+    }
+    if ($base) {
+      $breadcrumb = array_merge(drupal_get_breadcrumb(), $breadcrumb);
+    }
+  }
+  return $breadcrumb;  
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Include various application logic into the module or in other module include
+ * files.
+ * 
+ * Note, that you only have to specify the name of the include.
+ * 
+ * tvi_include('admin') : includes -> [ includes/tvi.admin.inc ]
+ */
+function tvi_include() {
+  static $loaded = array();
+  
+  $args = func_get_args();
+  $path = './' . drupal_get_path('module', 'tvi') . '/includes';
+  
+  foreach ($args as $name) {      
+    if (!$loaded[$name]) {
+    	
+    	$file = "tvi.$name";    
+      require_once "$path/$file.inc";
+      
+      $loaded[$name] = TRUE;
+    } 
+  }
+}
+
+//------------------------------------------------------------------------------
+/*---------- [ Click here to be transformed into a Spider Monkey ] -----------*/

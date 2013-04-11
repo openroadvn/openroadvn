@@ -1,0 +1,59 @@
+<?php
+/**
+ *  Implementation of hook_install().
+ */
+function isa_project_issues_categories_install() {
+  $success = drupal_install_schema('isa_project_issues_categories');
+  drupal_set_message('Table project_issue_categories has been created');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function isa_project_issues_categories_uninstall() {
+  drupal_uninstall_schema('isa_project_issues_categories');
+  drupal_set_message('Table project_issue_categories has been deleted');
+}
+
+/**
+ * Implementation of hook_schema().
+ * @return array $schema 
+ */
+function isa_project_issues_categories_schema() {
+  $schema['project_issue_categories'] = array(
+    'description' => t('id of the issue category'),
+    'fields' => array(
+      'icid' => array(
+        'description' => t('pk of the table'),
+        'type' => 'serial',
+        'not null' => TRUE,
+      ),
+      'nid' => array(
+        'description' => t('nid of a project'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'uid' => array(
+        'description' => t('user id'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'timestamp' => array(
+        'description' => t('creation date of the issue category'),
+        'type' => 'int',
+        'not null' => FALSE,
+      ),
+      'title' => array(
+        'description' => t('title of the category'),
+        'type' => 'varchar',
+        'length' => '200',
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('icid'),
+  );
+  return $schema;
+}
+?>

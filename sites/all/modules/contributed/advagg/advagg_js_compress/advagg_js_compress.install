@@ -1,0 +1,121 @@
+<?php
+
+/**
+ * @file
+ * Handles AdvAgg JS compress installation and upgrade tasks.
+ */
+
+/**
+ * Implementation of hook_enable().
+ */
+function advagg_js_compress_enable() {
+  // Flush advagg caches.
+  $cache_tables = advagg_flush_caches();
+  foreach ($cache_tables as $table) {
+    cache_clear_all('*', $table, TRUE);
+  }
+
+  // Check runtime requirements
+  register_shutdown_function('advagg_js_compress_requirements', 'runtime');
+}
+
+/**
+ * Implementation of hook_disable().
+ */
+function advagg_js_compress_disable() {
+  // Flush advagg caches.
+  $cache_tables = advagg_flush_caches();
+  foreach ($cache_tables as $table) {
+    cache_clear_all('*', $table, TRUE);
+  }
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function advagg_js_compress_uninstall() {
+  // Remove variables.
+  variable_del('advagg_js_compress_packer_enable');
+  variable_del('advagg_js_compress_agg_files');
+  variable_del('advagg_js_compress_callback');
+  variable_del('advagg_js_compress_inline');
+  variable_del('advagg_js_compressor');
+}
+
+/**
+ * Implementation of hook_requirements().
+ */
+function advagg_js_compress_requirements($phase) {
+  $requirements = array();
+  // Ensure translations don't break at install time
+  $t = get_t();
+
+  // Report Drupal version
+  if ($phase == 'runtime') {
+    $compressible = advagg_js_compress_check_callback();
+    $advagg_js_compress_callback = variable_get('advagg_js_compress_callback', ADVAGG_JS_COMPRESS_CALLBACK);
+    if (is_array($compressible)) {
+      $requirements['advagg_js_compress_callback'] = array(
+        'title'       => $t('AdvAgg JS Compress - Callback'),
+        'severity'    => REQUIREMENT_WARNING,
+        'value'       => $t('The callback for testing if a JS file is compressible is not working.'),
+        'description' => $t('As a result if jsmin+ encounters a file that it cannot compress, it will kill that PHP process.'),
+      );
+      if ($advagg_js_compress_callback != FALSE) {
+        variable_set('advagg_js_compress_callback', FALSE);
+      }
+    }
+    else {
+      $requirements['advagg_js_compress_callback'] = array(
+        'title'       => $t('AdvAgg JS Compress - Callback'),
+        'severity'    => REQUIREMENT_OK,
+        'value'       => $t('The callback is working correctly.'),
+      );
+      if ($advagg_js_compress_callback == FALSE) {
+        variable_set('advagg_js_compress_callback', TRUE);
+      }
+    }
+
+    // Test the 'memory_limit' PHP configuration directive
+    $memory_limit = ini_get('memory_limit');
+    $compressor = variable_get('advagg_js_compressor', ADVAGG_JS_COMPRESSOR);
+
+    // If $memory_limit contains a value of -1, the PHP runtime
+    // doesn't impose a limit on memory used by PHP scripts
+    if ($compressor == 0 && $memory_limit && $memory_limit != -1 && parse_size($memory_limit) < parse_size('96M')) {
+      $requirements['advagg_js_compress_memory_limit'] = array(
+        'title'       => $t('AdvAgg JS Compress - Memory Limit'),
+        'value'       => $memory_limit,
+        'severity'    => REQUIREMENT_WARNING,
+        'description' => $t('It is highly recommended that you set your PHP memory_limit at least 96M if you are going to use JSMin+.'),
+      );
+    }
+  }
+  return $requirements;
+}
+
+/**
+ * Check to see if the CSS/JS generator is working.
+ */
+function advagg_js_compress_check_callback() {
+  $filename = drupal_get_path('module', 'advagg_js_compress') . '/jquery.form.js';
+  $files_to_test = array();
+  $files_to_test[] = array(
+    'md5' => md5($filename),
+    'filename' => $filename,
+  );
+  $compressible = advagg_js_compress_test_compression($files_to_test);
+  return $compressible;
+}
+
+/**
+ * Update 6100 - Clear file cache.
+ */
+function advagg_js_compress_update_6100() {
+  $ret = array();
+
+  cache_clear_all('*', 'cache_advagg_files_data', TRUE);
+  $ret[] = array('success' => TRUE, 'query' => 'advagg files_data cache flushed.');
+
+  return $ret;
+}

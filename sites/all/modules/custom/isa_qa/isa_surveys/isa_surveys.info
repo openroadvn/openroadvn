@@ -1,0 +1,7 @@
+; $Id
+core            = "6.x"
+description     = "Add possibility to manage surveys for assets and software"
+name            = "Software / Assets Surveys"
+package         = "ISA Toolbox"
+dependencies[]  = "isa_qa"
+dependencies[]  = "rules"

@@ -1,0 +1,335 @@
+<?php
+// $Id: active_translation.module,v 1.10.2.2 2010/08/30 12:06:02 drewish Exp $
+
+/**
+ * Implementation of hook_theme().
+ */
+function active_translation_theme() {
+  return array(
+    'active_translation_node_message' => array(
+      'arguments' => array('form_element' => NULL),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function active_translation_menu() {
+  $items['admin/settings/active_translation'] = array(
+    'title' => 'Active Translation',
+    'description' => 'Settings for the Active Translation module.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('active_translation_settings_form'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'active_translation.admin.inc',
+  );
+  $items['admin/settings/active_translation/settings'] = array(
+    'title' => 'Settings',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -1,
+  );
+  $items['admin/settings/active_translation/rebuild'] = array(
+    'title' => 'Rebuild Table',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('active_translation_rebuild_form'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'active_translation.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ */
+function active_translation_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  switch ($op) {
+    case 'load':
+      return active_translation_nodeapi_load($node);
+    case 'view':
+      return active_translation_nodeapi_view($node, $a3, $a4);
+    case 'insert':
+      return active_translation_nodeapi_insert($node);
+    case 'update':
+      return active_translation_nodeapi_update($node);
+    case 'delete':
+      return active_translation_nodeapi_delete($node);
+  }
+}
+
+function active_translation_nodeapi_view(&$node, $teaser, $page) {
+  if ($page && !empty($node->language) && variable_get('active_translation_show_status', 1)) {
+    global $language;
+    $languages = locale_language_list('name', TRUE);
+
+    if ($node->language != $language->language) {
+      $trans = $node->active_translation;
+
+      $original = node_load($node->tnid);
+      $best_tran = node_load($trans[db_escape_table($language->language)]);
+
+      $message = '';
+      if ($best_tran->nid == $node->nid) {
+        $message = t("The %node-language version of this content is being displayed because the %user-language translation is unavailable.", array('%user-language' => $languages[$language->language], '%node-language' => $languages[$node->language]));
+      }
+      elseif ($best_tran->language == $language->language) {
+        $message = t("A %user-language translation of this content is available <a href='!link'>here</a>.", array('%user-language' => $languages[$language->language], '!link' => url('node/'. $best_tran->nid)));
+      }
+      elseif ($best_tran->nid == $original->nid) {
+        $message = t("This content has not been translated to %user-language but you may find <a href='!link'>the original</a> %node-langauge version easier to read.", array('%user-language' => $languages[$language->language], '%node-langauge' => $languages[$original->language], '!link' => url('node/'. $original->nid)));
+      }
+      else {
+        $message = t("This content has not been translated to %user-language but a %node-langauge version is available <a href='!link'>here</a>.", array('%user-language' => $languages[$language->language], '%node-langauge' => $languages[$best_tran->language], '!link' => url('node/'. $best_tran->nid)));
+      }
+      $node->content['language'] = array(
+        '#type' => 'item',
+        '#title' => t('Translation Note'),
+        '#value' => $message,
+        '#theme' => 'active_translation_node_message',
+        '#weight' => -100,
+      );
+    }
+  }
+}
+
+function theme_active_translation_node_message($form_element) {
+  $output = '<div class="active-translation-message">';
+  $output .= '<span class="active-translation-message-label">'. $form_element['#title'] .':</span> ';
+  $output .= $form_element['#value'] .'</div>';
+  return $output;
+}
+
+function active_translation_nodeapi_load($node, $reset = FALSE) {
+  static $cache;
+
+  if (!isset($cache) || $reset) {
+    $cache = array();
+  }
+
+  $atid = empty($node->tnid) ? $node->nid : $node->tnid;
+  if (isset($cache[$atid])) {
+    return array('active_translation' => $cache[$atid]);
+  }
+
+  $result = db_query('SELECT * FROM {active_translation} WHERE atid = %d', $atid);
+  if ($cache[$atid] = db_fetch_array($result)) {
+    return array('active_translation' => $cache[$atid]);
+  }
+}
+
+function active_translation_nodeapi_insert($node) {
+  // Need to load the tnid out of the source.
+  if (isset($node->translation_source)) {
+    $source = $node->translation_source;
+    $node->tnid = empty($source->tnid) ? $source->nid : $source->tnid;
+  }
+
+  $translation = active_translation_recompute($node);
+  if ($translation['atid'] == $node->nid) {
+    drupal_write_record('active_translation', $translation);
+  }
+  else {
+    drupal_write_record('active_translation', $translation, array('atid'));
+  }
+}
+
+function active_translation_nodeapi_update($node) {
+  $translation = active_translation_recompute($node);
+  drupal_write_record('active_translation', $translation, array('atid'));
+}
+
+function active_translation_nodeapi_delete($node) {
+  if (!empty($node->tnid) && $node->nid != $node->tnid) {
+    // Recomputing for the node will load the record for the node's tnid.
+    $translation = active_translation_recompute($node);
+    drupal_write_record('active_translation', $translation, array('atid'));
+  }
+  else {
+    // TODO: I'm not really sure this is correct... Does deleting the original
+    // remove all the translations?
+    db_query('DELETE FROM {active_translation} WHERE atid = %d', array($node->nid));
+  }
+}
+
+/**
+ * Return an array of language field names that can be used as substutions for
+ * one another.
+ *
+ * TODO: might make more sense to have this specified as a setting rather than
+ * doing it automagically.
+ *
+ * @return array keyed by {active_translation} field name with an array of
+ *   field names that can be used in place of it.
+ */
+function _active_translation_language_substitutions() {
+  static $subs = NULL;
+
+  if (empty($subs)) {
+    // Break everything up by language.
+    $chunks = array();
+    foreach (language_list('language', TRUE) as $lang_code => $language) {
+      $parts = explode('-', $lang_code);
+      if (count($parts) == 2) {
+        $chunks[$parts[0]][] = $lang_code;
+      }
+    }
+
+    // Then provide mappings between each of region.
+    $subs = array();
+    foreach ($chunks as $language => $regions) {
+      $count = count($regions);
+      foreach ($regions as $lang_code) {
+        for ($i = 0; $i < $count; $i++) {
+          if ($regions[$i] != $lang_code) {
+            $subs[db_escape_table($lang_code)][] = db_escape_table($regions[$i]);
+          }
+        }
+      }
+    }
+  }
+
+  return $subs;
+}
+
+/**
+ * Compute the active tranlsations for a given node.
+ *
+ * @param $node Object with tnid or nid tnid properties.
+ * @return array with translation mapping.
+ */
+function active_translation_recompute($node) {
+  $languages = array_keys(language_list('language'));
+
+  if (empty($node->tnid)) {
+    // If there are no tranlsations use this for all languages.
+    $translation = array('atid' => $node->nid);
+    foreach ($languages as $lang_code) {
+      $translation[db_escape_table($lang_code)] = $node->nid;
+    }
+  }
+  else {
+    $translation = array('atid' => $node->tnid);
+
+    // Locate all the existing, published translations...
+    $result = db_query("SELECT nid, language FROM {node} WHERE tnid <> nid AND tnid = %d AND status = 1", $node->tnid);
+    while ($row = db_fetch_object($result)) {
+      $translation[db_escape_table($row->language)] = $row->nid;
+    }
+
+    // ...then use the original to fill in any gaps. This will also take care
+    // of the case where all nodes are unpublished: the original node will be
+    // used.
+    $subs = _active_translation_language_substitutions();
+    foreach ($languages as $lang_code) {
+      $field = db_escape_table($lang_code);
+      if (empty($translation[$field])) {
+        // To be safe fill in the original...
+        $translation[$field] = $node->tnid;
+
+        // ...then go see if we can find a substitute
+        if (isset($subs[$field])) {
+          foreach ((array) $subs[$field] as $sub_field) {
+            if (isset($translation[$sub_field])) {
+              $translation[$field] = $translation[$sub_field];
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return $translation;
+}
+
+/**
+ * Implementation of hook_alter_translation_link().
+ *
+ * Replaces links with pointers to translated versions of the content.
+ */
+function active_translation_translation_link_alter(&$links, $path) {
+  // Check for a node related path, and for its translations.
+  if ((preg_match("!^node/([0-9]+)(/.+|)$!", $path, $matches)) && ($node = node_load((int)$matches[1])) && !empty($node->tnid)) {
+    // Basically we're redoing the work of the local.module that the
+    // translation.module undoes in translation_translation_link_alter().
+    $languages = language_list('enabled');
+    $links = array();
+    foreach ($languages[1] as $language) {
+      $field = db_escape_table($language->language);
+      if (isset($node->active_translation[$field])) {
+        $links[$language->language] = array(
+          'href'       => 'node/'. $node->active_translation[$field] . $matches[2],
+          'title'      => $language->native,
+          'language'   => $language,
+          'attributes' => array('class' => 'language-link'),
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Implementation of hook_form_alter().
+ *
+ * We inject our own submit handler into the locale module's forms that add
+ * or remove languages so that when they're submitted we rebuild the active
+ * translation table.
+ */
+function active_translation_form_alter(&$form, $form_state, $form_id) {
+  switch ($form_id) {
+    case 'locale_languages_delete_form':
+    case 'locale_languages_predefined_form':
+    case 'locale_languages_custom_form':
+      $form['#submit'][] = 'active_translation_rebuild_on_submit';
+      break;
+  }
+}
+
+/**
+ * Submission handler for the local module's forms so we can rebuild the
+ * active translation table in case languages are added or removed.
+ */
+function active_translation_rebuild_on_submit() {
+  // Now build a batch to update the table.
+  require_once drupal_get_path('module', 'active_translation') .'/active_translation.batch.inc';
+  batch_set(active_translation_build_batch_all());
+}
+
+/**
+ * Implementation of hook_db_rewrite_sql().
+ *
+ * Rewrite node queries so language selection options are enforced.
+ */
+function active_translation_db_rewrite_sql($query, $primary_table, $primary_key) {
+  global $language;
+
+  switch ($primary_table) {
+    case 'n':
+    case 'node':
+      // STOLE THISE FROM I18N, NEED TO MAKE SURE THEY'RE STILL VALID.
+
+      // Ignore the admin pages.
+      if (arg(0) == 'admin') return;
+      // No rewrite for queries with subselect ? (views count queries)
+      // @ TO DO Actually these queries look un-rewrittable, check with other developers
+      if (preg_match("/FROM \(SELECT/", $query)) return;
+      // No rewrite for translation module queries
+      if (preg_match("/.*FROM {node} $primary_table WHERE.*$primary_table\.tnid/", $query)) return;
+      // When loading specific nodes, language conditions shouldn't apply
+      if (preg_match("/WHERE.*\s$primary_table.nid\s*=\s*(\d|%d)/", $query)) return;
+
+      // Try to keep the i18n module from screwing with our queries.
+      if (module_exists('i18n')) {
+        i18n_selection_mode('off');
+      }
+
+      $field = db_escape_table($language->language);
+      $path = explode('/', drupal_get_path_alias($_GET['q']));
+      if ($path[count($path) - 1] != 'home')
+        $result['join'] = "INNER JOIN {active_translation} ON $primary_table.nid = {active_translation}.$field";
+      return $result;
+  }
+}

@@ -1,0 +1,76 @@
+<?php
+// $Id: isa_highlight.install,v 1.1.2.2 2009/07/04 19:46:42 gunzip Exp $
+
+/**
+ * @file
+ * Flag note module install/schema/update hooks.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function isa_multiple_digest_install() {
+  $success = drupal_install_schema('isa_multiple_digest');
+  drupal_set_message('The table simplenews_digest_multiple have been created');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function isa_multiple_digest_uninstall() {
+  drupal_uninstall_schema('isa_multiple_digest');
+   drupal_set_message('The table simplenews_digest_multiple have been deleted');
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function isa_multiple_digest_schema() {
+  $schema['simplenews_digest_multiple'] = array(
+  'description' => t('TODO: please describe this table!'),
+  'fields' => array(
+    'sdmid' => array(
+      'description' => t('TODO: please describe this field!'),
+      'type' => 'serial',
+      'size' => 'big',
+      'not null' => TRUE,
+    ),
+    'tid' => array(
+      'description' => t('taxonomie of the newsletter'),
+      'type' => 'int',
+      'size' => 'big',
+      'not null' => TRUE,
+    ),
+    'tids' => array(
+      'description' => t('taxonomies related to the contain of the newsletter'),
+      'type' => 'text',
+      'not null' => TRUE,
+    ),
+    'ctids' => array(
+      'description' => t('content type related to the contain of the newsletter'),
+      'type' => 'text',
+      'not null' => TRUE,
+    ),
+    'frequency' => array(
+      'description' => t('weekly monthly ...'),
+      'type' => 'varchar',
+      'length' => '100',
+      'not null' => TRUE,
+    ),
+	'day' => array(
+      'description' => t('First day ...'),
+      'type' => 'varchar',
+      'length' => '100',
+      'not null' => TRUE,
+    ),
+    'last_cron' => array(
+      'description' => t('last cron of newsletter ...'),
+      'type' => 'int',
+      'size' => 'big',
+      'not null' => TRUE,
+    ),
+  ),
+  'primary key' => array('sdmid'),
+);  
+return $schema;
+}

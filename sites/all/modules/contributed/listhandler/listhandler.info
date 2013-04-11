@@ -1,0 +1,12 @@
+; $Id $
+name = Listhandler
+core = 6.x
+description = "Integrate forums with mailing lists."
+dependencies[] = mailhandler
+
+; Information added by drupal.org packaging script on 2009-03-14
+version = "6.x-1.0"
+core = "6.x"
+project = "listhandler"
+datestamp = "1237046129"
+

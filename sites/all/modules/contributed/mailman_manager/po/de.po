@@ -1,0 +1,335 @@
+#
+# German translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  mailman_manager.module,v 1.33.2.3 2008/12/30 22:37:11 samuelet
+#  mailman_manager.install,v 1.12.2.1 2008/12/27 17:45:57 samuelet
+#  mailman_manager.info,v 1.5 2008/12/21 05:51:01 taniwha
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2009-02-28 20:27+0100\n"
+"PO-Revision-Date: 2009-02-28 20:36+0100\n"
+"Last-Translator: Timo Barfknecht <timob@bdp-sh-hh.de>\n"
+"Language-Team: German <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n!=1);\n"
+
+#: mailman_manager.module:18;20
+msgid "Utilities related to Mailman manager, subscription system and database for Mailman mailing lists."
+msgstr ""
+
+#: mailman_manager.module:21
+msgid "This tool works using the mailman email interface. All commands sent by this module are also BCC'ed to the list admin. One can optionally specify the web interface and/or the web archive of each list. The module can not know if a user is previously subscribed but allows the user to specify a password which can then be used to hook into an existing account."
+msgstr ""
+
+#: mailman_manager.module:34;53;59;90
+msgid "Mailing Lists"
+msgstr ""
+
+#: mailman_manager.module:34
+msgid "Subscribe to mailing lists"
+msgstr ""
+
+#: mailman_manager.module:106
+msgid "You must be an authorized member to subscribe to mailing lists"
+msgstr ""
+
+#: mailman_manager.module:117
+msgid "The following email address will be subscribed to the email lists:"
+msgstr "Folgende E-Mail-Adresse wird für die Mailinglisten genutzt: "
+
+#: mailman_manager.module:118
+msgid "If you would like to have a different email address subscribed, change your email address in the account settings tab."
+msgstr "Wenn du eine andere E-Mail-Adresse nutzen möchtest, änder diese bitte in deinen Kontoeinstellungen."
+
+#: mailman_manager.module:122
+msgid "There are no lists available for subscription."
+msgstr "Es sind keine Mailinglisten verfügbar."
+
+#: mailman_manager.module:136;145
+msgid "Subscribe for digest (receive emails in a bundle)"
+msgstr "Im digest-mode abonieren (E-Mails werden gebündelt gesendet)"
+
+#: mailman_manager.module:137;146
+msgid "Subscribe for all Mail (normal delivery)"
+msgstr "Normal abonieren (E-Mails werden einzeln gesendet)"
+
+#: mailman_manager.module:143
+msgid "Unsubscribe"
+msgstr "Abmelden"
+
+#: mailman_manager.module:144
+msgid "No mail (temporarily disable delivery)"
+msgstr "Kein Abo (kurzzeitig abbestellen)"
+
+#: mailman_manager.module:147
+msgid "Mail password"
+msgstr ""
+
+#: mailman_manager.module:153
+msgid "Change your subscription"
+msgstr "Anmeldung ändern"
+
+#: mailman_manager.module:160
+msgid "Password for %listname (optional)"
+msgstr "Passwort für %listname (optional)"
+
+#: mailman_manager.module:167
+msgid "Visit"
+msgstr ""
+
+#: mailman_manager.module:169
+msgid "Mailman Interface"
+msgstr ""
+
+#: mailman_manager.module:172
+msgid "or"
+msgstr "oder"
+
+#: mailman_manager.module:175
+msgid "archive"
+msgstr "archivieren"
+
+#: mailman_manager.module:181
+msgid "Your current email address is not subscribed to %status list(s)."
+msgstr "Deine aktuelle E-Mail-Adresse ist bei %status Mailinglisten nicht eingetragen. "
+
+#: mailman_manager.module:184
+msgid "Your current email address is currently subscribed to all lists."
+msgstr "Deine aktuelle E-Mail-Adresse ist bei allen Mailinglisten eingetragen."
+
+#: mailman_manager.module:203;321
+msgid "Save"
+msgstr "Speichern"
+
+#: mailman_manager.module:239
+msgid "Your mailing list subscriptions have been updated"
+msgstr "Deine Mailinglisteneinstellungen wurden aktualisiert. "
+
+#: mailman_manager.module:249
+msgid "Are you sure?"
+msgstr "Bist du sicher?"
+
+#: mailman_manager.module:252
+msgid "Delete !listname"
+msgstr ""
+
+#: mailman_manager.module:295
+#: mailman_manager.install:50
+msgid "Mailing List 'request' address"
+msgstr ""
+
+#: mailman_manager.module:297
+msgid "Commands are sent here"
+msgstr ""
+
+#: mailman_manager.module:302
+#: mailman_manager.install:56
+msgid "Mailing List 'admin' address"
+msgstr ""
+
+#: mailman_manager.module:304
+msgid "(Optional. admin is used for BCC)"
+msgstr ""
+
+#: mailman_manager.module:308
+msgid "Mailing list web address for users"
+msgstr ""
+
+#: mailman_manager.module:310
+msgid "http://..."
+msgstr "http://..."
+
+#: mailman_manager.module:310;316
+msgid "Leave empty if hidden."
+msgstr ""
+
+#: mailman_manager.module:314
+#: mailman_manager.install:68
+msgid "Mailing list web archive address for users"
+msgstr ""
+
+#: mailman_manager.module:316
+msgid "http://.... "
+msgstr ""
+
+#: mailman_manager.module:321
+msgid "Add"
+msgstr "Hinzufügen"
+
+#: mailman_manager.module:336
+msgid "\"%reqaddress\" is not a valid email address"
+msgstr ""
+
+#: mailman_manager.module:339
+msgid "\"%adminaddress\" is not a valid email address"
+msgstr ""
+
+#: mailman_manager.module:342
+msgid "\"%webaddress\" is not a valid url"
+msgstr ""
+
+#: mailman_manager.module:345
+msgid "\"%webarchive\" is not a valid url"
+msgstr ""
+
+#: mailman_manager.module:385
+msgid "Error in creating new Mailman list %name"
+msgstr ""
+
+#: mailman_manager.module:400
+msgid "ID"
+msgstr "ID"
+
+#: mailman_manager.module:401
+msgid "Name"
+msgstr "Name"
+
+#: mailman_manager.module:402
+msgid "Request Address"
+msgstr ""
+
+#: mailman_manager.module:414
+msgid "Edit"
+msgstr "Bearbeiten"
+
+#: mailman_manager.module:415
+msgid "Delete"
+msgstr "Löschen"
+
+#: mailman_manager.module:420
+msgid "Add new mailing list"
+msgstr "Neue Mailingliste hinzufügen"
+
+#: mailman_manager.module:264;268;470;478;491;505;517;546;549;568
+msgid "mailman man"
+msgstr ""
+
+#: mailman_manager.module:264
+msgid "Successfully deleted Mailman list %listid"
+msgstr ""
+
+#: mailman_manager.module:268
+msgid "Mailman list %listid deletion failed"
+msgstr ""
+
+#: mailman_manager.module:470
+msgid "User %uid unsubscribed from list %lid"
+msgstr ""
+
+#: mailman_manager.module:478
+msgid "Subscription to list %lid for user %uid changed to no mail"
+msgstr "Anmeldung für %lid für den Benutzer %uid wurde auf \"keine Mail\" geändert."
+
+#: mailman_manager.module:491
+msgid "Subscription to list %lid for user %uid changed to digest"
+msgstr "Anmeldung für %lid für den Benutzer %uid wurde auf \"digest-model\" geändert."
+
+#: mailman_manager.module:505
+msgid "Subscription to list %lid for user %uid changed to all mail"
+msgstr "Anmeldung für %lid für den Benutzer %uid wurde auf \"einzelne Mails\" geändert."
+
+#: mailman_manager.module:517
+msgid "Password for list %lid for user %uid sent by mail"
+msgstr ""
+
+#: mailman_manager.module:546
+msgid "New subscription to list %lid for user %uid completed successfully."
+msgstr "Neues Abo zur Liste %lid für den Benutzer %uid wurde erfolgreich erstellt. "
+
+#: mailman_manager.module:549
+msgid "New subscription to list %lid for user %uid failed."
+msgstr ""
+
+#: mailman_manager.module:568
+msgid "Mail command sent to Mailman to: %commandaddress. Command: %command"
+msgstr ""
+
+#: mailman_manager.module:44
+msgid "access mailman_manager"
+msgstr ""
+
+#: mailman_manager.module:44
+msgid "administer mailman_manager"
+msgstr ""
+
+#: mailman_manager.module:61
+msgid "Allow users to subscribe and change their subscriptions to Mailman mailing lists."
+msgstr ""
+
+#: mailman_manager.module:66
+msgid "Add New"
+msgstr ""
+
+#: mailman_manager.module:68;84
+msgid "Add new Mailman mailing lists."
+msgstr ""
+
+#: mailman_manager.module:74
+msgid "Edit Mailing list"
+msgstr ""
+
+#: mailman_manager.module:76
+msgid "Edit Mailman mailing lists."
+msgstr ""
+
+#: mailman_manager.module:82
+msgid "Delete Mailing list"
+msgstr ""
+
+#: mailman_manager.module:0
+msgid "mailman_manager"
+msgstr ""
+
+#: mailman_manager.install:30
+msgid "Stores specific information for mailiman lists."
+msgstr ""
+
+#: mailman_manager.install:36;89
+msgid "The list id."
+msgstr ""
+
+#: mailman_manager.install:43
+msgid "Mailing List name"
+msgstr ""
+
+#: mailman_manager.install:62
+msgid "Mailing list web address for users."
+msgstr ""
+
+#: mailman_manager.install:75
+msgid "Stores subscription information for users."
+msgstr ""
+
+#: mailman_manager.install:82
+msgid "User id."
+msgstr ""
+
+#: mailman_manager.install:96
+msgid "Subscription status."
+msgstr ""
+
+#: mailman_manager.install:103
+msgid "Current user subscribed email."
+msgstr ""
+
+#: mailman_manager.install:110
+msgid "Current user list password."
+msgstr ""
+
+#: mailman_manager.info:0
+msgid "Mailman Manager"
+msgstr ""
+
+#: mailman_manager.info:0
+msgid "Allows members to subscribe and change their subscriptions to Mailman mailing lists."
+msgstr ""
+
+#: mailman_manager.info:0
+msgid "MailmanManager"
+msgstr ""
+

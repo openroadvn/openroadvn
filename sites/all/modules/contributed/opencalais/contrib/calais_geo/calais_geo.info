@@ -1,0 +1,15 @@
+; $Id $
+name = Calais Geo
+description = "Provides Geo services & functionality based on the Calais Metadata ."
+package = "Calais"
+core = 6.x
+dependencies[] = calais
+dependencies[] = gmap
+
+
+; Information added by drupal.org packaging script on 2010-08-09
+version = "6.x-3.5"
+core = "6.x"
+project = "opencalais"
+datestamp = "1281391277"
+

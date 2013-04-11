@@ -1,0 +1,7 @@
+; $Id
+core            = "6.x"
+description     = "Add possibility to manage assets assistants"
+name            = "Assets Assistants"
+package         = "ISA Toolbox"
+dependencies[]  = "isa_qa"
+dependencies[]  = "isa_toolbox"

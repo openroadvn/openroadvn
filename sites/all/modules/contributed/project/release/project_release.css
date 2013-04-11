@@ -1,0 +1,99 @@
+/* $Id: project_release.css,v 1.17 2009/12/09 00:08:46 dww Exp $ */
+
+.node-form .version-elements .form-item {
+  float: left;
+  padding-right: 0.8em;
+  margin: 0.05em 0.1em;
+}
+
+/***************************
+* CSS for tables of releases
+*/
+table.releases {
+  margin-top: .5em;
+}
+
+table.releases .release-title {
+  width: 15%;
+}
+
+table.releases .release-date {
+  width: 15%;
+}
+
+table.releases .release-size {
+  width: 10%;
+}
+
+table.releases .release-links {
+  width: 33%;
+}
+
+table.releases .release-status {
+  width: 25%;
+}
+
+table.releases .release-icon {
+  width: 2%;
+}
+
+.download-table h4 {
+  margin-bottom: 0.67em;
+}
+
+.download-table-ok tr.odd,
+.download-table-ok tr.odd td.active,
+.download-table-ok tr.even,
+.download-table-ok tr.even td.active,
+table.releases tr.ok {
+  background-color: #dfd;
+}
+
+.project-release tr.release-update-status-1,
+.download-table-warning tr.odd,
+.download-table-warning tr.odd td.active,
+.download-table-warning tr.even,
+.download-table-warning tr.even td.active,
+table.releases tr.warning {
+  background-color: #ffd;
+}
+
+.project-release tr.release-update-status-2,
+.download-table-error tr.odd,
+.download-table-error tr.odd td.active,
+.download-table-error tr.even,
+.download-table-error tr.even td.active,
+table.releases tr.error {
+  background-color: #fdd;
+}
+
+.view-project-release-download-table table {
+  width: 99%;
+}
+
+.view-project-release-download-table td.views-field-version {
+  width: 20%;
+}
+
+.view-project-release-download-table td.views-field-files {
+  width: 30%;
+}
+.view-project-release-download-table td.views-field-files span.filesize {
+  font-size: 80%;
+}
+
+.view-project-release-download-table td.views-field-file-timestamp {
+  width: 15%;
+}
+
+.view-project-release-download-table td.views-field-view-node {
+  width: 15%;
+}
+
+.view-project-release-download-table td.views-field-update-status {
+  width: 20%;
+}
+
+.project-release-files .views-field-filehash {
+  color: #999;
+}

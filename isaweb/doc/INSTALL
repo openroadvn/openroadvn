@@ -1,0 +1,44 @@
+Web directories aim at publishing a "www" subdirectory of a directory owned by a project.
+Each project may enable or disable its web directory. The existing web directories, their parent project and their state (enabled, disabled, to be created, ...) are stored in the ISA database.
+It consists of four components:
+  * A RewriteMap, which is a simple text file associating on each line the name of a web directory with its state (enabled, disabled)
+  * webcron, a cron job that runs very frequently, looks for web directories to be created, creates them and regenerates the RewriteMap if needed
+  * A PHP-less Apache instance with a few lines of configuration to take the RewriteMap content into account.
+  * dailycheck, an optional cron job, supposed to run once a day, that checks the size of each web directory and output the list of those exceeding their defined quotas.
+
+Pre-requisites: the web_directories table should exist in the ISA database, see compat/V1.3.0/02_web_directories.sql if needed.
+Note: Replace $EDITOR below by your favorite text editor.
+
+cd /path/to/scripts
+svn co https://webgate.ec.europa.eu/CITnet/svn/ISAICP/trunk/isacommon
+svn co https://webgate.ec.europa.eu/CITnet/svn/ISAICP/trunk/isaweb
+cd isaweb
+# If needed, fix shebang line of executables scripts, e.g. #!/usr/bin/php
+$EDITOR bin/{dailycheck,webcron}
+# ensure the skeleton does not contain .svn directory
+find conf/web-skeleton -type d -name .svn | xargs rm -rf
+# edit the configuration
+$EDITOR conf/isaweb-conf.inc.php
+# fill ISA_SERVER, ISA_DB_*, WEB_ROOT_DIR and WEB_MAP_FILEPATH
+# You may also fill WEB_SYNC_MAP_SCRIPT if you need to execute some actions
+# after the RewriteMap is updated, such as a replication script; note however
+# that this command will be executed as is, without any extra argument.
+
+# You may now make the webcron job run every minute to create web directories
+# as soon as possible after they are required.
+# Example with cron:
+# for user-wide cronjobs
+crontab -e
+# or, for system-wide cronjobs
+$EDITOR /etc/cron.d/isa
+
+MAILTO=your.email@addr.ess
+# m  h  dom mon dow  command
+# run every day, every minute
+  *  *    *   *   *  /path/to/scripts/isaweb/bin/webcron 2>&1
+# run from Sunday to Thursday at 11:00 PM
+  0 23    *   * 0-4  /path/to/scripts/isaweb/bin/dailycheck 2>&1
+
+# For system-wide cronjobs, do not forget to reload your cron daemon
+/etc/init.d/crond restart
+

@@ -1,0 +1,52 @@
+<?php
+// $Id: project_package.install,v 1.2 2009/12/01 02:39:20 dww Exp $
+
+/**
+ * @file
+ * Database schema definition for the Project Package module.
+ */
+
+/**
+ * Implement hook_install().
+ */
+function project_package_install() {
+  // Create the database tables.
+  drupal_install_schema('project_package');
+  db_query("UPDATE {system} SET weight = %d WHERE name = '%s'", 3, 'project_package');
+}
+
+/**
+ * Implement hook_uninstall().
+ */
+function project_package_uninstall() {
+  // Drop database tables.
+  drupal_uninstall_schema('project_package');
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function project_package_schema() {
+  $schema['project_package_local_release_item'] = array(
+    'description' => 'Keeps track of what releases of local sub-projects are included in a release of a given package project.',
+    'fields' => array(
+      'package_nid' => array(
+        'description' => 'Primary Key: The {node}.nid of the package release node.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'item_nid' => array(
+        'description' => 'The {node}.nid of a local release node (from the same site) included as an item in the package.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('package_nid', 'item_nid'),
+  );
+  return $schema;
+}
+

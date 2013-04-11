@@ -1,0 +1,38 @@
+<?php
+
+/*
+ * get list of question
+ * @return a list of question depending or not on the form name
+ */
+function isa_qa_get_questions($form_name=NULL) {
+  // Query to get questions
+  $questions = array();
+  $sql = "SELECT qid, form_name, weight, label
+   FROM {qa_question}";
+  if (NULL!= $form_name)
+    $sql .= " WHERE form_name = '%s'";
+  $sql .= " ORDER BY qa_question.weight";
+  $query = db_query($sql, $form_name);
+  while ($result = db_fetch_array($query)) {
+    $questions[] = $result;
+  }
+  return $questions;
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ */
+function isa_qa_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
+  switch ($op) {
+    case 'delete':
+      switch ($node->type) {
+        case ISA_PROJECT_RELEASE_TYPE:
+          $sql = "DELETE FROM {qa_answer}
+                  WHERE nid = '%d'";
+          db_query($sql, $node->nid);
+          break;
+        
+        
+      }
+  }
+}

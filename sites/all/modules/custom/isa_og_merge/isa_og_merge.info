@@ -1,0 +1,12 @@
+; $Id
+core            = "6.x"
+dependencies[]  = og
+dependencies[]  = og_user_roles
+dependencies[]  = isa_highlight
+dependencies[]  = project
+dependencies[]  = project_release
+dependencies[]  = project_issue
+
+description     = "When a group is deleted, this module can move user og roles, highlights, releases and issues to another group"
+name            = "OG merge"
+package         = "ISA Toolbox"

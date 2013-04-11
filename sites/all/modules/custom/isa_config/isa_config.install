@@ -1,0 +1,32 @@
+<?php
+
+
+
+
+/**
+ * Implementation of hook_install().
+ */
+function isa_config_install() {
+  drupal_set_message(t('The installation of ISA config module completed.'));
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function isa_config_uninstall() {
+  $vocabulary = isa_config_get_vocabularies_list ();
+  
+    foreach ($vocabulary as $name => $value) {
+      $variable_name = $value['variable_name']."_vid";
+      if (variable_get($variable_name, NULL)) {
+        taxonomy_del_vocabulary(variable_get($variable_name,NULL));
+        variable_del($variable_name);
+    }
+  }
+
+  $user_roles = isa_config_get_user_roles ();
+  foreach ($user_roles as $key => $value ){
+    variable_del ($value."rid");
+  }
+}
+

@@ -1,0 +1,59 @@
+<?php
+
+/**
+ * @file
+ * Handles AdvAgg CSS compress installation and upgrade tasks.
+ */
+
+/**
+ * Implementation of hook_enable().
+ */
+function advagg_css_compress_enable() {
+  // Flush advagg caches.
+  $cache_tables = advagg_flush_caches();
+  foreach ($cache_tables as $table) {
+    cache_clear_all('*', $table, TRUE);
+  }
+}
+
+/**
+ * Implementation of hook_disable().
+ */
+function advagg_css_compress_disable() {
+  // Flush advagg caches.
+  $cache_tables = advagg_flush_caches();
+  foreach ($cache_tables as $table) {
+    cache_clear_all('*', $table, TRUE);
+  }
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function advagg_css_compress_uninstall() {
+  // Flush advagg caches.
+  $cache_tables = advagg_flush_caches();
+  foreach ($cache_tables as $table) {
+    cache_clear_all('*', $table, TRUE);
+  }
+
+  // Remove variables.
+  variable_del('advagg_css_compress_preserve_css');
+  variable_del('advagg_css_compress_agg_files');
+  variable_del('advagg_css_compress_inline');
+  variable_del('advagg_css_compressor');
+
+}
+
+/**
+ * Implementation of hook_requirements().
+ */
+function advagg_css_compress_requirements($phase) {
+  $requirements = array();
+  // Ensure translations don't break at install time
+  $t = get_t();
+
+  if ($phase == 'runtime') {
+  }
+  return $requirements;
+}

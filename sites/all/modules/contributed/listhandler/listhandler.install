@@ -1,0 +1,155 @@
+<?php
+// $Id: listhandler.install,v 1.13 2008/10/27 20:05:54 philipnet Exp $
+
+/**
+ * @file
+ * Listhandler install file.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function listhandler_install() {
+  // Create tables.
+  drupal_install_schema('listhandler');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ * Function executed during listhandler module uninstall.
+ */
+function listhandler_uninstall() {
+  drupal_uninstall_schema('listhandler');
+  variable_del('listhandler_from');
+  variable_del('listhandler_strip_title');
+  variable_del('listhandler_accountstatus');
+  variable_del('listhandler_attachments_as_link');
+  variable_del('listhandler_htmltotext');
+}
+
+/**
+ * Listhandler module database schema.
+ * Implementation of hook_schema().
+ */
+function listhandler_schema() {
+  $schema['listhandler'] = array(
+    'description' => t(''),
+    'fields'  => array(
+      'lid'   => array(
+        'description' => t(''),
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE
+      ),
+      'msgid' => array(
+        'description' => t(''),
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE
+      ),
+      'nid'   => array(
+        'description' => t(''),
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => TRUE,
+        'default' => 0
+      ),
+      'cid'   => array(
+        'description' => t(''),
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => TRUE,
+        'default' => 0
+      ),
+      'pid'   => array(
+        'description' => t(''),
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => TRUE,
+        'default' => 0
+      ),
+      'uid'   => array(
+        'description' => t(''),
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => TRUE,
+        'default' => 0
+      ),
+      'mid'   => array(
+        'description' => t(''),
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => TRUE,
+        'default' => 0
+      ),
+      'tid'   => array(
+        'description' => t(''),
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => TRUE,
+        'default' => 0
+      )
+    ),
+    'primary key' => array('lid')
+  );
+
+  $schema['listhandler_prefix'] = array(
+  'description' => t(''),
+    'fields' => array(
+      'mid'    => array(
+        'description' => t(''),
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE
+      ),
+      'prefix' => array(
+        'description' => t(''),
+        'type' => 'varchar',
+        'length' => 255,
+        'default' => ''
+      )
+    ),
+    'primary key' => array('mid')
+  );
+
+  return $schema;
+}
+
+/**
+ * Update database hooks.
+ */
+function listhandler_update_1() {
+  return _system_update_utf8(array('listhandler'));
+}
+
+function listhandler_update_5000() {
+  $items = array();
+
+  db_drop_index($items, "listhandler", "lid");
+
+  return $items;
+}
+
+function listhandler_update_6000() {
+  // Migrate the extra column in {mailhandler} into a listhandler table:
+  $ret = array();
+  if (db_column_exists('{mailhandler}', 'prefix')) {
+    watchdog('listhandler', 'We are updating the listhandler_prefix table', array(), WATCHDOG_DEBUG);
+    $schema['listhandler_prefix'] = array(
+      'description' => '',
+      'fields' => array(
+        'mid'    => array('type' => 'serial',  'unsigned' => TRUE, 'not null' => TRUE),
+        'prefix' => array('type' => 'varchar', 'length' => 255,    'default' => '')
+      ),
+      'primary key' => array('mid')
+    );
+    db_create_table($ret, 'listhandler_prefix', $schema['listhandler_prefix']);
+    $result = db_query("SELECT mid,prefix FROM {mailhandler} WHERE prefix <> ''");
+    while ($row = db_fetch_array($result)) {
+      watchdog('listhandler', "INSERT INTO listhandler_prefix VALUES('%mid', '%prefix')", array('%mid' => $row['mid'], '%prefix' => $row['prefix']), WATCHDOG_DEBUG);
+      $res = db_query("INSERT INTO {listhandler_prefix} VALUES('%s', '%s')", $row['mid'], $row['prefix']);
+    }
+    db_drop_field($ret, '{mailhandler}', 'prefix');
+  }
+  return $ret;
+}

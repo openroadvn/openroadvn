@@ -1,0 +1,7 @@
+<?php
+
+function isa_ml_install() {
+}
+
+function isa_ml_uninstall() {
+}

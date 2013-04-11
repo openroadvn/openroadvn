@@ -1,0 +1,417 @@
+# LANGUAGE translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  comment.inc,v 1.65 2006/04/24 18:34:45 dww
+#  release.inc,v 1.70 2006/04/22 21:09:40 dww
+#  issue.inc,v 1.169 2006/04/28 15:40:26 dww
+#  project.module,v 1.238 2006/04/22 16:44:46 dww
+#  mail.inc,v 1.60 2006/04/22 21:14:57 dww
+#  project.inc,v 1.75 2006/04/22 16:44:46 dww
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: German translation for project module\n"
+"POT-Creation-Date: 2009-07-18 00:17+0200\n"
+"PO-Revision-Date: 2009-07-18 00:27+0100\n"
+"Last-Translator: Alexander Haß\n"
+"Language-Team: Alexander Hass\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n!=1)\n"
+"X-Poedit-Language: German\n"
+"X-Poedit-Country: GERMANY\n"
+"X-Poedit-SourceCharset: utf-8\n"
+
+#: project.inc:69
+msgid "Project categories"
+msgstr "Projektkategorien"
+
+#: project.inc:84
+msgid "!type categories"
+msgstr "!type Kategorien"
+
+#: project.inc:100
+msgid "Project information"
+msgstr "Projektinformation"
+
+#: project.inc:105
+msgid "Full project name"
+msgstr "Vollständiger Projektname"
+
+#: project.inc:121
+msgid "Short project name"
+msgstr "Kurzer Projektname"
+
+#: project.inc:125
+msgid "This will be used to generate a /project/&lt;shortname&gt;/ URL for your project."
+msgstr "Der Name wird verwendet, um eine /project/&lt;Kurzname&gt;/ URL für das Projekt zu erstellen."
+
+#: project.inc:128
+msgid "Full description"
+msgstr "Vollständige Beschreibung"
+
+#: project.inc:132
+msgid "Project resources"
+msgstr ""
+
+#: project.inc:143
+msgid "Link to project homepage."
+msgstr "Verweis zur Projekthomepage"
+
+#: project.inc:151
+msgid "Link to project documentation."
+msgstr "Verweis zur Projektdokumentation."
+
+#: project.inc:159
+msgid "Link to project license."
+msgstr "Verweis zur Projektlizenz."
+
+#: project.inc:167
+msgid "Link to project screenshots."
+msgstr "Verweis zu Projektscreenshots."
+
+#: project.inc:175
+msgid "Link to changelog."
+msgstr "Verweis zu Änderungsliste."
+
+#: project.inc:179;250
+msgid "CVS tree"
+msgstr "CVS-Baum"
+
+#: project.inc:183
+msgid "Link to webcvs/viewcvs."
+msgstr "Verweis zu webcvs/viewcvs."
+
+#: project.inc:187;251
+msgid "Demo site"
+msgstr "Demo-Website"
+
+#: project.inc:191
+msgid "Link to a live demo."
+msgstr "Verweis zu einer Livedemo"
+
+#: project.inc:213;242
+msgid "This project name is already in use."
+msgstr "Dieser Projektname ist schon in Verwendung."
+
+#: project.inc:218
+msgid "A short project name is required."
+msgstr "Ein kurzer Projektname ist erforderlich."
+
+#: project.inc:223
+msgid "Please only use alphanumerical characters for the project name."
+msgstr "Bitte nur alphanumerische Zeichen für den Projektnamen verwenden."
+
+# schon in Verwendung?
+#: project.inc:238
+#, fuzzy
+msgid "This project name is reserved."
+msgstr "Dieser Projektname ist reserviert."
+
+#: project.inc:255
+msgid "The %field field is not a valid URL."
+msgstr "Das Feld %field ist keine zulässige URL."
+
+#: project.inc:272
+msgid "Project type %project_type was selected, you can not use values from %invalid_type categories"
+msgstr "Es können keine Werte aus den Kategorien %invalid_type verwendet werden, da der Projekttyp %project_type ausgewählt wurde."
+
+#: project.inc:281
+msgid "Home"
+msgstr "Startseite"
+
+#: project.inc:299
+msgid "Browse projects"
+msgstr "Projekte durchsuchen"
+
+#: project.inc:427
+msgid "CVS messages for %name"
+msgstr "CVS-Nachrichten für %name"
+
+#: project.inc:499
+msgid "Resources"
+msgstr "Ressourcen"
+
+#: project.inc:503
+msgid "Home page"
+msgstr "Homepage"
+
+#: project.inc:503
+msgid "Read documentation"
+msgstr "Dokumentation durchlesen"
+
+#: project.inc:503
+msgid "Read license"
+msgstr "Lizenz durchlesen"
+
+#: project.inc:503
+msgid "Read complete log of changes"
+msgstr "Vollständige Änderungsliste durchlesen"
+
+#: project.inc:503
+msgid "Try out a demonstration"
+msgstr "Eine Demonstration ausprobieren"
+
+#: project.inc:503
+msgid "Look at screenshots"
+msgstr "Screenshots anschauen"
+
+#: project.inc:511
+msgid "Development"
+msgstr "Entwicklung"
+
+#: project.inc:517
+msgid "Browse the CVS repository"
+msgstr "CVS-Repository durchsuchen"
+
+#: project.inc:521
+msgid "View CVS messages"
+msgstr "CVS-Nachrichten ansehen"
+
+#: project.module:44
+msgid "The project module makes special use of the taxonomy (category) system. A special vocabulary, %vocabulary_name, has been created automatically."
+msgstr "Das Projektmodul verwendet das Taxonomie (Kategorie) System auf besondere Weise. Ein spezielles Vokabular %vocabulary_name wurde automatisch erstellt."
+
+#: project.module:45
+msgid "To take full advantage of project categorization, add at least two levels of terms to this vocabulary. The first level will be the basic project types, e.g., \"Modules\", \"Themes\", \"Translations\"."
+msgstr "Um alle Vorteile der Projektkategorierung zu erreichen, müssen mindestens zwei Ebenen mit Begriffen zu diesem Vokabular hinzugefügt werden. Die erste Ebene werden die Basisprojekttypen, z.b.: „Module“, „Themes“ und „Übersetzungen“."
+
+#: project.module:46
+msgid "Subterms of each of these types will be the categories that users can select to classify the projects. For example, \"Modules\" might have sub-terms including \"Mail\" and \"XML\"."
+msgstr "Die Benutzer können die Unterbegriffe dieser Typen als Kategorien zur Klassifizierung der Projekte auswählen. Beispielsweise: „Module“ können zu den Unterbegriffen „Mail“ und „XML“ gehören."
+
+#: project.module:48
+#, fuzzy
+msgid "Use the <a href=\"@taxonomy-admin\">vocabulary administration page</a> to view and add terms."
+msgstr "Die <a href=\"@taxonomy-admin\">Verwaltungsseite des Vokabulars</a> verwenden, um Begriffe anzusehen und hinzuzufügen."
+
+#: project.module:61
+msgid "Project navigation (drop-down select)"
+msgstr "Projektnavigation (Auswahlliste)"
+
+#: project.module:65
+msgid "Project navigation (text field)"
+msgstr "Projektnavigation (Textfeld)"
+
+#: project.module:70
+msgid "Project search"
+msgstr "Projektsuche"
+
+#: project.module:79
+msgid "Project: @section"
+msgstr "Projekt: @section"
+
+#: project.module:91;98
+msgid "Project navigation"
+msgstr "Projektnavigation"
+
+#: project.module:106
+msgid "Search projects"
+msgstr "Projekte durchsuchen"
+
+#: project.module:130
+msgid "Help text"
+msgstr "Hilfetext"
+
+#: project.module:131
+msgid "Enter optional help text to display in the block."
+msgstr ""
+
+#: project.module:164;449
+#: project.info:0;0
+#: legacy_paths/project_legacy_paths.info:0
+#: release/project_release.info:0
+#: release/includes/release_node_form.inc:500
+#: solr/project_solr.info:0
+#: usage/project_usage.info:0
+#: usage/includes/pages.inc:112
+#: views/project.views.inc:22;37;57;77;97;117;137;157;177;227;246
+msgid "Project"
+msgstr "Projekt"
+
+#: project.module:166
+msgid "A project is something a group is working on. It can optionally have issue tracking, integration with revision control systems, releases, and so on."
+msgstr "Ein Projekt ist etwas an dem eine Gruppe arbeitet. Dieses kann Optional eine Problemverfolgung, eine Integration mit einer Revisionsverwaltungssystem, Veröffentlichungen, und weiteres beinhalten."
+
+#: project.module:577
+msgid "Automatically generated path alias: %url"
+msgstr "Automatisch erstellter URL-Alias: %url"
+
+#: project.module:817
+msgid "Select a project to view"
+msgstr ""
+
+#: project.module:821;847
+#, fuzzy
+msgid "View project"
+msgstr "Projekt anzeigen"
+
+#: project.module:829
+msgid "You must select a project to navigate to."
+msgstr ""
+
+#: project.module:840
+msgid "Project name"
+msgstr "Projektname"
+
+#: project.module:856
+msgid "You must enter a project to navigate to."
+msgstr ""
+
+#: project.module:861
+msgid "The name you entered (%title) is not a valid project."
+msgstr "Der eingegebene Name (%title) entspricht keinem gültigen Projekt."
+
+#: project.module:1114
+msgid "The %name vocabulary does not support tags."
+msgstr "Das Vokabular %name unterstützt keine Tags."
+
+#: project.module:173
+msgid "administer projects"
+msgstr "Projekte verwalten"
+
+#: project.module:174
+msgid "maintain projects"
+msgstr "Projekte pflegen"
+
+#: project.module:175
+msgid "access projects"
+msgstr "Zugriff auf Projekte"
+
+#: project.module:176
+msgid "access own projects"
+msgstr "Zugriff auf eigene Projekte"
+
+#: project.module:177
+msgid "delete any projects"
+msgstr "Jedes Project löschen"
+
+#: project.module:178
+msgid "delete own projects"
+msgstr "Eigene Projekte löschen"
+
+#: project.module:179
+msgid "browse project listings"
+msgstr "Projektlisten durchsuchen"
+
+#: project.module:415;422
+msgid "Autocomplete project"
+msgstr "Projekt automatisch Vervollständigen"
+
+#: project.module:431
+msgid "CVS"
+msgstr "CVS"
+
+#: project.module:439
+msgid "Project administration"
+msgstr "Projektverwaltung"
+
+#: project.module:440
+msgid "Administrative interface for project management and related modules."
+msgstr "Verwaltungsoberfläche für Projektmanagement und damit in Verbindung stehende Module."
+
+#: project.module:0
+msgid "project"
+msgstr "Projekt"
+
+#: project.info:0
+msgid "Provides a project node type and browsing of projects."
+msgstr "Erstellt einen Projektinhaltstyp und die Suche von Projekten."
+
+#~ msgid "Project type"
+#~ msgstr "Projekttyp"
+#~ msgid "Homepage"
+#~ msgstr "Homepage"
+#~ msgid "Documentation"
+#~ msgstr "Dokumentation"
+#~ msgid "License"
+#~ msgstr "Lizenz"
+#~ msgid "Screenshots"
+#~ msgstr "Screenshots"
+#~ msgid "Changelog"
+#~ msgstr "Änderungsliste"
+#~ msgid "Support"
+#~ msgstr "Unterstützung"
+#~ msgid "View all support requests"
+#~ msgstr "Alle Unterstützungsanfragen ansehen"
+#~ msgid "View pending support requests"
+#~ msgstr "Anstehende Unterstützungsanfragen ansehen"
+#~ msgid "View pending bug reports"
+#~ msgstr "Anstehende Fehlerberichte ansehen"
+#~ msgid "View pending feature requests"
+#~ msgstr "Anstehende Featureanfragen ansehen"
+#~ msgid "Request support"
+#~ msgstr "Unterstützung anfragen"
+#~ msgid "Report new bug"
+#~ msgstr "Einen neuen Fehler melden"
+#~ msgid "Request new feature"
+#~ msgstr "Neues Feature anfragen"
+#~ msgid "View pending patches"
+#~ msgstr "Anstehende Korrekturen ansehen"
+#~ msgid "View available tasks"
+#~ msgstr "Vorhandene Aufgaben ansehen"
+#~ msgid "View all pending issues"
+#~ msgstr "Alle anstehenden Probleme ansehen"
+#~ msgid "Developers"
+#~ msgstr "Entwickler"
+#~ msgid "Developers for %name"
+#~ msgstr "Entwickler für %name"
+#~ msgid "Default sort option"
+#~ msgstr "Standard-Sortieroption"
+#~ msgid "Default sorting option to use on the overview page"
+#~ msgstr ""
+#~ "Die Standard-Sortierreihenfolge, welche auf der Übersichtsseite verwendet "
+#~ "werden soll."
+#~ msgid "Enabled sorting options"
+#~ msgstr "Sortieroptionen aktivieren"
+#~ msgid ""
+#~ "Each type of project on your site will have its own project browsing page "
+#~ "at %link. Each browsing page can be configured for different browsing "
+#~ "options (by name, by date, etc). The settings below determine which "
+#~ "browsing methods are available for each project type."
+#~ msgstr ""
+#~ "Jede Projektart wird auf der Website unter %link eine eigene "
+#~ "Projektsuchseite bekommen. Für jede Suchseite können unterschiedliche "
+#~ "Suchoptionen konfiguriert werden (nach Name, nach Datum, usw.). Die "
+#~ "nachstehenden Einstellungen legen die verfügbaren Suchmethoden für jeden "
+#~ "Projekttyp fest."
+
+#, fuzzy
+#~ msgid "Number of projects to list in paged browsing"
+#~ msgstr "Anzahl der aufzulistenden Projekte in der Seitensuche"
+#~ msgid ""
+#~ "The default maximum number of projects to list when browsing lists, e.g., "
+#~ "by category."
+#~ msgstr ""
+#~ "Die maximale Anzahl der standardmässig aufzulistenden Projekte, wenn "
+#~ "Listen durchsucht werden, z.b. über die Kategorie."
+#~ msgid "Project types"
+#~ msgstr "Projekttypen"
+#~ msgid "Browse by !sort_method"
+#~ msgstr "Nach !sort_method durchsuchen"
+#~ msgid ""
+#~ "Configure the behavior and appearance of the project browsing pages and "
+#~ "other settings for the Project module."
+#~ msgstr ""
+#~ "Das Verhalten und Aussehen der Projektsuchseiten und andere Einstellungen "
+#~ "für das Projekt-Modul konfigurieren."
+#~ msgid "Categories"
+#~ msgstr "Kategorien"
+#~ msgid "@project_type: %category"
+#~ msgstr "@project_type: %category"
+#~ msgid "Download"
+#~ msgstr "Herunterladen"
+#~ msgid "Version"
+#~ msgstr "Version"
+#~ msgid "Find out more"
+#~ msgstr "Mehr herausfinden"
+#~ msgid "Bugs and feature requests"
+#~ msgstr "Fehler- und Featureanfragen"
+
+#, fuzzy
+#~ msgid "Go"
+#~ msgstr "Weiter"
+#~ msgid "Last changed: !interval ago"
+#~ msgstr "Zuletzt geändert: !interval her"
+

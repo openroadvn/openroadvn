@@ -1,0 +1,6 @@
+; $Id
+core            = "6.x"
+description     = "Add possibility to manage more than one file (upload)"
+name            = "Release multiple files"
+package         = "ISA Toolbox"
+dependencies[]  = "project_release"

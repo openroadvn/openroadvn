@@ -1,0 +1,8 @@
+; $Id$
+name = Virtual forge access
+description = A module that allows access to Virtual forges depending on taxonomy
+package = "ISA Toolbox"
+core = 6.x
+version = "6.x-2.0"
+dependencies[] = permissions_api
+dependencies[] = project

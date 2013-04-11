@@ -1,0 +1,130 @@
+<?php
+define('RECEIVE_FORGES_MAIL', 'receive forges mail');
+
+/**
+ *
+ * @param type $op
+ * @param type $forge
+ * @param type $list 
+ */
+function isa_federated_forges_check_changes($op, $forge, &$list) {
+  $ops = array('added', 'changed', 'deleted');
+
+  if(in_array($op, $ops) && !empty($forge->$op)) {
+      foreach($forge->$op as $title => $item) { $list[$forge->title][] = $item; }
+  }
+}
+
+
+
+/**
+ * Implementation of hook_cron().
+ */
+function isa_federated_forges_cron() {
+  $hour = date('G');
+  $cron_done = variable_get('federated_forges_cron_done', FALSE);
+  // ------------------
+  // uncomment for tests
+  //  $hour = 23;
+  //  $cron_done = FALSE;
+  // -------------------
+  if($hour > 5 && $hour < 22 ) { // It's between 5am and 10pm
+    if($cron_done) { variable_del('federated_forges_cron_done'); }
+  }
+  else if(!$cron_done) { // It's between 10pm and 5am
+    $forges = isa_federated_forges_get_forges();
+    $added = array();
+    $changed = array();
+    $deleted = array();
+
+    foreach($forges as $forge) {
+      $forge->process_xml();
+      isa_federated_forges_check_changes('added', $forge, $added);
+      isa_federated_forges_check_changes('changed', $forge, $changed);
+      isa_federated_forges_check_changes('deleted', $forge, $deleted);
+    }
+
+    if(!empty($added) || !empty($changed) || !empty($deleted)) {
+      module_load_include('inc', 'isa_federated_forges', 'isa_federated_forges_mail');
+      $params['added'] = $added;
+      $params['changed'] = $changed;
+      $params['deleted'] = $deleted;
+      isa_federated_forges_send_mails($params);
+      variable_set('federated_forges_cron_done', TRUE);
+    }
+  }
+}
+
+
+
+/**
+ * Implementation of hook_menu().
+ */
+function isa_federated_forges_menu() {
+  $path = drupal_get_path('module', 'isa_federated_forges');
+
+  $items['admin/isa/mail/forge'] = array(
+    'page callback' => 'drupal_get_form',
+    'access arguments' => array('edit forges mail'),
+    'page arguments' => array('isa_federated_forges_mail_form'),
+    'title' => t('Federated Forges'),
+    'description' => t('Change federated forges template messages.'),
+    'file' => 'isa_federated_forges_mail.inc',
+    'file path' => $path,
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  return $items;
+}
+
+
+/**
+ *
+ * @return federated_forge 
+ */
+function isa_federated_forges_get_forges() {
+  $sql = "SELECT nid FROM {node} WHERE type = '%s'";
+  $sql = db_query($sql, FEDERATED_FORGE_TYPE);
+
+  $forges = array();
+  while($nid = db_result($sql)) {
+    $forge = new federated_forge();
+    $forge->load_from_nid($nid);
+    $forges[] = $forge;
+  }
+
+  return $forges;
+}
+
+
+
+/**
+ * Implementation of hook_perm().
+ */
+function isa_federated_forges_perm() {
+  return array(
+      'edit forges mail',
+      'receive forges mail',
+      );
+}
+
+
+/**
+ * Implementation of hook_nodeapi
+ *
+ * @param type $node
+ * @param type $op
+ * @param type $a3
+ * @param type $a4 
+ */
+function isa_federated_forges_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL){
+  module_load_include('class', 'isa_federated_forges', 'isa_federated_forges_forge');
+  if ($op == 'delete'){
+    //delete federated forges when the related federated project is deleted
+    if ($node->nid && $node->type == ISA_FEDERATED_FORGE_TYPE){
+      $forge = new federated_forge();
+      $forge->load($node);
+      $forge->delete_all_projects();
+    }
+  }
+}

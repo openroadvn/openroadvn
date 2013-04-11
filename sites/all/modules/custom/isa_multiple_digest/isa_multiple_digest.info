@@ -1,0 +1,8 @@
+
+;ID
+name = Simplenews Multiple Digest
+description = Packages up recently published stories into a newsletter and sends them via simplenews module at regularly scheduled intervals.
+dependencies[] = simplenews
+package = "ISA Toolbox"
+core = 6.x
+

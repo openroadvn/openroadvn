@@ -1,0 +1,7 @@
+; $Id$
+name = ISA metrics
+description = Provides some metrics about groups, contents,...
+package = "ISA Toolbox"
+core = 6.x
+version = "6.x-2.0"
+dependencies[] = rules

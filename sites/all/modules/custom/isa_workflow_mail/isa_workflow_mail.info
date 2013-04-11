@@ -1,0 +1,9 @@
+; $Id: isa_workflow_mail.info,v 1.0 2010/05/06
+name = Workflow mail
+description = Customized actions and functions to sent email for workflow
+package = "ISA Toolbox"
+core = 6.x
+php = 5.0
+dependencies[] = isa_toolbox
+dependencies[] = workflow
+version = "6.x-1.x"

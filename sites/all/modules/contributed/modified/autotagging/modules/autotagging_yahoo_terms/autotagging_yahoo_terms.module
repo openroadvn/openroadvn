@@ -1,0 +1,86 @@
+<?php
+// $Id: autotagging_yahoo_terms.module,v 1.4 2009/07/24 17:30:25 acstewart Exp $
+/*
+ * @file autotagging_yahoo_terms.module
+ * Yahoo Terms support for autotagging module.
+ */
+
+define(AUTOTAGGING_YAHOO_TERMS_URL, 'http://search.yahooapis.com/ContentAnalysisService/V1/termExtraction');
+
+/** implementation of hook_autotagging_api_register */
+function autotagging_yahoo_terms_autotagging_api_register() {
+  return array('autotagging_yahoo_terms' => 'Yahoo Terms');
+}
+
+/** implementation of hook_autotagging_api_update */
+function autotagging_yahoo_terms_autotagging_api_update(&$node, &$text) {
+  return autotagging_yahoo_terms_autotagging_api_insert($node, $text);
+}
+
+/** implementation of hook_autotagging_api_insert */
+function autotagging_yahoo_terms_autotagging_api_insert(&$node, &$text) {
+  $url = AUTOTAGGING_YAHOO_TERMS_URL;
+  $appid = variable_get('autotagging_yahoo_terms_appid', '');
+  $url .= '?appid=' . $appid;
+  if ($appid != '') {
+    $data = 'context=' . urlencode($text);
+    $response = drupal_http_request($url . '&' . $data, array(), 'POST');
+    if ($response->code != 200) {
+      watchdog('autotagging_yahoo_terms', 'Received response code '. $response->code .' from Yahoo Terms', WATCHDOG_SEVERE);
+      return array();
+    }
+    
+    $xml = $response->data;
+    $dom = DOMDocument::loadXML($xml);
+    $xp = new DOMXPath($dom);
+
+    // yahoo terms service is namespaced, so we set it here for quick reference
+    //
+    $xp->registerNamespace('y', 'urn:yahoo:cate');
+    $results = $xp->evaluate('//y:ResultSet/y:Result');
+    $vid = variable_get('autotagging_yahoo_terms_vocabulary', '');
+    $global_vid = variable_get('autotagging_global_vocabulary', '');
+    for ($i = 0; $i < $results->length; $i++) {
+      $result = $results->item($i);
+      if ($vid == '' || $vid == '<none>') {
+        $vid = $global_vid;
+      }
+      if ($vid != '' && $vid != '<none>') {
+        if (!isset($terms[$vid])) {
+          $terms[$vid] = array();
+        }
+        $terms[$vid][] = $result->nodeValue;
+      }
+    }
+  }
+  return $terms;
+}
+
+function autotagging_yahoo_terms_autotagging_api_settings() {
+  $form_additions = array();
+  $form_additions['autotagging_yahoo_terms'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Yahoo Terms Settings'),
+  );
+  $form_additions['autotagging_yahoo_terms']['autotagging_yahoo_terms_appid'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Yahoo Application ID'),
+    '#default_value' => variable_get('autotagging_yahoo_terms_appid', ''),
+    '#description' => t('Your Yahoo Application ID.  If you do not yet have an application ID, you can <a href="http://developer.yahoo.com/wsregapp/">get one here</a>.'),
+  );
+
+  $vocabs = taxonomy_get_vocabularies();
+  $vocab_options = array('<none>' => '<none>');
+  foreach ($vocabs as $id => $vocab) {
+    $vocab_options[$vocab->vid] = $vocab->name;
+  }
+
+  $form_additions['autotagging_yahoo_terms']['autotagging_yahoo_terms_vocabulary'] = array(
+    '#type' => 'select',
+    '#title' => 'Vocabulary for Yahoo Terms',
+    '#options' => $vocab_options,
+    '#default_value' => variable_get('autotagging_yahoo_terms_vocabulary', ''),
+    '#description' => t('Override the default options for vocabulary assignment.  Leave blank to inherit from global options.'),
+  );
+  return $form_additions;
+}

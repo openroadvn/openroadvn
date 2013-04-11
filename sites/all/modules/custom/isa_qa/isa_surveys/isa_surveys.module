@@ -1,0 +1,330 @@
+<?php
+
+/**
+ * Implementation of hook_menu().
+ */
+function isa_surveys_menu() {
+  $items = array();
+  $items[ISA_ASSET_TYPE . '/%/release/%/survey'] = array(
+    'title' => 'Shared asset usage survey',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_surveys_edit_form', 1),
+    'access arguments' => array(3),
+    'access callback' => 'isa_surveys_user_access_survey',
+    'type' => MENU_CALLBACK,
+  );
+  $items[ISA_SOFTWARE_TYPE . '/%/release/%/survey'] = array(
+    'title' => 'Software usage survey',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_surveys_edit_form', 1),
+    'access arguments' => array(3),
+    'access callback' => 'isa_surveys_user_access_survey',
+    'type' => MENU_CALLBACK,
+  );
+  $items['admin/isa/mail/surveys'] = array(
+    'title' => 'Surveys',
+    'description' => t('Change surveys template messages.'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('isa_surveys_template_message'),
+    'access arguments' => array('administer ISA mails'),
+    'type' => MENU_LOCAL_TASK,
+  );
+  return $items;
+}
+
+  /*
+   * @parameter $form_state
+   * @parameter $nid of the software
+   * Create a form to generate a survey for a project
+   */
+function isa_surveys_edit_form(&$form_state, $nid) {
+  $project_type = arg(0);
+  switch (arg(0)) {
+    case ISA_SOFTWARE_TYPE:
+      $project_type = 'software';
+      break;
+    case ISA_ASSET_TYPE:
+      $project_type = 'shared asset';
+      break;
+  }
+  $questions = isa_qa_get_questions('surveys');
+  $form['beginning'] = array(
+    '#type' => 'item',
+    '#prefix' => variable_get('surveys_introduction_text', '') . '<ul>',
+  );
+  foreach ($questions as $question) {
+    $form[$question['qid']] = array(
+      '#type' => 'radios',
+      '#title' => t(str_replace('[project]', $project_type, $question['label'])),
+      '#options' => array(
+        1 => t('Yes'),
+        0 => t('No')),
+      '#default_value' => 1,
+      '#prefix' => '<li>',
+      '#suffix' => '</li>',
+    );
+  }
+  $form['end'] = array(
+    '#type' => 'item',
+    '#prefix' => '</ul>',
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+  return $form;
+}
+
+/*
+ * Insert answers to surveys questions in the database
+ */
+function _isa_surveys_insert_answer($uid, $nid, $qids_values, $dateanswer, $nb_questions) {
+  $sql = "INSERT INTO {qa_answer} (uid, nid, qid, value, dateanswer)
+          VALUES";
+  $i = 0;
+  foreach ($qids_values as $qid => $value) {
+    ++$i;
+    $sql .= sprintf("(%d, %d, %d, '%s', '%s')", $uid, $nid, $qid, $value, $dateanswer);
+    if ($i < $nb_questions)
+      $sql .= ", ";
+  }
+  $query = db_query($sql);
+}
+
+/*
+ * Submit answers to surveys
+ */
+function isa_surveys_edit_form_submit(&$form, $form_state) {
+  global $user;
+  $uid = $user->uid;
+  $nid = arg(3);
+  $dateanswer = time();
+  $qids_values = array();
+  $questions = isa_qa_get_questions('surveys');
+  $nb_questions = count($questions);
+  if ($nb_questions > 0) {
+    foreach ($questions as $question) {
+      $qids_values[$question['qid']] = $form_state['values'][$question['qid']];
+    }
+    _isa_surveys_insert_answer($uid, $nid, $qids_values, $dateanswer, $nb_questions);
+  }
+  $form['#redirect'] = arg(0) . '/' . arg(1) . '/home';
+  drupal_set_message(t('Thank you for answering the survey.'));
+}
+
+/**
+ * Implementation of hook_perm().
+ */
+function isa_surveys_perm() {
+  return array('answer to surveys');
+}
+
+  /*
+   * Implementation of hook_rules_event_info
+   */
+function isa_surveys_rules_event_info() {
+  return array(
+   'download_project' => array(
+     'label' => t('A project has been downloaded'),
+     'module' => 'isa_surveys',
+     'arguments' => array(
+        'acting_user' => array('type' => 'user', 'label' => t('The user who downloaded the project.')),
+        'file' => array('type' => 'node', 'label' => t('The downloaded file.')),
+      ),
+    ),
+  );
+}
+
+  /*
+   * Implementation of hook_rules_action_info
+   */
+function isa_surveys_rules_action_info() {
+  return array(
+    'isa_surveys_action_send_survey' => array(
+      'label' => t('Send a survey'),
+      'module' => 'System',
+      'parameter' => array(
+        'acting_user' => array(
+          'type' => 'user',
+          'label' => t('The user who downloaded the project.'),
+        ),
+        'file' => array(
+          'type' => 'node',
+          'label' => t('The downloaded file.'),
+        ),
+      ),
+    ),
+  );
+}
+
+  /*
+   * Function called in isa_surveys_rules_action_info
+   */
+function isa_surveys_action_send_survey($settings, $arg2, $context) {
+  $user = $context['variables']['user']->data->_data;
+  $dl_release = $context['variables']['user']->_state['variables']['node']->data->_data;
+  // drupal_mail
+  $node = $object;
+  $params['message'] = "";
+  $params['nid'] = $dl_release->nid;
+  $params['uid'] = $user->uid;
+  $user_mail = $user->mail;
+  $key = "project_surveys";
+  // --- send email ---
+  $resul_mail = NULL;
+  if (isset ($user) && isset ($key)) {
+    $params['subject'] = variable_get($key."_mail_title", "title...");
+    $resul_mail = drupal_mail('isa_surveys', $key, $user_mail, NULL, $params, $from, TRUE);
+  }
+}
+
+/**
+ * Implementation of hook_mail().
+ */
+function isa_surveys_mail($key, &$message, $params) {
+  $node = node_load($params['nid']);
+
+  // replace token for subject
+  $params['subject'] = token_replace($params['subject'], 'node', $node);
+  // replace token for node
+  $body_token_converted = token_replace(variable_get("{$key}_mail_body", "message..."), 'node', $node);
+
+  //replace token with sender profile
+  global $user;
+  if (isset($user->node_profile)) {
+    $profile_node = $user->node_profile;
+  }
+  else {
+    $profile_node = content_profile_load('profile', $user->uid);
+  }
+  $body_token_converted = token_replace ($body_token_converted,'node',$profile_node);
+
+  $message['subject'] = $params['subject'];
+  $message['body'] = "<html>\n" .
+    "<head>\n" .
+    "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" />\n" .
+    "</head>\n" .
+    "<body>" . $body_token_converted . "</body>\n" .
+    "</html>\n";
+  $message['From'] = variable_get('site_mail', ini_get('sendmail_from'));
+  $message['headers'] = array(
+    'MIME-Version' => '1.0',
+    'Content-Type' => 'text/html; charset=UTF-8;',
+    'Content-Transfer-Encoding' => '8Bit',
+    'X-Mailer' => 'Drupal',
+    'From' => variable_get('site_mail', ini_get('sendmail_from')),
+  );
+}
+
+function isa_surveys_template_message() {
+  $form_fields = array (
+    array (
+      'name'              => 'project_surveys',
+      'title_title'       => t('Survey title'),
+      'title_body'        => t('Survey body'),
+      'description_title' => t('The title of surveys sent to users after a release download.'),
+      'description_body'  => t('The body of surveys sent to users after a release download.'),
+      'fieldset_title'    => t('Survey mail')
+    ),
+  );
+  $form = isa_toolbox_get_form_template_message ($form_fields,'node');
+
+  return system_settings_form($form);
+}
+
+/**
+ * Returns the number of times a user downloaded a release
+ * @param string $filepath the path to a file of the release
+ * @return int $nb_download the number of downloads
+ */
+function isa_surveys_user_release_download_count_from_filepath($filepath) {
+  global $user;
+  $sql = "SELECT COUNT(*)
+          FROM {isa_download_statistics} ids
+          WHERE ids.fid =
+          (
+            SELECT fid
+            FROM {files}
+            WHERE filepath = '%s'
+          )
+          AND ids.uid = '%d'";
+  $nb_download = db_result(db_query($sql, $filepath, $user->uid));
+  return $nb_download;
+}
+
+/**
+ * Returns the number of times a user downloaded a release
+ * @param int $release_id the id of the release
+ * @return int $nb_download the number of downloads
+ */
+function isa_surveys_user_release_download_count_from_id($release_id) {
+  global $user;
+  $sql = "SELECT COUNT(*)
+          FROM {isa_download_statistics} ids
+          WHERE ids.nid = '%d'
+          AND ids.uid = '%d'";
+  $nb_download = db_result(db_query($sql, $release_id, $user->uid));
+  return $nb_download;
+}
+
+/**
+ * Returns whether the user answered a given survey or not
+ * @param int $release_id the id of the release
+ * @return boolean $answered user answered or not
+ */
+function isa_surveys_user_answered_survey($release_id) {
+  global $user;
+  $sql = "SELECT COUNT(*)
+          FROM {qa_answer} qaa
+          INNER JOIN {qa_question} qaq ON qaa.qid = qaq.qid
+          WHERE qaq.form_name = 'surveys'
+          AND qaa.nid = '%d'
+          AND qaa.uid = '%d'";
+  $nb_answer = db_result(db_query($sql, $release_id, $user->uid));
+  return ($nb_answer >= 1);
+}
+
+/**
+ * Returns whether a user should receive a survey for a downloaded release
+ * @param string $filepath the path to a file of the release
+ * @return boolean $receive user should receive or not
+ */
+function isa_surveys_user_should_receive_survey($filepath) {
+  return (user_access('answer to surveys')
+          && isa_surveys_user_release_download_count_from_filepath($filepath) == 1);
+}
+
+/**
+ * Returns whether a user should have access to a release survey
+ * @param int $release_id the id of the release
+ * @return boolean $access user should have access or not
+ */
+function isa_surveys_user_access_survey($release_id) {
+    $path = substr( $_GET['q'],0,strrpos ($_GET['q'],'/survey'));
+    $original_path = drupal_lookup_path('source', $path);
+    
+    $path = explode ('/' , $original_path);
+    if (is_numeric($path[count($path)-1])){
+        $release_id = $path[count($path)-1];
+    }
+  return (user_access('answer to surveys')
+          && isa_surveys_user_release_download_count_from_id($release_id) >= 1)
+          && !isa_surveys_user_answered_survey($release_id);
+}
+
+/**
+ * Trigger the "downloaded project" rules event
+ * @param string $filepath the path to a file of the downloaded release
+ */
+function isa_surveys_trigger_download_project_event($filepath) {
+  global $user;
+  $sql = "SELECT prf.nid
+          FROM {files} f
+          INNER JOIN {project_release_file} prf ON prf.fid = f.fid
+          WHERE filepath = '%s'";
+  $release_nid = db_result(db_query($sql, $filepath));
+  // check the file is associated to a release
+  if ($release_nid)
+    $release = node_load($release_nid);
+  rules_invoke_event('download_project', $user, $release);
+}

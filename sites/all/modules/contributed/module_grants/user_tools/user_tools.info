@@ -1,0 +1,11 @@
+name = User Tools
+package = Access control
+description = API with generic reusable functions for user objects.
+core = "6.x"
+
+; Information added by drupal.org packaging script on 2011-07-13
+version = "6.x-3.7"
+core = "6.x"
+project = "module_grants"
+datestamp = "1310537037"
+

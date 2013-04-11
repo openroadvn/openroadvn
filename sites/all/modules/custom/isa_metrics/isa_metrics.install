@@ -1,0 +1,7 @@
+<?php
+
+function isa_metrics_install() {
+}
+
+function isa_metrics_uninstall() {
+}

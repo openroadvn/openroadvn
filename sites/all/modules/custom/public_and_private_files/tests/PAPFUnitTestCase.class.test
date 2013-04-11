@@ -1,0 +1,137 @@
+<?php
+
+/**
+ * @file
+ * The automatic test for the public_and_private_files (PaPF) module
+ */
+
+/**
+ * Tests the public_and_private_files module hook_url_alter function.
+ */
+class PAPFUnitTestCase extends DrupalUnitTestCase {
+  private $_GROUP = 'Public & Private Files';
+
+  /**
+   * getInfo() returns properties that are displayed in the test selection form.
+   */
+  public static function getInfo() {
+    return array(
+      'name' => 'SimpleTest Public & Private Files Unit Test Case',
+      'description' => 'Ensure that the Public & Private files module is working as expected',
+      'group' => 'Public & Private Files',
+    );
+  }
+
+  /**
+   * setUp() performs any pre-requisite tasks that need to happen.
+   */
+  public function setUp() {
+    // Enable any modules required for the test.
+    parent::setUp('public_and_private_files');
+  }
+
+  /**
+   * test the alteration of the URL depending on the different cases
+   */
+  public function testUrlAlter() {
+    global $conf;
+    $file = 'sites/default/files/private/myfile.txt';
+
+    // We need to set it by hand because simple test is modifying it to a temporary folder
+    $conf['file_directory_path'] = 'sites/default/files';
+
+    $path_temp_before = $path_temp_after = $file;
+
+    // Check the method public_and_private_files_file_url_alter
+    // check that if the variable file_downloads is not set to FILE_DOWNLOADS_MIXED it exits without modification
+    $conf['file_downloads'] = FILE_DOWNLOADS_PUBLIC;
+    public_and_private_files_file_url_alter($path_temp_before);
+    $message = t('A valid result will be to not alter the path');
+    $this->assertEqual($path_temp_before, $path_temp_after, $message, $this->_GROUP);
+
+    $conf['file_downloads'] = FILE_DOWNLOADS_PRIVATE;
+    public_and_private_files_file_url_alter($path_temp_before);
+    $this->assertEqual($path_temp_before, $path_temp_after, $message, $this->_GROUP);
+
+    // check that if  variable public_and_private_files_path is set, the path is not altered
+    $conf['public_and_private_files_path'] = '';
+    public_and_private_files_file_url_alter($path_temp_before);
+    $this->assertEqual($path_temp_before, $path_temp_after, $message, $this->_GROUP);
+
+
+    $conf['file_downloads'] = FILE_DOWNLOADS_MIXED;
+    $conf['public_and_private_files_path'] = 'sites/default/files/private';
+
+    // check the public path is not altered
+    $file = 'sites/default/files/public/myfile.txt';
+    $this->_checkNotAltered($file, 'Check the public path is not altered');
+
+    // check the private path is altered
+    $file = 'sites/default/files/private/myfile.txt';
+    $this->_checkAltered($file, 'Check the private path is altered');
+
+    // check the subfolder of private path is altered
+    $file = 'sites/default/files/private/subfolder/myfile.txt';
+    $this->_checkAltered($file, 'Check the subfolder of private path is altered');
+
+    // check inclusion private path
+    $file = 'sites/default/files/_private/myfile.txt';
+    $this->_checkNotAltered($file, 'Check inclusion private path');
+
+    $file = 'sites/default/files/notprivate/myfile.txt';
+    $this->_checkNotAltered($file, 'Check inclusion private path');
+
+    // Check the support of multiple directories
+    $conf['public_and_private_files_path'] = 'sites/default/files/private,sites/default/files/private2,';
+
+    // check the private path 1 is altered
+    $file = 'sites/default/files/private/myfile.txt';
+    $this->_checkAltered($file, 'Check the support of multiple directories private path 1');
+
+    // check the private path 2 is altered
+    $file = 'sites/default/files/private2/myfile.txt';
+    $this->_checkAltered($file, 'Check the support of multiple directories private path 2');
+
+    // check that the public files are not altered
+    $file = 'sites/default/files/notprivate/myfile.txt';
+    $this->_checkNotAltered($file, 'Check the support of multiple directories public path');
+  }
+
+  /**
+   * This method is checking that the path is altered
+   * 
+   * @param $file
+   *   The file that should be tested
+   * @param $message
+   *   The message that should be written
+   */
+  public function _checkAltered($file, $message = 'A valid result will be to alter the private path') {
+    $path_temp_before = $file;
+
+    $path_temp_after = str_replace('sites/default', 'system', $file);
+    $path_temp_after = url($path_temp_after, array('absolute' => TRUE));
+
+    public_and_private_files_file_url_alter($path_temp_before);
+
+    // $message .= '<br />' . variable_get('public_and_private_files_path'). "<br />{$path_temp_after}<br />{$path_temp_before}";
+    $this->assertEqual($path_temp_before, $path_temp_after, t($message), $this->_GROUP);
+  }
+
+  /**
+   * This method is checking that the path is not altered
+   * 
+   * @param $file
+   *   The file that should be tested
+   * @param $message
+   *   The message that should be written
+   */
+  public function _checkNotAltered($file, $message = 'A valid result will be to not alter the private path') {
+    $path_temp_before = $file;
+    $path_temp_after = url($file, array('absolute' => TRUE));
+
+    public_and_private_files_file_url_alter($path_temp_before);
+
+    // $message .= '<br />' . variable_get('public_and_private_files_path'). "<br />{$path_temp_after}<br />{$path_temp_before}";
+    $this->assertEqual($path_temp_before, $path_temp_after, t($message), $this->_GROUP);
+  }
+}

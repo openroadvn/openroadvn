@@ -1,0 +1,85 @@
+<?php
+// $Id: contexthelp.install,v
+
+/**
+ * Implementation of hook_enable().
+ */
+function contexthelp_enable() {
+  drupal_set_message(t('Context Help module successfully installed.'));
+}
+
+/**
+ * Implementation of hook_install().
+ */
+function contexthelp_install() {
+  // CCK content_copy.module may not be enabled, so make sure it is included
+  require_once './' . drupal_get_path('module', 'content') .  '/modules/content_copy/content_copy.module';
+  $contexthelp = file_get_contents(drupal_get_path('module', 'contexthelp') .'/content_types/contexthelp.content');
+  _contexthelp_install_contexthelp_type($contexthelp);
+  $contexthelp_faq = file_get_contents(drupal_get_path('module', 'contexthelp') .'/content_types/faq.content');
+  _contexthelp_install_faq_type($contexthelp_faq);
+  content_clear_type_cache();
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function contexthelp_uninstall() {
+  node_type_delete('contexthelp');
+  node_type_delete('contexthelp_faq');
+}
+
+/**
+ * Function to install the contexthelp content type
+ *
+ * @param $content
+ *  Content type definition as taken from content type export
+ */
+function _contexthelp_install_contexthelp_type($content = NULL) {
+  $form_state['values']['type_name'] = '<create>';
+  $form_state['values']['macro'] = $content;
+  // form provided by content_copy.module
+  drupal_execute('content_copy_import_form', $form_state);
+}
+
+/**
+ * Function to install the faq content type
+ *
+ * @param $content
+ *  Content type definition as taken from content type export
+ */
+function _contexthelp_install_faq_type($content = NULL) {
+  $form_state['values']['type_name'] = '<create>';
+  $form_state['values']['macro'] = $content;
+  // form provided by content_copy.module
+  drupal_execute('content_copy_import_form', $form_state);
+}
+
+/**
+ * Update the contexthelp faq type too contexthelp_faq
+ */
+function contexthelp_update_6000() {
+  $ret = array();
+  // Build the new content type and put it in the system
+  $contexthelp_faq = file_get_contents(drupal_get_path('module', 'contexthelp') .'/content_types/faq.content');
+  _contexthelp_install_faq_type($contexthelp_faq);
+  content_clear_type_cache();
+  return $ret;
+}
+
+/**
+ * Update all existing content from faq too contexthelp_faq
+ */
+function contexthelp_update_6001() {
+  $ret = array();
+  $result = db_query("SELECT nid FROM {node} WHERE type = '%s'", 'faq');
+  while ($row = db_fetch_object($result)) {
+    $node = node_load($row->nid);
+    $node->type = 'contexthelp_faq';
+    $node = node_submit($node);
+    node_save($node);
+  }
+  node_type_delete('faq');
+  content_clear_type_cache();
+  return $ret;
+}

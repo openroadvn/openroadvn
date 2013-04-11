@@ -1,0 +1,66 @@
+#!/usr/bin/php
+<?php
+// Note: you may have to modify the above shebang for this script to work in
+// any environment
+
+chdir(dirname(__FILE__) . '/..');
+require 'conf/isaweb-conf.inc.php';
+require 'lib/task-management.inc.php';
+require 'lib/web-management.inc.php';
+
+$mysql_connection = mysql_connect(ISA_SERVER, ISA_DB_USERNAME, ISA_DB_PASSWORD);
+if (!$mysql_connection) {
+	release_lock($lock_name);
+	die(sprintf('Unable to connect to MySQL server %s as %s' . "\n", ISA_SERVER, ISA_DB_USERNAME));
+}
+$db_selection = mysql_select_db(ISA_DB_NAME);
+if (!$db_selection) {
+	die(sprintf('Unable to access database %s as %s' . "\n", ISA_DB_NAME, ISA_DB_USERNAME));
+}
+
+
+$default_quota = constant('WEB_DEFAULT_QUOTA');
+$suspicious_web_directories = array();
+
+// select all known web directories
+$web_directories_query = sprintf('SELECT name FROM %s', constant('WEB_DIRECTORIES_TABLE'));
+$web_directories_res = mysql_query($web_directories_query);
+if (!$web_directories_res) {
+	die('Unable to fetch web directories list' . "\n");
+}
+while ($web_directory = mysql_fetch_assoc($web_directories_res)) {
+	$web_directory = $web_directory['name'];
+
+	// It is possible to avoid any check for a set of web directories through
+	// the configuration
+	if (in_array($web_directory, $WEB_DIRECTORIES_WHITELIST)) continue;
+
+	$quota = isset($WEB_DIRECTORIES_QUOTA[$web_directory]) ? $WEB_DIRECTORIES_QUOTA[$web_directory] : $default_quota;
+	$size = web_directory_size($web_directory);
+	if ($size < 0) {
+		printf("A problem occured while attempting to check the size of the \"%s\" web directory\n", $web_directory);
+		continue;
+	}
+	if ($size > $quota) {
+		$suspicious_web_directories[] = array(
+			'name' => $web_directory,
+			'quota' => $quota,
+			'size' => $size
+		);
+	}
+}
+
+if (count($suspicious_web_directories)) {
+	printf("The following web directories on %s:%s exceed their quota:\n", get_host_name(), constant('WEB_ROOT_DIR'));
+	foreach ($suspicious_web_directories as $web_directory) {
+		printf(
+			"  * %s: %s/%s\n",
+			$web_directory['name'],
+			format_file_size($web_directory['size']),
+			format_file_size($web_directory['quota'])
+		);
+	}
+}
+
+print "\nCurrent filesystem usage:\n";
+print filesystem_usage(constant('WEB_ROOT_DIR'));

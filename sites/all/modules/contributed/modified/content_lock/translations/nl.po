@@ -1,0 +1,172 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Content lock\n"
+"POT-Creation-Date: 2010-04-18 14:26+0200\n"
+"PO-Revision-Date: \n"
+"Last-Translator: Bruno De Bondt <bruno@dewereldmorgen.be>\n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n!=1)\n"
+"X-Poedit-Language: Dutch\n"
+"X-Poedit-Country: BELGIUM\n"
+
+#: content_lock.admin.inc:12
+msgid "Show lock / unlock messages"
+msgstr "Toon de gebruiker een melding wanneer een node op slot zit."
+
+#: content_lock.admin.inc:13
+msgid "If you disable this option, no messages about unlock / lock of nodes are shown to the user anymore"
+msgstr "Als u deze optie uitschakelt, zullen gebruikers geen meldingen zien wanneer een node op slot zit"
+
+#: content_lock.admin.inc:19
+msgid "Add cancel button"
+msgstr "Toon 'Annuleren'-knop"
+
+#: content_lock.admin.inc:20
+msgid "Should a cancel button be added to the node / user / comment form. This way a user can properly cancel the transaction"
+msgstr "Moet er een 'Annuleren'-knop op de node- / gebruiker- / en commentaar-formulieren staan? Zo kan een gebruiker de handeling correct annuleren."
+
+#: content_lock.module:22
+msgid "Drupal's default content locking strategy is optimistic, that is, two users may start to edit the same content and the one who is hitting the save button first wins the race, while the other is displayed a message stating <em>this content has been modified by another user, changes cannot be saved</em>.  Depending on the number of editors in your organization this might not be an acceptable solution."
+msgstr "Drupal hanteert een optimistische strategie om nodes af te sluiten tijdens bewerkingen. Wanneer twee gebruikers op hetzelfde moment een node bewerken, zal enkel de eerste die op de 'Bewaar'-knop klikt zijn wijzigingen kunnen opslaan. De andere gebruiker krijgt een melding dat de inhoud gewijzigd werd door een andere gebruiker, en dat zijn wijzigingen niet kunnen worden opgeslagen. Dit kan problemen opleveren wanneer meerdere gebruikers binnen een organisatie dezelfde nodes moeten kunnen bewerken. "
+
+#: content_lock.module:23
+msgid "The Content locking module implements pessimistic locking, which means that content will be exclusively locked whenever a user starts editing it.  The lock will be automatically released when the user submits the form or navigates away from the edit page."
+msgstr "De Content locking module implementeert een beperkende strategie, waardoor een node op slot gaat zodra een gebruiker begint met een node te bewerken. De node wordt automatisch vrijgegeven wanneer een gebruiker de node opslaat of naar een andere pagina surft."
+
+#: content_lock.module:24
+msgid "Users may also permanently lock content, to prevent others from editing it.  Content locks that have been \"forgotten\" can be automatically released after a configurable time span."
+msgstr "Gebruikers kunnen een node ook permanent op slot doen, om te voorkomen dat andere gebruikers de node nog kunnen bewerken. Nodes kunnen automatisch worden vrijgegeven na een configureerbare tijdspanne."
+
+#: content_lock.module:28
+msgid "Below is a list of all locked documents. Click on <em>check in</em> to release a lock."
+msgstr "Hier vindt u een overzicht van alle pagina's die momenteel op slot zitten. Klik op <em>check in</em> om een pagina vrij te geven."
+
+#: content_lock.module:31
+msgid "Below is a list of all documents locked by you. Click on <em>check in</em> to release a lock."
+msgstr "Hier vindt u een overzicht van alle pagina's die u momenteel op slot houdt. Klik op <em>check in</em> om een pagina vrij te geven."
+
+#: content_lock.module:113
+msgid "Your lock has been removed!"
+msgstr "Deze pagina is weer vrijgegeven!"
+
+#: content_lock.module:113
+msgid "You can still save the content if this user aborts the edit operation without saving changes."
+msgstr "U kan de pagina nog opslaan als de andere gebruiker de pagina verlaat zonder ze op te slaan."
+
+#: content_lock.module:119
+msgid "Your lock has been removed due to inactivity or by an administrator. Failed to regain the lock since the document has been changed since."
+msgstr "De pagina is vrijgegeven door een beheerder of omdat u te lang wachtte om wijzigingen op te slaan. De pagina is intussen aangepast.  "
+
+#: content_lock.module:209;222;232;243
+msgid "Cancel"
+msgstr "Annuleren"
+
+#: content_lock.module:311
+msgid "This document is locked for editing by !name since @date."
+msgstr "Deze pagina zit op slot sinds @date (gebruiker !name)."
+
+#: content_lock.module:338
+msgid "Click <a href=\"!release-url\">here</a> to check back in now."
+msgstr "Klik <a href=\"!release-url\">hier</a> om de pagina vrij te geven."
+
+#: content_lock.module:357
+msgid "This document is now locked against simultaneous editing. It will unlock when you navigate elsewhere."
+msgstr "Deze pagina kan momenteel niet worden bewerkt door andere gebruikers. Ze wordt weer vrijgegeven als u het formulier opslaat of ergens anders heen surft."
+
+#: content_lock.module:389
+msgid "Title"
+msgstr "Titel"
+
+#: content_lock.module:391
+msgid "Username"
+msgstr "Gebruikersnaam"
+
+#: content_lock.module:397
+msgid "Locked since"
+msgstr "Op slot sinds"
+
+#: content_lock.module:398
+msgid "Operations"
+msgstr "Handelingen"
+
+#: content_lock.module:412
+msgid "release lock"
+msgstr "geef node vrij"
+
+#: content_lock.module:418
+msgid "No locked documents."
+msgstr "Geen nodes die 'op slot' zitten."
+
+#: content_lock.module:440
+msgid "The editing lock has been released."
+msgstr "De node is vrijgegeven."
+
+#: content_lock.module:471
+msgid "edit"
+msgstr "bewerk"
+
+#: content_lock.module:472
+msgid "here"
+msgstr "hier"
+
+#: content_lock.module:473
+msgid "You are currently blocking the node '!nodetitle' against edits. You might want to do this by clicking !unlocklinkhere, or !edit the node"
+msgstr "Andere gebruikers (met voldoende toegangsrechten) kunnen '!nodetitle' momenteel niet bewerken, aangezien je de toegang blokkeert. Klik !unlocklinkhere om de node vrij te geven, of !edit de node zelf verder."
+
+#: content_lock.module:262
+msgid "content_lock"
+msgstr "content_lock"
+
+#: content_lock.module:262
+msgid "Released @count document(s) locked for more than @period."
+msgstr "@count nodes vrijgegeven die langer dan @period op slot zaten."
+
+#: content_lock.module:260
+msgid "Released one document locked for more than @period."
+msgid_plural "Released @count documents locked for more than @period."
+msgstr[0] ""
+msgstr[1] ""
+
+#: content_lock.module:13
+msgid "check out documents"
+msgstr "check nodes uit"
+
+#: content_lock.module:13
+msgid "keep documents checked out"
+msgstr "doe nodes permanent 'op slot'"
+
+#: content_lock.module:13
+msgid "administer checked out documents"
+msgstr "beheer pagina's die 'op slot' zitten"
+
+#: content_lock.module:40;60
+msgid "Locked documents"
+msgstr "Pagina's 'op slot'"
+
+#: content_lock.module:88
+msgid "Content lock"
+msgstr "Content lock"
+
+#: content_lock.module:89
+msgid "Configuration options for the Content lock module"
+msgstr "Configuratie van de Content lock-module"
+
+#: content_lock.info:0
+msgid "Content locking (edit lock)"
+msgstr "Content locking"
+
+#: content_lock.info:0
+msgid "Prevents users to edit the same node at the same time. The second user can enter the edit-mode and gets notified"
+msgstr "Voorkomt dat gebruikers dezelfde node op hetzelfde moment bewerken. Gebruikers kunnen een melding krijgen wanneer de node op slot zit."
+
+#: content_lock.info:0
+msgid "Drupal Wiki"
+msgstr "Drupal Wiki"
+
+#: js/content_lock_init.js:0
+msgid "Be aware, if you press \"OK\" now, ALL your changes will be lost!"
+msgstr "Opgelet: als u op 'OK' klikt gaan uw wijzigingen verloren."
+

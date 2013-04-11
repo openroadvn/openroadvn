@@ -1,0 +1,700 @@
+<?php
+
+function isa_config_enable() {
+
+  ///////////////////////////////////////////////////
+  /////// ADD TAXONOMIES VOCABULARIES & TERMS  //////
+  ///////////////////////////////////////////////////
+  $vocabulary = isa_config_get_vocabularies_list ();
+  foreach ($vocabulary as $key => $value) {
+    $variable_name = $value['variable_name'] . "_vid";
+    //delete the variable if the variable exist and not a vocabulary
+    if (variable_get($variable_name, NULL) && taxonomy_get_tree (variable_get($variable_name, NULL)) == NULL) {
+      variable_del ($variable_name);
+    }
+    if (!variable_get($variable_name, NULL)) {
+      taxonomy_save_vocabulary($value['vocabulary']);
+      variable_set($variable_name, db_result(db_query("SELECT vid FROM {vocabulary} WHERE name = '%s'", $value['vocabulary']['name'])));
+      $tid = variable_get($variable_name,NULL);
+      if (isset($value['terms'])) {
+        isa_config_save_terms($value['terms'], $tid);
+      }
+      //drupal_set_message('taxonomy ' . $value['vocabulary']['name'] . ' is added');
+    }
+  }
+
+  //////////////////////////////
+  /////// ADD USER ROLES  //////
+  //////////////////////////////
+  $roles = isa_config_get_user_roles ();
+  foreach ($roles as $key => $value) {
+    if (!variable_get ($value."_rid", NULL)) {
+      $role = permissions_create_role($value);
+      $value = str_replace(' ','_');
+      variable_set ($value."_rid", $role->rid);
+    }
+  }
+}
+
+function isa_config_get_user_roles (){
+  return array ('administrator','developer','facilitator','member','moderator','clearing process manager');
+}
+/* * return an array options for created vocabulary domains
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_domains() {
+  $node_types = array("blog", ISA_COMMUNITY_TYPE , "news", "profile", ISA_TOPIC_TYPE , "wiki", ISA_PROJECT_TYPE);
+  $domains['variable_name'] = 'domains';
+  $domains['vocabulary'] = array(
+      'name' => t('Domains'),
+      'multiple' => 1,
+      'required' => 1,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of domains and sub-domains'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+  $domains['terms'] = array(
+      "Culture" => array("Architecture", "Languages", "Library Science", "Multilingualism", "Religion", "Culture (other)"),
+      "Economy" => array("Accounting", "Agriculture", "Customs", "Energy", "Enterprise", "Employment", "Fisheries and Maritime Affairs", "Internal Market", "Procurement", "Taxation", "Trade", "Economy (other)"),
+      "EU Affairs" => array("Budget", "External Relations", "Foreign and Security Policy", "Regional Policy", "EU Affairs (other)"),
+      "Environment" => array("Biodiversity", "Pollution", "Waste", "Water", "Environment (other)"),
+      "Health" => array("Diseases", "Food Safety", "eHealth", "Pharmaceutics", "Health (other)"),
+      "Information Society" => array("Audiovisual and Media", "Communications", "Internet", "Information Society (other)"),
+      "Justice" => array("Crime", "Internal Security", "Law", "Justice (other)"),
+      "Research and Innovation" => array("Biology", "Chemistry", "Engineering", "Geography", "Social Sciences", "Research and Innovation (other)"),
+      "Social Affairs" => array("Consumers", "Development", "Education", "eInclusion", "Employment", "Youth", " Social Affairs (other)"),
+  );
+  return $domains;
+}
+
+/* * return an array options for created vocabulary domains
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_asset_status() {
+  $node_types = array(ISA_PROJECT_TYPE);
+  $asset_status['variable_name'] = 'asset_status';
+  $asset_status['vocabulary'] = array(
+      'name' => t('Asset status'),
+      'multiple' => 0,
+      'required' => 1,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of asset status'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+
+  $asset_status['terms'] = array('Unpublish','Development');
+  return $asset_status;
+}
+
+/* * return an array options for created vocabulary domains
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_factsheet_topic() {
+  $node_types = array(ISA_FACTSHEET_TYPE);
+  $factsheet_topic['variable_name'] = 'factsheet_topic';
+  $factsheet_topic['vocabulary'] = array(
+      'name' => t('Factsheet topic'),
+      'multiple' => 0,
+      'required' => 1,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of factsheet topic'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+
+  $factsheet_topic['terms'] = array('Actors','Areas','The Future of eInclusion','eServices for Administration','Country profile','Digital Literacy and Competences','e-Accessibility','e-Inclusion Challenges','e-Inclusion and Cultural Diversity','eServices for Businesses','eServices for citizens','Geographic digital divide','History','Inclusive eGovernment','ICT & Ageing','Infrastructure','Internal Services','Legal Framework','National infrastructure','Research in Practice','Society','Strategy','Who is who');
+  return $factsheet_topic;
+}
+
+
+/*
+ * *return an array options for created vocabulary countries
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_countries() {
+  $node_types = array("profile","blog");
+  $countries['variable_name'] = 'country';
+  $countries['vocabulary'] = array(
+      'name' => t('Country'),
+      'multiple' => 0,
+      'required' => 1,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of european or non-european countries'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+
+  $countries['terms'] = array(
+      'European Countries' => array("Albania", "Austria", "Belgium", "Bosnia and Herzegovina", "Sweden", "Switzerland", "Turkey", "United Kingdom"),
+      'Other Countries' => array("Other European Countries", "Pan European", "EU Institutions", "Internal Organizations", "Africa", "Asia", "Central and South America", "North America", "Oceania")
+  );
+
+  return $countries;
+}
+
+/*
+ * *return an array options for created vocabulary Represented countries
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_represented_countries() {
+  $node_types = array(ISA_PROJECT_TYPE);
+  $represented_countries['variable_name'] = 'represented_countries';
+  $represented_countries['vocabulary'] = array(
+      'name' => t('Represented Countries'),
+      'multiple' => 1,
+      'required' => 1,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of european or non-european countries'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+
+  $represented_countries['terms'] = array(
+      'European Countries' => array("Albania", "Austria", "Belgium", "Bosnia and Herzegovina", "Sweden", "Switzerland", "Turkey", "United Kingdom"),
+      'Other Countries' => array("Other European Countries", "Pan European", "EU Institutions", "Internal Organizations", "Africa", "Asia", "Central and South America", "North America", "Oceania")
+  );
+
+  return $represented_countries;
+}
+/* * *return an array options for created vocabulary keywords
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_keywords() {
+  $node_types = array("blog", ISA_COMMUNITY_TYPE , "news", ISA_TOPIC_TYPE , "wiki", ISA_PROJECT_TYPE, "profile");
+  $keywords['variable_name'] = 'keywords';
+  $keywords['vocabulary'] = array(
+      'name' => t('Keywords'),
+      'multiple' => 1,
+      'required' => 0,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'tags' => 1,
+      'description' => t('List of keywords'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+  return $keywords;
+}
+
+/* * *return an array options for created vocabulary languages
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_languages() {
+  $node_types = array("blog", ISA_COMMUNITY_TYPE , "news", "profile", ISA_TOPIC_TYPE , "wiki" , ISA_PROJECT_TYPE);
+  $languages['variable_name'] = 'languages';
+  $languages['vocabulary'] = array(
+      'name' => t('Languages'),
+      'multiple' => 1,
+      'required' => 1,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of languages'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+  $languages['terms'] = array("Bosnian", "Bulgarian", "Croatian", "Danish", "Dutch", "Czech", "English", "Estonian", "Finnish", "French", "German", "Greek", "Hungarian", "Icelandic", "Irish", "Italian", "Latvian", "Lithuanian", "Macedonian", "Maltese", "Norwegian", "Other", "Polish", "Portuguese", "Romanian", "Serbian", "Sign Language", "Slovak", "Slovenian", "Spanish", "Swedish", "Turkish");
+
+  return $languages;
+}
+
+/* * *return an array options for created vocabulary development status
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_development_status() {
+  $node_types = array(ISA_PROJECT_TYPE);
+  $dev_status['variable_name'] = 'development_status';
+  $dev_status['vocabulary'] = array(
+      'name' => t('Development status'),
+      'multiple' => 0,
+      'required' => 1,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of development status'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+  $dev_status['terms'] = array("Planning", "Pre-Alpha", "Alpha", "Beta", "Production/Stable", "Mature", "Conform");
+  return $dev_status;
+}
+
+/* * *return an array options for created vocabulary development status
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_operating_system() {
+  $node_types = array(ISA_PROJECT_TYPE);
+  $operating_software['variable_name'] = 'operating_system';
+  $operating_software['vocabulary'] = array(
+      'name' => t('Operating system'),
+      'multiple' => 1,
+      'required' => 0,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of operating system'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+  $operating_software['terms'] = array(
+      'Other Apple, Inc' => array('Mac OS X', 'Mac OS X Server', 'Other Apple', 'Inc'),
+      'DOS' => array('DR-DOS', 'FreeDOS', 'MS-DOS', 'Other DOS'),
+      'IBM' => array('AIX', 'MVS', 'OS/400'),
+      'Microsoft Windows' => array('3.x', '95 / 98 / Me', 'NT / 2000', 'XP, 2003', 'Vista', '2008', '7'),
+      'POSIX / UNIX' => array('BSD', 'GNU', 'GNU / Linux', 'Other POSIX / UNIX'),
+      'Mobile' => array('Android', 'BlackBerry OS', 'Cisco IOS', 'Palm OS', 'Windows Mobile', 'Other Mobile'),
+      'Other Environment',
+  );
+
+  return $operating_software;
+}
+
+/* * *return an array options for created vocabulary programming_language
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_programming_language() {
+  $node_types = array(ISA_PROJECT_TYPE);
+  $programming_language['variable_name'] = 'programming_language';
+  $programming_language['vocabulary'] = array(
+      'name' => t('Programming language'),
+      'multiple' => 1,
+      'required' => 0,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of programming language'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+  $programming_language['terms'] = array('C', 'C#', 'Java', 'JavaScript', 'Perl', 'PHP', 
+      'PL/SQL', 'Python', 'Ruby', 'Zope',
+      'Other' => array('Ada', 'APL', 'ASP', 'ASP .NET ', 'Assembly',
+        'C++', 'Cold Fusion', 'Delphi/Kylix', 'Eiffel', 'Erlang', 'Euler', 'Euphoria',
+        'Forth', 'Fortran', 'Lisp', 'Logo', 'ML', 'Modula', 'Objective C', 'Object Pascal',
+        'Pascal', 'Pike', 'Progress 4GL', 'Prolog', 'REBOL', 'Rexx', 'Scheme',
+        'Simula', 'Smalltalk', 'Tcl', 'Unix Shell', 'Visual Basic', 'Visual Basic .NET', 'XBasic')
+      );
+  return $programming_language;
+}
+
+/* * *return an array options for created vocabulary license
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_license() {
+  $node_types = array(ISA_PROJECT_TYPE);
+  $license['variable_name'] = 'license';
+  $license['vocabulary'] = array(
+      'name' => t('license'),
+      'multiple' => 1,
+      'required' => 0,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of license'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+  $license['terms'] = array('European Union Public License (EUPL)', 'Apache Software License 2.0',
+      'Artistic License (Perl)', 'BSD License 2.0', 'GNU General Public License (GPL)',
+      'GNU General Public License (GPL) 2.0', 'GNU General Public License (GPL) 3.0',
+      'GNU Lesser General Public License (LGPL) 2.1', 'MIT License',
+      'Mozilla Public License (MPL) 1.1', 'Public Domain',
+      'Other licenses' => array('OSI Approved', 'IBM Public License', 'Intel Open Source License',
+        'Jabber Open Source License', 'MITRE Collaborative Virtual Workspace License (CVW)',
+        'MIT/X Consortium License', 'Mozilla Public License (MPL)', 'Mozilla Public License (MPL) 1.0',
+        'Nethack General Public License', 'Nokia Open Source License', 'Python License',
+        'QT Public License (QPL)', 'Ricoh Source Code Public License', 'Sleepycat License',
+        'Sun Internet Standards Source License', 'Vovida Software License', 'zlib/libpng License', 'Other')
+    );
+  return $license;
+}
+
+/* * *return an array options for created vocabulary categories
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_categories() {
+  $node_types = array(ISA_PROJECT_TYPE);
+  $categories['variable_name'] = 'categories';
+  $categories['vocabulary'] = array(
+      'name' => t('Categories'),
+      'multiple' => 1,
+      'required' => 0,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of categories'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+  $categories['terms'] = array('Clustering',
+    'Communications' => array('Internet Phone', 'Email', 'Fax', 'Telephony', 'BBS', 'Ham Radio', 'Conferencing', 'Chat', 'FIDO', 'Streaming', 'Usenet News', 'File' , 'haring', 'Synchronization', 'RSS Feed Readers'),
+    'Database' => array('Front-Ends', 'Database Engines/Servers'),
+    'Desktop Environment' => array('K Desktop Environment (KDE)', 'Window Managers', 'Gnome', 'Fonts', 'Screen Savers'),
+    'Education' => array('Testing', 'Computer Aided Instruction (CAI)', 'Administration', 'Languages', 'Library'),
+    'Formats and Protocols' => array('Data Formats', 'Protocols'),
+    'Internet' => array('File Transfer Protocol (FTP)', 'Log Analysis', 'Finger', 'Name Service (DNS)', 'SSH (Secure SHell)', 'WWW/HTTP', 'WAP', 'Other file transfer protocol'),
+    'Mobile',
+    'Multimedia' => array('Home Theater PC', 'Cataloguing', 'Sound/Audio', 'Video', 'DVD', 'Graphics'),
+    'Office/Business' => array('Enterprise', 'Report Generators', 'Desktop Publishing', 'To-Do Lists', 'Project Management', 'Office Suites', 'Insurance', 'Scheduling', 'E-Commerce / Shopping', 'Knowledge Management', 'Time Tracking', 'Modelling', 'Financial'),
+    'Printing',
+    'Scientific/Engineering' => array('Physics', 'Mechanical and Civil Engineering', 'Electronic Design Automation (EDA)', 'Bio-Informatics', 'Ecosystem Sciences', 'Simulations', 'Artificial Intelligence', 'Molecular Science', 'Earth Sciences', 'Mathematics', 'Quantum Computing', 'Mapping', 'Test and Measurement', 'Linguistics', 'Chemistry', 'Interface Engine/Protocol Translator', 'Astronomy', 'Molecular Mechanics', 'Building Automation', 'Human Machine Interfaces', 'Medical Science Apps.', 'Information Analysis', 'Medical Physics', 'Visualization', 'Robotics', 'SCADA'),
+    'Security' => array('Anti-Spam', 'Anti-Malware', 'Anti-Virus', 'Cryptography', 'Password manager'),
+    'Social Sciences' => array('Genealogy', 'Psychology', 'Voting', 'History', 'Politics'),
+    'Software Development' => array('Collaborative development tools', 'Compilers', 'Profiling', 'Source code browsing', 'Agile development tools', 'Binary editors', 'Virtual Machines', 'ORM (Object-relational mapping)', 'Version Control', 'Cross Compilers', 'Application Servers', 'Algorithms', 'User Interfaces', 'Templates', 'Source code analysis', 'Modeling', 'Testing', 'Assemblers', 'Design', 'Code Generators', 'Documentation', 'Usability', 'Build Tools', 'Quality Assurance', 'Interpreters', 'Object Oriented', 'Object Brokering', 'Debuggers', 'Libraries', 'CASE', 'Source code  review', 'I18N (Internationalization)', 'L10N (Localization)', 'Frameworks'),
+    'System' => array('System Shells', 'Installation/Setup', 'Power (UPS)', 'Clustering', 'Distributed Computing', 'Cron and scheduling', 'Systems Administration', 'OS distribution', 'Hardware', 'Networking', 'Benchmark', 'Software Distribution', 'Embedded systems', 'Storage', 'Home Automation', 'Boot', 'Search', 'Filesystems', 'Logging', 'Operating System Kernels', 'Emulators'),
+    'Terminals' => array('Telnet', 'Serial', 'Terminal Emulators/X Terminals'),
+    'Text Editors' => array('Computer Aided Translation (CAT)', 'Word Processors', 'Documentation', 'Integrated Development Environments (IDE)', 'Emacs', 'Vi/Vim', 'Text Processing'),
+    'Other/Non listed Topic'
+    );
+  return $categories;
+}
+
+/* * *return an array options for created vocabulary natural language
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_natural_language() {
+  $node_types = array(ISA_PROJECT_TYPE);
+  $natural_language['variable_name'] = 'natural_language';
+  $natural_language['vocabulary'] = array(
+      'name' => t('Natural language'),
+      'multiple' => 1,
+      'required' => 0,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of natural language'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+  $languages = isa_config_get_vocabulary_languages();
+  $natural_language['terms'] = $languages['terms'];
+  return $natural_language;
+}
+
+/* * *return an array options for created vocabulary intended audience
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_intended_audience() {
+  $node_types = array(ISA_PROJECT_TYPE);
+  $intended_audience['variable_name'] = 'intended_audience';
+  $intended_audience['vocabulary'] = array(
+      'name' => t('Intended audience'),
+      'multiple' => 1,
+      'required' => 0,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of intended audience'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+  $intended_audience['terms'] = array('Developers', 'End Users/Desktop', 'Other Audience', 'System Administrators');
+  return $intended_audience;
+}
+
+/* * *return an array options for created vocabulary type of initiative
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_initiative_type() {
+  $node_types = array(ISA_CASE_TYPE);
+  $initiative_type['variable_name'] = 'initiative_type';
+  $initiative_type['vocabulary'] = array(
+      'name' => t('Type of initiative'),
+      'multiple' => 1,
+      'required' => 1,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of type of initiative'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+  $initiative_type['terms'] = array("Award scheme", "Network", "Other", "Project or service", "Promotion/awareness campaign", "Strategic initiative");
+  return $initiative_type;
+}
+
+/* * *return an array options for created vocabulary scope
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_scope() {
+  $node_types = array(ISA_CASE_TYPE);
+  $scope['variable_name'] = 'scope';
+  $scope['vocabulary'] = array(
+      'name' => t('Scope'),
+      'multiple' => 1,
+      'required' => 1,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of scope'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+  $scope['terms'] = array("Cross-border", "European", "International", "Local (city or municipality)", "National", "Pan-European", "Regional (sub-national)");
+  return $scope;
+}
+
+/* * return an array options for created vocabulary case status
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_case_status() {
+  $node_types = array(ISA_CASE_TYPE);
+  $case_status['variable_name'] = 'case_status';
+  $case_status['vocabulary'] = array(
+      'name' => t('Case status'),
+      'multiple' => 0,
+      'required' => 0,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of case status'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+
+  $case_status['terms'] = array("Ended", "Implementation", "Not applicable / Not available", "On hold (not operating)", "Operation", "Pilot", "Research");
+  return $case_status;
+}
+
+/* * return an array options for created vocabulary type of service
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_service_type() {
+  $node_types = array(ISA_CASE_TYPE);
+  $service_type['variable_name'] = 'service_type';
+  $service_type['vocabulary'] = array(
+      'name' => t('Type of service'),
+      'multiple' => 0,
+      'required' => 1,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of service type'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+
+  $service_type['terms'] = array("Awareness-raising information", "Content provision", "Inclusive services of general interest", "IT Infrastructures and products", "Not applicable / Not available", "Other", "Participation", "Training and education");
+  return $service_type;
+}
+
+/* * return an array options for created vocabulary overall implementation approach
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_overall_implementation_approach() {
+  $node_types = array(ISA_CASE_TYPE);
+  $overall_impl_approach['variable_name'] = 'overall_implementation_approach';
+  $overall_impl_approach['vocabulary'] = array(
+      'name' => t('Overall implementation approach'),
+      'multiple' => 0,
+      'required' => 1,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of overall implementation approach'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+
+  $overall_impl_approach['terms'] = array("Non-profit sector", "Partnerships between administration and/or private sector and/or non-profit sector", "Private sector", "Public administration");
+  return $overall_impl_approach;
+}
+
+/* * return an array options for created vocabulary Technology choice
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_technology_choice() {
+  $node_types = array(ISA_CASE_TYPE);
+  $tech_choice['variable_name'] = 'technology_choice';
+  $tech_choice['vocabulary'] = array(
+      'name' => t('Technology choice'),
+      'multiple' => 1,
+      'required' => 1,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of technology choice'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+
+  $tech_choice['terms'] = array("Accessibility-compliant (minimum WAI AA)", "Mainly (or only) open standards", "Not applicable / Not available", "Open source software", "Proprietary technology", "Standards-based technology");
+  return $tech_choice;
+}
+
+/* * return an array options for created vocabulary funding source
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_funding_source() {
+  $node_types = array(ISA_CASE_TYPE);
+  $funding_src['variable_name'] = 'funding_source';
+  $funding_src['vocabulary'] = array(
+      'name' => t('Funding source'),
+      'multiple' => 0,
+      'required' => 0,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of funding source'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+
+  $funding_src['terms'] = array("Charity, voluntary contributions", "Private sector", "Public funding EU", "Public funding local", "Public funding national", "Public funding regional");
+  return $funding_src;
+}
+
+/* * return an array options for created vocabulary implementation cost
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_implementation_cost() {
+  $node_types = array(ISA_CASE_TYPE);
+  $impl_cost['variable_name'] = 'implementation_cost';
+  $impl_cost['vocabulary'] = array(
+      'name' => t('Implementation cost'),
+      'multiple' => 0,
+      'required' => 0,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of implementation cost'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+
+  $impl_cost['terms'] = array("Larger than €10,000,000", "Not applicable / Not available", "€1,000,000-5,000,000", "€1-5,000", "€15-49,000", "€300-499,000", "€49-299,000", "€5,000,000-10,000,000", "€5-15,000", "€500-999,000");
+  return $impl_cost;
+}
+
+/* * return an array options for created vocabulary yearly cost
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_yearly_cost() {
+  $node_types = array(ISA_CASE_TYPE);
+  $yearly_cost['variable_name'] = 'yearly_cost';
+  $yearly_cost['vocabulary'] = array(
+      'name' => t('Yearly cost'),
+      'multiple' => 0,
+      'required' => 0,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of yearly cost'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+
+  $yearly_cost['terms'] = array("Larger than €10,000,000", "Not applicable / Not available", "€1,000,000-5,000,000", "€1-49,000", "€300-499,000", "€49-299,000", "€5,000,000-10,000,000", "€500-999,000");
+  return $yearly_cost;
+}
+
+/* * return an array options for created vocabulary return on investment
+ *
+ * @return array
+ */
+function isa_config_get_vocabulary_return_investment() {
+  $node_types = array(ISA_CASE_TYPE);
+  $return_investment['variable_name'] = 'return_investment';
+  $return_investment['vocabulary'] = array(
+      'name' => t('Return on investment'),
+      'multiple' => 0,
+      'required' => 0,
+      'hierarchy' => 0,
+      'relations' => 1,
+      'weight' => 0,
+      'description' => t('List of return on investment'),
+      'nodes' => isa_config_get_node_type($node_types),
+  );
+
+  $return_investment['terms'] = array("Larger than €10,000,000", "Not applicable / Not available", "€1,000,000-5,000,000", "€1-5,000", "€15-49,000", "€300-499,000", "€49-299,000", "€5,000,000-10,000,000", "€5-15,000", "€500-999,000");
+  return $return_investment;
+}
+
+/* * Vérifie si le node_type existe
+ *
+ * @param array $node_types
+ * @return array
+ */
+function isa_config_get_node_type($node_types) {
+  $node_all_types = node_get_types();
+  foreach ($node_types as $key => $type) {
+    if (in_array($type, array_keys($node_all_types))) {
+      $node_types[$type] = $type;
+    }
+    unset($node_types[$key]);
+  }
+  return $node_types;
+}
+
+function isa_config_get_vocabularies_list() {
+
+  $vocabulary[] = isa_config_get_vocabulary_countries ();
+  $vocabulary[] = isa_config_get_vocabulary_domains ();
+  $vocabulary[] = isa_config_get_vocabulary_keywords ();
+  $vocabulary[] = isa_config_get_vocabulary_languages();
+  $vocabulary[] = isa_config_get_vocabulary_development_status();
+  $vocabulary[] = isa_config_get_vocabulary_operating_system();
+  $vocabulary[] = isa_config_get_vocabulary_programming_language();
+  $vocabulary[] = isa_config_get_vocabulary_license ();
+  $vocabulary[] = isa_config_get_vocabulary_natural_language();
+  $vocabulary[] = isa_config_get_vocabulary_intended_audience();
+  $vocabulary[] = isa_config_get_vocabulary_categories();
+  $vocabulary[] = isa_config_get_vocabulary_represented_countries ();
+  $vocabulary[] = isa_config_get_vocabulary_asset_status ();
+  $vocabulary[] = isa_config_get_vocabulary_initiative_type ();
+  $vocabulary[] = isa_config_get_vocabulary_scope ();
+  $vocabulary[] = isa_config_get_vocabulary_case_status ();
+  $vocabulary[] = isa_config_get_vocabulary_service_type ();
+  $vocabulary[] = isa_config_get_vocabulary_overall_implementation_approach ();
+  $vocabulary[] = isa_config_get_vocabulary_technology_choice ();
+  $vocabulary[] = isa_config_get_vocabulary_funding_source ();
+  $vocabulary[] = isa_config_get_vocabulary_implementation_cost ();
+  $vocabulary[] = isa_config_get_vocabulary_yearly_cost ();
+  $vocabulary[] = isa_config_get_vocabulary_return_investment ();
+  $vocabulary[] = isa_config_get_vocabulary_factsheet_topic ();
+
+  return $vocabulary;
+}
+
+function isa_config_save_terms($list_terms, $vid, $tid = NULL) {
+  //set the parent option
+  if ($tid) {
+    $parent_option = array($tid => $tid);
+  } else {
+    $parent_option = 0;
+  }
+  foreach ($list_terms as $key => $terms) {
+    // if this term have children terms
+    if (is_array($terms)) {
+      $term = array('name' => $key, 'vid' => $vid, 'parent' => $parent_option);
+      taxonomy_save_term($term);
+
+      //get the parent term tid
+      $parent_term = taxonomy_get_term_by_name($key);
+      foreach ($parent_term as $key => $value) {
+        if ($value->vid == $vid) {
+          $parent_tid = $value->tid;
+        }
+      }
+      // save the children terms
+      isa_config_save_terms($terms, $vid, $parent_tid);
+      // if this term haven't children terms
+    } else {
+      $term = array('name' => $terms, 'vid' => $vid, 'parent' => $parent_option);
+      taxonomy_save_term($term);
+    }
+  }
+}
