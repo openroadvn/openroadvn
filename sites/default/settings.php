@@ -11,7 +11,7 @@
  * to this file is a security risk.
  *
  * The configuration file to be loaded is based upon the rules below.
- *
+ *hghghgf
  * The configuration directory will be discovered by stripping the
  * website's hostname from left to right and pathname from right to
  * left. The first configuration file found will be used and any
