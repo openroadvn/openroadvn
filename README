@@ -1,0 +1,23 @@
+Giới Thiệu thêm về Openray & Joinup
+Về Openray
+Openray là nền tảng cộng tác mở cho khu vực chính phủ của Úc và New Zealand.
+Openray đưa ra một tập hợp các dịch vụ để giúp mọi người chia sẻ các kinh nghiệm của họ với các công nghệ mở và hỗ trợ họ tìm kiếm, lựa chọn, sử dụng lại, phát triển và triển khai các phần mềm và các tài sản được chia sẻ.
+Openray đưa ra nội dung phù hợp và sâu sắc trong một loạt lĩnh vực quan tâm, bao gồm:
+Các tương tác xuyên biên giới và xuyên khu vực giữa các cơ quan chính phủ;
+Truy cập tới một kho các tài sản được chia sẻ và sử dụng lại được;
+Các phương pháp luận và trợ giúp thực tiễn về sự phát triển các tài sản công nghệ mở chia sẻ được.
+Các dự án nhằm mục đích làm gia tăng và thực hiện các công nghệ mở, các tiêu chuẩn và phương pháp mở khắp khu vực chính phủ.
+Openray là dựa vào nền tảng Joinup, được Ủy ban châu Âu phát triển thông qua Chương trình các Giải pháp tương hợp cho các nền Hành chính Nhà nước (ISA). Nền tảng này được làm cho sẵn sàng theo giấy phép GNU GPLv2.
+Về phần mềm, Openray dựa vào:
+Kho phần mềm công nghệ LAMP (Linux, Apache, MySQL, PHP)
+Máy chủ Ubuntu
+Hệ quản trị nội dung Drupal
+Máy tìm kiếm Apache SOLR
+Máy chủ ứng dụng web: Tomcat
+Phần mềm quản lý chức năng kho dự án Apache SVN
+Tham gia vào dự án thử nghiệm tại Việt nam, các bạn sinh viên có cơ hội làm việc với một dự án nguồn mở thật  và làm việc với các chuyên gia trong và ngoài nước ( Cụ thể là các chuyên gia của OTF Đại học CMU-A). Các nội dung các bạn sinh viên tham gia bao gồm:
+Việt hóa Openray
+Viết tài liệu cài đặt
+Viết tài liệu hướng dẫn sử dụng
+Chỉnh sửa – tùy biến và sửa các lỗi phát sinh trong quá trình triển khai.
+Trong tương lai gần, hy vọng Openray sẽ được lựa chọn thành một cổng thông tin nguồn mở cho cả nước.
